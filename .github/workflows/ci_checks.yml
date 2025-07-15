@@ -1,0 +1,86 @@
+name: CI Checks
+
+permissions:
+  contents: read
+
+on:
+  push:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  building:
+    name: Building
+    continue-on-error: ${{ matrix.experimental || false }}
+    strategy:
+      matrix:
+        # All generated code should be running on stable now
+        rust: [nightly, stable]
+        include:
+          # Nightly is only for reference and allowed to fail
+          - rust: nightly
+            experimental: true
+        os:
+          # Check compilation works on common OSes
+          # (i.e. no path issues)
+          - ubuntu-latest
+          - macOS-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - run: cargo build --all
+        env:
+          RUST_BACKTRACE: 1
+      - run: cargo build --all --release
+        env:
+          RUST_BACKTRACE: 1
+  testing:
+    name: Testing
+    strategy:
+      matrix:
+        os:
+          # Check compilation works on common OSes
+          # (i.e. no path issues)
+          - ubuntu-latest
+          - macOS-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - run: cargo test --workspace
+        env:
+          RUST_BACKTRACE: 1
+  linting:
+    name: Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+      - run: cargo clippy --all-targets --workspace
+  formatting:
+    name: Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt
+      - run: cargo fmt -- --check
