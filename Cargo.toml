@@ -2,6 +2,11 @@
 name = "server-monitoring"
 version = "0.1.0"
 edition = "2024"
+authors = ["Louis Meyer (H1ghBre4k3r) <h1ghbe4k3r@dev.bre4k3r.de>"]
+license = "GPL-3.0"
+readme = "README.md"
 
 [dependencies]
+rocket = { version = "0.5.1", features = ["json"] }
+serde = { version = "1.0.219", features = ["derive"] }
 sysinfo = "0.36.0"
