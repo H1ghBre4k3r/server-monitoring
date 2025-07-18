@@ -5,7 +5,7 @@ pub struct ServerMetrics {
     pub system: SystemInformation,
     pub memory: MemoryInformation,
     pub cpus: CpuOverview,
-    pub components: Vec<ComponentInformation>,
+    pub components: ComponentOverview,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,6 +28,7 @@ pub struct MemoryInformation {
 pub struct CpuOverview {
     pub total: usize,
     pub arch: String,
+    pub average_usage: f32,
     pub cpus: Vec<CpuInformation>,
 }
 
@@ -36,6 +37,12 @@ pub struct CpuInformation {
     pub name: String,
     pub frequency: u64,
     pub usage: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComponentOverview {
+    pub average_temperature: Option<f32>,
+    pub components: Vec<ComponentInformation>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

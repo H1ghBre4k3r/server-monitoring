@@ -7,6 +7,9 @@ license = "GPL-3.0"
 readme = "README.md"
 
 [dependencies]
+dotenv = "0.15.0"
 rocket = { version = "0.5.1", features = ["json"] }
 serde = { version = "1.0.219", features = ["derive"] }
 sysinfo = "0.36.0"
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
