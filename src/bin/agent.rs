@@ -1,6 +1,4 @@
-use dotenv::Error;
 use rocket::{
-    Request,
     figment::Figment,
     get,
     http::Status,
@@ -108,6 +106,7 @@ fn get_config() -> Figment {
     rocket::Config::figment()
         .merge(("port", get_port()))
         .merge(("address", get_addr()))
+        .merge(("workers", 1))
 }
 
 #[launch]
