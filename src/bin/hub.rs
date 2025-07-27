@@ -1,10 +1,10 @@
 use std::time::Duration;
 
 use clap::Parser;
-use reqwest::Request;
 use server_monitoring::{
     ServerMetrics,
     config::{Config, ServerConfig, read_config_file},
+    limit_monitor::LimitMonitor,
 };
 use tokio::{join, spawn};
 use tracing::{debug, error, instrument, trace};
@@ -62,22 +62,25 @@ async fn dispatch_servers(config: &Config) {
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn server_monitor(config: ServerConfig) {
     let ServerConfig {
         ip,
         port,
         interval,
         token,
-    } = config;
+        ..
+    } = config.clone();
     debug!("starting server monitor for {ip}:{port} with interval {interval}");
 
     let url = format!("http://{ip}:{port}/metrics");
 
+    let mut monitor = LimitMonitor::new(config);
+
     loop {
         tokio::time::sleep(Duration::from_secs(interval as u64)).await;
 
-        trace!("requesting metrics for {url}");
+        trace!("{url}: requesting metrics");
 
         let client = reqwest::Client::new();
         let request = client.get(&url).header(
@@ -89,7 +92,7 @@ async fn server_monitor(config: ServerConfig) {
         let body = match response {
             Ok(body) => body,
             Err(e) => {
-                error!("{e}");
+                error!("{url}: error during request: {e}");
                 continue;
             }
         };
@@ -97,7 +100,7 @@ async fn server_monitor(config: ServerConfig) {
         let body = match body.text().await {
             Ok(body) => body,
             Err(e) => {
-                error!("{e}");
+                error!("{url}: error during decode: {e}");
                 continue;
             }
         };
@@ -105,11 +108,15 @@ async fn server_monitor(config: ServerConfig) {
         let metrics = match serde_json::from_str::<ServerMetrics>(&body) {
             Ok(metrics) => metrics,
             Err(e) => {
-                error!("{e}");
+                error!("{url}: error while trying to parse the metrics: {e}");
                 continue;
             }
         };
 
-        trace!("received server metrics for {url}: {metrics:?}");
+        trace!("{url}: received metrics");
+
+        // trace!("received server metrics for {url}: {metrics:?}");
+
+        monitor.update(&metrics).await;
     }
 }

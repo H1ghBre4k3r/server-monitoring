@@ -10,23 +10,28 @@ pub struct Config {
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct ServerConfig {
     pub ip: IpAddr,
-    #[serde(default = "default_port")]
+    #[serde(default = "crate::util::get_default_port")]
     pub port: u16,
     #[serde(default = "default_interval")]
     pub interval: usize,
     pub token: Option<String>,
+    pub limits: Option<Limits>,
 }
 
-fn default_port() -> u16 {
-    51243
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct Limits {
+    pub temperature: Option<Limit>,
+    pub usage: Option<Limit>,
+}
+
+#[derive(Debug, Clone, Copy, serde::Deserialize)]
+pub struct Limit {
+    pub limit: usize,
+    pub grace: Option<usize>,
 }
 
 fn default_interval() -> usize {
     15
-}
-
-fn default_retries() -> i64 {
-    0
 }
 
 pub fn read_config_file(path: &str) -> anyhow::Result<Config> {
