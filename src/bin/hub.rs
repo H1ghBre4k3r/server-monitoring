@@ -4,10 +4,10 @@ use clap::Parser;
 use server_monitoring::{
     ServerMetrics,
     config::{Config, ServerConfig, read_config_file},
-    limit_monitor::LimitMonitor,
+    resource_monitor::ResourceMonitor,
 };
 use tokio::{join, spawn};
-use tracing::{debug, error, instrument, trace};
+use tracing::{debug, error, instrument, level_filters::LevelFilter, trace};
 use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Debug, Clone, Parser)]
@@ -18,7 +18,10 @@ struct Args {
 }
 
 fn init() {
-    let filter = filter::Targets::new().with_target("hub", tracing::metadata::LevelFilter::TRACE);
+    let filter = filter::Targets::new().with_targets(vec![
+        ("server_monitoring", LevelFilter::TRACE),
+        ("hub", LevelFilter::TRACE),
+    ]);
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::fmt::layer()
@@ -75,7 +78,7 @@ async fn server_monitor(config: ServerConfig) {
 
     let url = format!("http://{ip}:{port}/metrics");
 
-    let mut monitor = LimitMonitor::new(config);
+    let mut monitor = ResourceMonitor::new(config);
 
     loop {
         tokio::time::sleep(Duration::from_secs(interval as u64)).await;
