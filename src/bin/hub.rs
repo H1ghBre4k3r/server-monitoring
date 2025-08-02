@@ -72,9 +72,11 @@ async fn server_monitor(config: ServerConfig) {
         port,
         interval,
         token,
+        display,
         ..
     } = config.clone();
-    debug!("starting server monitor for {ip}:{port} with interval {interval}");
+    let display_name = display.unwrap_or(String::from("unknown"));
+    debug!("starting server monitor for {display_name} ({ip}:{port}) with interval {interval}");
 
     let url = format!("http://{ip}:{port}/metrics");
 

@@ -10,6 +10,7 @@ pub struct Config {
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct ServerConfig {
     pub ip: IpAddr,
+    pub display: Option<String>,
     #[serde(default = "crate::util::get_default_port")]
     pub port: u16,
     #[serde(default = "default_interval")]
