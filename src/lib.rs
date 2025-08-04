@@ -1,5 +1,5 @@
 pub mod config;
-pub mod resource_monitor;
+pub mod monitors;
 pub mod util;
 
 use serde::{Deserialize, Serialize};
