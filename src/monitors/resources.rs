@@ -1,3 +1,7 @@
+use tokio::{
+    spawn,
+    sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel},
+};
 use tracing::{debug, instrument, trace};
 
 use crate::{
@@ -6,7 +10,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct ResourceMonitor {
+struct ResourceMonitor {
     config: ServerConfig,
     graces: Graces,
 }
@@ -51,6 +55,17 @@ impl ResourceEvaluation {
     }
 }
 
+pub fn resource_monitor(config: &ServerConfig) -> UnboundedSender<ServerMetrics> {
+    let (sender, receiver) = unbounded_channel::<ServerMetrics>();
+    let mut monitor = ResourceMonitor::new(config.clone());
+
+    spawn(async move {
+        monitor.start(receiver).await;
+    });
+
+    sender
+}
+
 impl ResourceMonitor {
     pub fn new(config: ServerConfig) -> ResourceMonitor {
         Self {
@@ -62,6 +77,12 @@ impl ResourceMonitor {
     fn server(&self) -> String {
         let ServerConfig { ip, port, .. } = self.config;
         format!("{ip}:{port}")
+    }
+
+    async fn start(&mut self, mut chan: UnboundedReceiver<ServerMetrics>) {
+        while let Some(metrics) = chan.recv().await {
+            self.update(&metrics).await;
+        }
     }
 
     #[instrument(skip_all)]

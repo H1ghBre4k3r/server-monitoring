@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use tracing::{debug, error, instrument, trace};
 
-use crate::{ServerMetrics, config::ServerConfig, monitors::resources::ResourceMonitor};
+use crate::{ServerMetrics, config::ServerConfig, monitors::resources::resource_monitor};
 
 #[instrument(skip_all)]
 pub async fn server_monitor(config: ServerConfig) {
@@ -20,7 +20,7 @@ pub async fn server_monitor(config: ServerConfig) {
     let url = format!("http://{ip}:{port}/metrics");
 
     // TODO: dispatch this as another thread and use channel for communication
-    let mut monitor = ResourceMonitor::new(config);
+    let mut chan = resource_monitor(&config);
 
     loop {
         tokio::time::sleep(Duration::from_secs(interval as u64)).await;
@@ -62,6 +62,9 @@ pub async fn server_monitor(config: ServerConfig) {
 
         // trace!("received server metrics for {url}: {metrics:?}");
 
-        monitor.update(&metrics).await;
+        if let Err(e) = chan.send(metrics) {
+            error!("{url}: error sending in channel: {e}");
+            chan = resource_monitor(&config);
+        }
     }
 }
