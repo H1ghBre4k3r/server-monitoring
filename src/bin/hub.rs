@@ -22,9 +22,9 @@ fn init() {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::fmt::layer()
+                .pretty()
                 .with_writer(std::io::stderr)
-                .compact()
-                .with_ansi(false),
+                .compact(),
         )
         .with(filter)
         .init();
