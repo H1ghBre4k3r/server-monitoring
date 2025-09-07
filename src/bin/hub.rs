@@ -1,13 +1,10 @@
-use std::time::Duration;
-
 use clap::Parser;
-use reqwest::Request;
 use server_monitoring::{
-    ServerMetrics,
-    config::{Config, ServerConfig, read_config_file},
+    config::{Config, read_config_file},
+    monitors::server::server_monitor,
 };
 use tokio::{join, spawn};
-use tracing::{debug, error, instrument, trace};
+use tracing::{error, level_filters::LevelFilter, trace};
 use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Debug, Clone, Parser)]
@@ -18,13 +15,16 @@ struct Args {
 }
 
 fn init() {
-    let filter = filter::Targets::new().with_target("hub", tracing::metadata::LevelFilter::TRACE);
+    let filter = filter::Targets::new().with_targets(vec![
+        ("server_monitoring", LevelFilter::TRACE),
+        ("hub", LevelFilter::TRACE),
+    ]);
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::fmt::layer()
+                .pretty()
                 .with_writer(std::io::stderr)
-                .compact()
-                .with_ansi(false),
+                .compact(),
         )
         .with(filter)
         .init();
@@ -59,57 +59,5 @@ async fn dispatch_servers(config: &Config) {
         if let Err(e) = handler.await {
             error!("{e}");
         }
-    }
-}
-
-#[instrument]
-async fn server_monitor(config: ServerConfig) {
-    let ServerConfig {
-        ip,
-        port,
-        interval,
-        token,
-    } = config;
-    debug!("starting server monitor for {ip}:{port} with interval {interval}");
-
-    let url = format!("http://{ip}:{port}/metrics");
-
-    loop {
-        tokio::time::sleep(Duration::from_secs(interval as u64)).await;
-
-        trace!("requesting metrics for {url}");
-
-        let client = reqwest::Client::new();
-        let request = client.get(&url).header(
-            "X-MONITORING-SECRET",
-            token.as_ref().unwrap_or(&String::new()),
-        );
-
-        let response = request.send().await;
-        let body = match response {
-            Ok(body) => body,
-            Err(e) => {
-                error!("{e}");
-                continue;
-            }
-        };
-
-        let body = match body.text().await {
-            Ok(body) => body,
-            Err(e) => {
-                error!("{e}");
-                continue;
-            }
-        };
-
-        let metrics = match serde_json::from_str::<ServerMetrics>(&body) {
-            Ok(metrics) => metrics,
-            Err(e) => {
-                error!("{e}");
-                continue;
-            }
-        };
-
-        trace!("received server metrics for {url}: {metrics:?}");
     }
 }

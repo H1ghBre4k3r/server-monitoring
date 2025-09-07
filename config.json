@@ -2,9 +2,20 @@
   "servers": [
     {
       "ip": "127.0.0.1",
+      "display": "localhost",
       "port": 1337,
       "interval": 5,
-      "token": "abc"
+      "token": "abc",
+      "limits": {
+        "usage": {
+          "limit": 0,
+          "grace": 5
+        },
+        "temperature": {
+          "limit": 0,
+          "grace": 5
+        }
+      }
     }
   ]
 }

@@ -2,9 +2,13 @@ use std::net::Ipv4Addr;
 
 const AGENT_PORT: &str = "AGENT_PORT";
 
-const DEFAULT_PORT: u32 = 51243;
+const DEFAULT_PORT: u16 = 51243;
 
-pub fn get_port() -> u32 {
+pub fn get_default_port() -> u16 {
+    DEFAULT_PORT
+}
+
+pub fn get_port() -> u16 {
     let port_from_env = std::env::var(AGENT_PORT);
     port_from_env.map_or(DEFAULT_PORT, |res| res.parse().unwrap_or(DEFAULT_PORT))
 }
