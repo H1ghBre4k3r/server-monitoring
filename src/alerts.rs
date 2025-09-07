@@ -41,8 +41,16 @@ impl AlertManager {
             return;
         };
 
-        let message = self.format_temperature_message(evaluation, temperature, temp_limit.limit);
-        self.send_alert(alert_config, &message).await;
+        match alert_config {
+            Alert::Discord(discord) => {
+                let embed = self.build_temperature_embed(evaluation, temperature, temp_limit.limit);
+                self.send_discord_embed(discord, embed).await;
+            }
+            Alert::Webhook(webhook) => {
+                let message = self.format_temperature_message(evaluation, temperature, temp_limit.limit);
+                self.send_webhook_alert(webhook, &message).await;
+            }
+        }
     }
 
     #[instrument(skip(self))]
@@ -59,8 +67,16 @@ impl AlertManager {
             return;
         };
 
-        let message = self.format_usage_message(evaluation, usage, usage_limit.limit);
-        self.send_alert(alert_config, &message).await;
+        match alert_config {
+            Alert::Discord(discord) => {
+                let embed = self.build_usage_embed(evaluation, usage, usage_limit.limit);
+                self.send_discord_embed(discord, embed).await;
+            }
+            Alert::Webhook(webhook) => {
+                let message = self.format_usage_message(evaluation, usage, usage_limit.limit);
+                self.send_webhook_alert(webhook, &message).await;
+            }
+        }
     }
 
     fn format_temperature_message(
@@ -114,34 +130,144 @@ impl AlertManager {
         }
     }
 
-    #[instrument(skip(self, alert_config))]
-    async fn send_alert(&self, alert_config: &Alert, message: &str) {
-        match alert_config {
-            Alert::Discord(discord) => {
-                self.send_discord_alert(discord, message).await;
-            }
-            Alert::Webhook(webhook) => {
-                self.send_webhook_alert(webhook, message).await;
-            }
-        }
+    fn build_temperature_embed(&self, evaluation: ResourceEvaluation, temperature: f32, limit: usize) -> serde_json::Value {
+        let server = self.server_display();
+        let (title, description, color) = match evaluation {
+            ResourceEvaluation::StartsToExceed => (
+                "🔥 Temperature Alert",
+                format!("Server **{}** temperature has exceeded the limit!", server),
+                15158332, // Red
+            ),
+            ResourceEvaluation::BackToOk => (
+                "✅ Temperature Recovered",
+                format!("Server **{}** temperature is back to normal", server),
+                3066993, // Green
+            ),
+            _ => (
+                "🌡️ Temperature Update",
+                format!("Temperature update for server **{}**", server),
+                5793266, // Light blue
+            ),
+        };
+
+        let progress_bar = self.create_progress_bar(temperature as f32, limit as f32);
+
+        json!({
+            "title": title,
+            "description": description,
+            "color": color,
+            "fields": [
+                {
+                    "name": "🌡️ Current Temperature",
+                    "value": format!("{:.1}°C", temperature),
+                    "inline": true
+                },
+                {
+                    "name": "⚠️ Limit",
+                    "value": format!("{}°C", limit),
+                    "inline": true
+                },
+                {
+                    "name": "📊 Status",
+                    "value": progress_bar,
+                    "inline": false
+                }
+            ],
+            "footer": {
+                "text": format!("Server: {} | {}", server, self.server_config.ip)
+            },
+            "timestamp": Utc::now().to_rfc3339()
+        })
     }
 
-    #[instrument(skip(self, discord))]
-    async fn send_discord_alert(&self, discord: &Discord, message: &str) {
+    fn build_usage_embed(&self, evaluation: ResourceEvaluation, usage: f32, limit: usize) -> serde_json::Value {
+        let server = self.server_display();
+        let (title, description, color) = match evaluation {
+            ResourceEvaluation::StartsToExceed => (
+                "⚠️ CPU Usage Alert",
+                format!("Server **{}** CPU usage has exceeded the limit!", server),
+                15105570, // Orange
+            ),
+            ResourceEvaluation::BackToOk => (
+                "✅ CPU Usage Recovered", 
+                format!("Server **{}** CPU usage is back to normal", server),
+                3066993, // Green
+            ),
+            _ => (
+                "💻 CPU Usage Update",
+                format!("CPU usage update for server **{}**", server),
+                5793266, // Light blue
+            ),
+        };
+
+        let progress_bar = self.create_progress_bar(usage, limit as f32);
+
+        json!({
+            "title": title,
+            "description": description,
+            "color": color,
+            "fields": [
+                {
+                    "name": "💻 Current CPU Usage",
+                    "value": format!("{:.1}%", usage),
+                    "inline": true
+                },
+                {
+                    "name": "⚠️ Limit",
+                    "value": format!("{}%", limit),
+                    "inline": true
+                },
+                {
+                    "name": "📊 Status",
+                    "value": progress_bar,
+                    "inline": false
+                }
+            ],
+            "footer": {
+                "text": format!("Server: {} | {}", server, self.server_config.ip)
+            },
+            "timestamp": Utc::now().to_rfc3339()
+        })
+    }
+
+    fn create_progress_bar(&self, current: f32, limit: f32) -> String {
+        let percentage = (current / limit) * 100.0;
+        let filled = ((current / limit) * 10.0) as usize;
+        let empty = 10 - filled.min(10);
+        
+        let bar = "█".repeat(filled.min(10)) + &"░".repeat(empty);
+        let status_emoji = if percentage >= 100.0 {
+            "🔴"
+        } else if percentage >= 80.0 {
+            "🟠"
+        } else if percentage >= 60.0 {
+            "🟡"
+        } else {
+            "🟢"
+        };
+
+        format!("{} `{}` {:.1}% of limit", status_emoji, bar, percentage)
+    }
+
+    #[instrument(skip(self, discord, embed))]
+    async fn send_discord_embed(&self, discord: &Discord, embed: serde_json::Value) {
         let payload = json!({
-            "content": message
+            "embeds": [embed]
         });
 
         match self.client.post(&discord.url).json(&payload).send().await {
             Ok(response) => {
                 if response.status().is_success() {
-                    info!("Successfully sent Discord alert");
+                    info!("Successfully sent Discord embed alert");
                 } else {
-                    error!("Discord alert failed with status: {}", response.status());
+                    error!("Discord embed alert failed with status: {}", response.status());
+                    if let Ok(error_text) = response.text().await {
+                        error!("Discord API error response: {}", error_text);
+                    }
                 }
             }
             Err(e) => {
-                error!("Failed to send Discord alert: {}", e);
+                error!("Failed to send Discord embed alert: {}", e);
             }
         }
     }
