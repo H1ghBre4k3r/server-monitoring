@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use tracing::{debug, error, instrument, trace};
 
-use crate::{ServerMetrics, config::ServerConfig, monitors::resources::resource_monitor};
+use crate::{ServerMetrics, alerts::AlertManager, config::ServerConfig, monitors::resources::resource_monitor};
 
 #[instrument(skip_all)]
 pub async fn server_monitor(config: ServerConfig) {
@@ -19,8 +19,28 @@ pub async fn server_monitor(config: ServerConfig) {
 
     let url = format!("http://{ip}:{port}/metrics");
 
-    // TODO: dispatch this as another thread and use channel for communication
-    let mut chan = resource_monitor(&config);
+    let temp_config = config.clone();
+    let usage_config = config.clone();
+
+    let mut chan = resource_monitor(
+        &config,
+        move |eval, value| {
+            if let Some(temp) = value {
+                let alert_manager = AlertManager::new(temp_config.clone());
+                tokio::spawn(async move {
+                    alert_manager.send_temperature_alert(eval, temp).await;
+                });
+            }
+        },
+        move |eval, value| {
+            if let Some(usage) = value {
+                let alert_manager = AlertManager::new(usage_config.clone());
+                tokio::spawn(async move {
+                    alert_manager.send_usage_alert(eval, usage).await;
+                });
+            }
+        },
+    );
 
     loop {
         tokio::time::sleep(Duration::from_secs(interval as u64)).await;
@@ -64,7 +84,28 @@ pub async fn server_monitor(config: ServerConfig) {
 
         if let Err(e) = chan.send(metrics) {
             error!("{url}: error sending in channel: {e}");
-            chan = resource_monitor(&config);
+            let temp_config = config.clone();
+            let usage_config = config.clone();
+
+            chan = resource_monitor(
+                &config,
+                move |eval, value| {
+                    if let Some(temp) = value {
+                        let alert_manager = AlertManager::new(temp_config.clone());
+                        tokio::spawn(async move {
+                            alert_manager.send_temperature_alert(eval, temp).await;
+                        });
+                    }
+                },
+                move |eval, value| {
+                    if let Some(usage) = value {
+                        let alert_manager = AlertManager::new(usage_config.clone());
+                        tokio::spawn(async move {
+                            alert_manager.send_usage_alert(eval, usage).await;
+                        });
+                    }
+                },
+            );
         }
     }
 }

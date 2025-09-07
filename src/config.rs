@@ -25,10 +25,28 @@ pub struct Limits {
     pub usage: Option<Limit>,
 }
 
-#[derive(Debug, Clone, Copy, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Alert {
+    Discord(Discord),
+    Webhook(Webhook),
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct Webhook {
+    pub url: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct Discord {
+    pub url: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct Limit {
     pub limit: usize,
     pub grace: Option<usize>,
+    pub alert: Option<Alert>,
 }
 
 fn default_interval() -> usize {

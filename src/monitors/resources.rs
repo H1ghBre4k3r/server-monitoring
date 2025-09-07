@@ -9,10 +9,16 @@ use crate::{
     config::{Limit, ServerConfig},
 };
 
-#[derive(Debug, Clone)]
-struct ResourceMonitor {
+#[derive(Debug)]
+struct ResourceMonitor<TemperatureHandler, UsageHandler>
+where
+    TemperatureHandler: Fn(ResourceEvaluation, Option<f32>),
+    UsageHandler: Fn(ResourceEvaluation, Option<f32>),
+{
     config: ServerConfig,
     graces: Graces,
+    temperature_handler: TemperatureHandler,
+    usage_handler: UsageHandler,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -22,7 +28,7 @@ struct Graces {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ResourceEvaluation {
+pub enum ResourceEvaluation {
     Ok,
     Exceeding,
     StartsToExceed,
@@ -55,9 +61,17 @@ impl ResourceEvaluation {
     }
 }
 
-pub fn resource_monitor(config: &ServerConfig) -> UnboundedSender<ServerMetrics> {
+pub fn resource_monitor<TemperatureHandler, UsageHandler>(
+    config: &ServerConfig,
+    temperature_handler: TemperatureHandler,
+    usage_handler: UsageHandler,
+) -> UnboundedSender<ServerMetrics>
+where
+    TemperatureHandler: Fn(ResourceEvaluation, Option<f32>) + Send + 'static,
+    UsageHandler: Fn(ResourceEvaluation, Option<f32>) + Send + 'static,
+{
     let (sender, receiver) = unbounded_channel::<ServerMetrics>();
-    let mut monitor = ResourceMonitor::new(config.clone());
+    let mut monitor = ResourceMonitor::new(config.clone(), temperature_handler, usage_handler);
 
     spawn(async move {
         monitor.start(receiver).await;
@@ -66,10 +80,20 @@ pub fn resource_monitor(config: &ServerConfig) -> UnboundedSender<ServerMetrics>
     sender
 }
 
-impl ResourceMonitor {
-    pub fn new(config: ServerConfig) -> ResourceMonitor {
+impl<TemperatureHandler, UsageHandler> ResourceMonitor<TemperatureHandler, UsageHandler>
+where
+    TemperatureHandler: Fn(ResourceEvaluation, Option<f32>),
+    UsageHandler: Fn(ResourceEvaluation, Option<f32>),
+{
+    pub fn new(
+        config: ServerConfig,
+        temperature_handler: TemperatureHandler,
+        usage_handler: UsageHandler,
+    ) -> ResourceMonitor<TemperatureHandler, UsageHandler> {
         Self {
             config,
+            temperature_handler,
+            usage_handler,
             graces: Graces::default(),
         }
     }
@@ -105,7 +129,7 @@ impl ResourceMonitor {
             return;
         };
 
-        let Limit { limit, grace } = limit;
+        let Limit { limit, grace, .. } = limit;
         let grace = grace.unwrap_or_default();
 
         let evaluation_result = ResourceEvaluation::evaluate(
@@ -126,12 +150,12 @@ impl ResourceMonitor {
                     "{}: temperature starts to exceed grace period",
                     self.server()
                 );
-                // TODO: send notification
+                (self.temperature_handler)(evaluation_result, Some(current_temp));
             }
             ResourceEvaluation::BackToOk => {
                 debug!("{}: temperature is back to normal", self.server());
                 self.graces.temperature = 0;
-                // TODO: send notification
+                (self.temperature_handler)(evaluation_result, Some(current_temp));
             }
         };
 
@@ -145,7 +169,7 @@ impl ResourceMonitor {
     async fn update_usage(&mut self, metrics: &ServerMetrics, limit: Limit) {
         let current_usage = metrics.cpus.average_usage;
 
-        let Limit { limit, grace } = limit;
+        let Limit { limit, grace, .. } = limit;
         let grace = grace.unwrap_or_default();
 
         let evaluation_result =
@@ -159,12 +183,12 @@ impl ResourceMonitor {
             ResourceEvaluation::StartsToExceed => {
                 self.graces.usage += 1;
                 debug!("{}: CPU usage starts to exceed grace period", self.server());
-                // TODO: send notification
+                (self.usage_handler)(evaluation_result, Some(current_usage));
             }
             ResourceEvaluation::BackToOk => {
                 debug!("{}: CPU usage is back to normal", self.server());
                 self.graces.usage = 0;
-                // TODO: send notification
+                (self.usage_handler)(evaluation_result, Some(current_usage));
             }
         }
         trace!(

@@ -1,0 +1,52 @@
+{
+  "servers": [
+    {
+      "ip": "192.168.1.100",
+      "display": "Production Server",
+      "port": 3000,
+      "interval": 30,
+      "token": "your-monitoring-secret",
+      "limits": {
+        "temperature": {
+          "limit": 75,
+          "grace": 3,
+          "alert": {
+            "discord": {
+              "url": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
+            }
+          }
+        },
+        "usage": {
+          "limit": 80,
+          "grace": 5,
+          "alert": {
+            "webhook": {
+              "url": "https://your-monitoring-service.com/webhook"
+            }
+          }
+        }
+      }
+    },
+    {
+      "ip": "192.168.1.101",
+      "display": "Development Server",
+      "port": 3000,
+      "interval": 60,
+      "limits": {
+        "temperature": {
+          "limit": 85,
+          "grace": 2,
+          "alert": {
+            "discord": {
+              "url": "https://discord.com/api/webhooks/YOUR_DEV_WEBHOOK_ID/YOUR_DEV_WEBHOOK_TOKEN"
+            }
+          }
+        },
+        "usage": {
+          "limit": 90,
+          "grace": 3
+        }
+      }
+    }
+  ]
+}
