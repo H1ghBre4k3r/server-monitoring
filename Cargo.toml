@@ -9,7 +9,7 @@ readme = "README.md"
 [dependencies]
 anyhow = "1.0.98"
 chrono = { version = "0.4.38", features = ["serde"] }
-clap = { version = "4.5.41", features = ["derive"] }
+clap = { version = "4.5.47", features = ["derive"] }
 dotenv = "0.15.0"
 reqwest = { version = "0.12.22", features = ["json"] }
 rocket = { version = "0.5.1", features = ["json"] }
