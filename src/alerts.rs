@@ -43,7 +43,12 @@ impl AlertManager {
 
         match alert_config {
             Alert::Discord(discord) => {
-                let embed = self.build_temperature_embed(evaluation, temperature, temp_limit.limit);
+                let embed = self.build_temperature_embed(
+                    discord,
+                    evaluation,
+                    temperature,
+                    temp_limit.limit,
+                );
                 self.send_discord_embed(discord, embed).await;
             }
             Alert::Webhook(webhook) => {
@@ -70,7 +75,7 @@ impl AlertManager {
 
         match alert_config {
             Alert::Discord(discord) => {
-                let embed = self.build_usage_embed(evaluation, usage, usage_limit.limit);
+                let embed = self.build_usage_embed(discord, evaluation, usage, usage_limit.limit);
                 self.send_discord_embed(discord, embed).await;
             }
             Alert::Webhook(webhook) => {
@@ -133,30 +138,50 @@ impl AlertManager {
 
     fn build_temperature_embed(
         &self,
+        discord_config: &Discord,
         evaluation: ResourceEvaluation,
         temperature: f32,
         limit: usize,
     ) -> serde_json::Value {
         let server = self.server_display();
+        let user_mention = if let Some(user_ids) = &discord_config.user_id {
+            let mentions: Vec<String> = user_ids
+                .split_whitespace()
+                .map(|id| format!(" <@{}>", id))
+                .collect();
+            mentions.join("")
+        } else {
+            String::new()
+        };
+
         let (title, description, color) = match evaluation {
             ResourceEvaluation::StartsToExceed => (
                 "🔥 Temperature Alert",
-                format!("Server **{}** temperature has exceeded the limit!", server),
+                format!(
+                    "Server **{}** temperature has exceeded the limit!{}",
+                    server, user_mention
+                ),
                 15158332, // Red
             ),
             ResourceEvaluation::BackToOk => (
                 "✅ Temperature Recovered",
-                format!("Server **{}** temperature is back to normal", server),
+                format!(
+                    "Server **{}** temperature is back to normal{}",
+                    server, user_mention
+                ),
                 3066993, // Green
             ),
             _ => (
                 "🌡️ Temperature Update",
-                format!("Temperature update for server **{}**", server),
+                format!(
+                    "Temperature update for server **{}**{}",
+                    server, user_mention
+                ),
                 5793266, // Light blue
             ),
         };
 
-        let progress_bar = self.create_progress_bar(temperature as f32, limit as f32);
+        let progress_bar = self.create_progress_bar(temperature, limit as f32);
 
         json!({
             "title": title,
@@ -188,25 +213,42 @@ impl AlertManager {
 
     fn build_usage_embed(
         &self,
+        discord_config: &Discord,
         evaluation: ResourceEvaluation,
         usage: f32,
         limit: usize,
     ) -> serde_json::Value {
         let server = self.server_display();
+        let user_mention = if let Some(user_ids) = &discord_config.user_id {
+            let mentions: Vec<String> = user_ids
+                .split_whitespace()
+                .map(|id| format!(" <@{}>", id))
+                .collect();
+            mentions.join("")
+        } else {
+            String::new()
+        };
+
         let (title, description, color) = match evaluation {
             ResourceEvaluation::StartsToExceed => (
                 "⚠️ CPU Usage Alert",
-                format!("Server **{}** CPU usage has exceeded the limit!", server),
+                format!(
+                    "Server **{}** CPU usage has exceeded the limit!{}",
+                    server, user_mention
+                ),
                 15105570, // Orange
             ),
             ResourceEvaluation::BackToOk => (
                 "✅ CPU Usage Recovered",
-                format!("Server **{}** CPU usage is back to normal", server),
+                format!(
+                    "Server **{}** CPU usage is back to normal{}",
+                    server, user_mention
+                ),
                 3066993, // Green
             ),
             _ => (
                 "💻 CPU Usage Update",
-                format!("CPU usage update for server **{}**", server),
+                format!("CPU usage update for server **{}**{}", server, user_mention),
                 5793266, // Light blue
             ),
         };

@@ -1,4 +1,6 @@
 {
+  "_comment": "Server Monitoring Configuration with Discord User Mentions",
+  "_discord_user_id_help": "To find Discord user ID: Enable Developer Mode in Discord Settings > Advanced, then right-click on a user and select 'Copy ID'",
   "servers": [
     {
       "ip": "192.168.1.100",
@@ -10,15 +12,18 @@
         "temperature": {
           "limit": 75,
           "grace": 3,
+          "_comment": "Discord alert with user mention for critical alerts",
           "alert": {
             "discord": {
-              "url": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
+              "url": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
+              "user_id": "123456789012345678"
             }
           }
         },
         "usage": {
           "limit": 80,
           "grace": 5,
+          "_comment": "Webhook alert without user mentions",
           "alert": {
             "webhook": {
               "url": "https://your-monitoring-service.com/webhook"
@@ -36,15 +41,53 @@
         "temperature": {
           "limit": 85,
           "grace": 2,
+          "_comment": "Discord alert mentioning different user for dev alerts",
           "alert": {
             "discord": {
-              "url": "https://discord.com/api/webhooks/YOUR_DEV_WEBHOOK_ID/YOUR_DEV_WEBHOOK_TOKEN"
+              "url": "https://discord.com/api/webhooks/YOUR_DEV_WEBHOOK_ID/YOUR_DEV_WEBHOOK_TOKEN",
+              "user_id": "987654321098765432"
             }
           }
         },
         "usage": {
           "limit": 90,
-          "grace": 3
+          "grace": 3,
+          "_comment": "Discord alert without user mention (user_id is optional)",
+          "alert": {
+            "discord": {
+              "url": "https://discord.com/api/webhooks/YOUR_DEV_WEBHOOK_ID/YOUR_DEV_WEBHOOK_TOKEN"
+            }
+          }
+        }
+      }
+    },
+    {
+      "ip": "192.168.1.102",
+      "display": "Database Server", 
+      "port": 3000,
+      "interval": 15,
+      "_comment": "Example with team role mention instead of individual user",
+      "limits": {
+        "temperature": {
+          "limit": 70,
+          "grace": 2,
+          "alert": {
+            "discord": {
+              "url": "https://discord.com/api/webhooks/YOUR_DB_WEBHOOK_ID/YOUR_DB_WEBHOOK_TOKEN",
+              "user_id": "&876543210987654321"
+            }
+          }
+        },
+        "usage": {
+          "limit": 85,
+          "grace": 4,
+          "_comment": "Multiple people can be mentioned by using multiple user IDs separated by space",
+          "alert": {
+            "discord": {
+              "url": "https://discord.com/api/webhooks/YOUR_DB_WEBHOOK_ID/YOUR_DB_WEBHOOK_TOKEN",
+              "user_id": "123456789012345678 987654321098765432"
+            }
+          }
         }
       }
     }

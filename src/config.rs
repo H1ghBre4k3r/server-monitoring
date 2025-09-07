@@ -40,6 +40,7 @@ pub struct Webhook {
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct Discord {
     pub url: String,
+    pub user_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

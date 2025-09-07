@@ -12,8 +12,8 @@ use crate::{
 #[derive(Debug)]
 struct ResourceMonitor<TemperatureHandler, UsageHandler>
 where
-    TemperatureHandler: Fn(ResourceEvaluation, Option<f32>),
-    UsageHandler: Fn(ResourceEvaluation, Option<f32>),
+    TemperatureHandler: Fn(ResourceEvaluation, f32),
+    UsageHandler: Fn(ResourceEvaluation, f32),
 {
     config: ServerConfig,
     graces: Graces,
@@ -67,8 +67,8 @@ pub fn resource_monitor<TemperatureHandler, UsageHandler>(
     usage_handler: UsageHandler,
 ) -> UnboundedSender<ServerMetrics>
 where
-    TemperatureHandler: Fn(ResourceEvaluation, Option<f32>) + Send + 'static,
-    UsageHandler: Fn(ResourceEvaluation, Option<f32>) + Send + 'static,
+    TemperatureHandler: Fn(ResourceEvaluation, f32) + Send + 'static,
+    UsageHandler: Fn(ResourceEvaluation, f32) + Send + 'static,
 {
     let (sender, receiver) = unbounded_channel::<ServerMetrics>();
     let mut monitor = ResourceMonitor::new(config.clone(), temperature_handler, usage_handler);
@@ -82,8 +82,8 @@ where
 
 impl<TemperatureHandler, UsageHandler> ResourceMonitor<TemperatureHandler, UsageHandler>
 where
-    TemperatureHandler: Fn(ResourceEvaluation, Option<f32>),
-    UsageHandler: Fn(ResourceEvaluation, Option<f32>),
+    TemperatureHandler: Fn(ResourceEvaluation, f32),
+    UsageHandler: Fn(ResourceEvaluation, f32),
 {
     pub fn new(
         config: ServerConfig,
@@ -150,12 +150,12 @@ where
                     "{}: temperature starts to exceed grace period",
                     self.server()
                 );
-                (self.temperature_handler)(evaluation_result, Some(current_temp));
+                (self.temperature_handler)(evaluation_result, current_temp);
             }
             ResourceEvaluation::BackToOk => {
                 debug!("{}: temperature is back to normal", self.server());
                 self.graces.temperature = 0;
-                (self.temperature_handler)(evaluation_result, Some(current_temp));
+                (self.temperature_handler)(evaluation_result, current_temp);
             }
         };
 
@@ -183,12 +183,12 @@ where
             ResourceEvaluation::StartsToExceed => {
                 self.graces.usage += 1;
                 debug!("{}: CPU usage starts to exceed grace period", self.server());
-                (self.usage_handler)(evaluation_result, Some(current_usage));
+                (self.usage_handler)(evaluation_result, current_usage);
             }
             ResourceEvaluation::BackToOk => {
                 debug!("{}: CPU usage is back to normal", self.server());
                 self.graces.usage = 0;
-                (self.usage_handler)(evaluation_result, Some(current_usage));
+                (self.usage_handler)(evaluation_result, current_usage);
             }
         }
         trace!(
