@@ -2,7 +2,10 @@ use std::time::Duration;
 
 use tracing::{debug, error, instrument, trace};
 
-use crate::{ServerMetrics, alerts::AlertManager, config::ServerConfig, monitors::resources::resource_monitor};
+use crate::{
+    ServerMetrics, alerts::AlertManager, config::ServerConfig,
+    monitors::resources::resource_monitor,
+};
 
 #[instrument(skip_all)]
 pub async fn server_monitor(config: ServerConfig) {

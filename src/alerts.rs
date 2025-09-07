@@ -47,7 +47,8 @@ impl AlertManager {
                 self.send_discord_embed(discord, embed).await;
             }
             Alert::Webhook(webhook) => {
-                let message = self.format_temperature_message(evaluation, temperature, temp_limit.limit);
+                let message =
+                    self.format_temperature_message(evaluation, temperature, temp_limit.limit);
                 self.send_webhook_alert(webhook, &message).await;
             }
         }
@@ -130,7 +131,12 @@ impl AlertManager {
         }
     }
 
-    fn build_temperature_embed(&self, evaluation: ResourceEvaluation, temperature: f32, limit: usize) -> serde_json::Value {
+    fn build_temperature_embed(
+        &self,
+        evaluation: ResourceEvaluation,
+        temperature: f32,
+        limit: usize,
+    ) -> serde_json::Value {
         let server = self.server_display();
         let (title, description, color) = match evaluation {
             ResourceEvaluation::StartsToExceed => (
@@ -180,7 +186,12 @@ impl AlertManager {
         })
     }
 
-    fn build_usage_embed(&self, evaluation: ResourceEvaluation, usage: f32, limit: usize) -> serde_json::Value {
+    fn build_usage_embed(
+        &self,
+        evaluation: ResourceEvaluation,
+        usage: f32,
+        limit: usize,
+    ) -> serde_json::Value {
         let server = self.server_display();
         let (title, description, color) = match evaluation {
             ResourceEvaluation::StartsToExceed => (
@@ -189,7 +200,7 @@ impl AlertManager {
                 15105570, // Orange
             ),
             ResourceEvaluation::BackToOk => (
-                "✅ CPU Usage Recovered", 
+                "✅ CPU Usage Recovered",
                 format!("Server **{}** CPU usage is back to normal", server),
                 3066993, // Green
             ),
@@ -234,7 +245,7 @@ impl AlertManager {
         let percentage = (current / limit) * 100.0;
         let filled = ((current / limit) * 10.0) as usize;
         let empty = 10 - filled.min(10);
-        
+
         let bar = "█".repeat(filled.min(10)) + &"░".repeat(empty);
         let status_emoji = if percentage >= 100.0 {
             "🔴"
@@ -260,7 +271,10 @@ impl AlertManager {
                 if response.status().is_success() {
                     info!("Successfully sent Discord embed alert");
                 } else {
-                    error!("Discord embed alert failed with status: {}", response.status());
+                    error!(
+                        "Discord embed alert failed with status: {}",
+                        response.status()
+                    );
                     if let Ok(error_text) = response.text().await {
                         error!("Discord API error response: {}", error_text);
                     }
@@ -294,4 +308,3 @@ impl AlertManager {
         }
     }
 }
-
