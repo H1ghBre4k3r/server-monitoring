@@ -22,24 +22,29 @@ pub async fn server_monitor(config: ServerConfig) {
 
     let url = format!("http://{ip}:{port}/metrics");
 
-    let temp_config = config.clone();
-    let usage_config = config.clone();
+    let create_channel = || {
+        let alert_manager = AlertManager::new(config.clone());
+        let temp_alert_manager = alert_manager.clone();
+        let usage_alert_manager = alert_manager;
 
-    let mut chan = resource_monitor(
-        &config,
-        move |eval, temp| {
-            let alert_manager = AlertManager::new(temp_config.clone());
-            tokio::spawn(async move {
-                alert_manager.send_temperature_alert(eval, temp).await;
-            });
-        },
-        move |eval, usage| {
-            let alert_manager = AlertManager::new(usage_config.clone());
-            tokio::spawn(async move {
-                alert_manager.send_usage_alert(eval, usage).await;
-            });
-        },
-    );
+        resource_monitor(
+            &config,
+            move |eval, temp| {
+                let alert_manager = temp_alert_manager.clone();
+                tokio::spawn(async move {
+                    alert_manager.send_temperature_alert(eval, temp).await;
+                });
+            },
+            move |eval, usage| {
+                let alert_manager = usage_alert_manager.clone();
+                tokio::spawn(async move {
+                    alert_manager.send_usage_alert(eval, usage).await;
+                });
+            },
+        )
+    };
+
+    let mut chan = create_channel();
 
     loop {
         tokio::time::sleep(Duration::from_secs(interval as u64)).await;
@@ -81,24 +86,7 @@ pub async fn server_monitor(config: ServerConfig) {
 
         if let Err(e) = chan.send(metrics) {
             error!("{url}: error sending in channel: {e}");
-            let temp_config = config.clone();
-            let usage_config = config.clone();
-
-            chan = resource_monitor(
-                &config,
-                move |eval, temp| {
-                    let alert_manager = AlertManager::new(temp_config.clone());
-                    tokio::spawn(async move {
-                        alert_manager.send_temperature_alert(eval, temp).await;
-                    });
-                },
-                move |eval, usage| {
-                    let alert_manager = AlertManager::new(usage_config.clone());
-                    tokio::spawn(async move {
-                        alert_manager.send_usage_alert(eval, usage).await;
-                    });
-                },
-            );
+            chan = create_channel();
         }
     }
 }
