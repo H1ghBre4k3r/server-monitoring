@@ -1,5 +1,6 @@
 pub mod alerts;
 pub mod config;
+pub mod discord;
 pub mod monitors;
 pub mod util;
 
