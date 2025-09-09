@@ -20,8 +20,9 @@ install -m 755 target/release/agent /usr/local/bin/guardia-agent
 cat > /etc/default/guardia-agent <<EOF
 # Environment variables for the guardia-agent
 # Example:
-# SECRET_KEY=your_secret_key
-# PORT=8080
+# AGENT_ADDR=0.0.0.0
+# AGENT_SECRET=your_secret_key
+# AGENT_PORT=51243
 EOF
 
 # Create the systemd service file
