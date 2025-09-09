@@ -8,7 +8,7 @@ readme = "README.md"
 
 [dependencies]
 anyhow = "1.0.99"
-chrono = { version = "0.4.38", features = ["serde"] }
+chrono = { version = "0.4.42", features = ["serde"] }
 clap = { version = "4.5.47", features = ["derive"] }
 dotenv = "0.15.0"
 reqwest = { version = "0.12.23", features = ["json"] }
