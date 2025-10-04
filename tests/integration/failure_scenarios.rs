@@ -7,13 +7,11 @@
 //! - Malformed data
 
 use server_monitoring::actors::{
-    alert::AlertHandle,
-    collector::CollectorHandle,
-    storage::StorageHandle,
+    alert::AlertHandle, collector::CollectorHandle, storage::StorageHandle,
 };
 use tokio::sync::broadcast;
-use wiremock::{Mock, MockServer, ResponseTemplate};
 use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 mod helpers;
 use helpers::*;
@@ -31,11 +29,12 @@ async fn test_collector_handles_agent_unreachable() {
     assert!(result.is_err(), "Poll should fail for unreachable server");
 
     // No metrics should be published
-    let recv_result = tokio::time::timeout(
-        tokio::time::Duration::from_millis(100),
-        metric_rx.recv()
-    ).await;
-    assert!(recv_result.is_err(), "No metrics should be published on failure");
+    let recv_result =
+        tokio::time::timeout(tokio::time::Duration::from_millis(100), metric_rx.recv()).await;
+    assert!(
+        recv_result.is_err(),
+        "No metrics should be published on failure"
+    );
 
     collector_handle.shutdown().await.unwrap();
 }
@@ -52,10 +51,7 @@ async fn test_collector_handles_500_error() {
         .await;
 
     let mock_url = url::Url::parse(&mock_server.uri()).unwrap();
-    let config = create_test_server_config(
-        mock_url.host_str().unwrap(),
-        mock_url.port().unwrap(),
-    );
+    let config = create_test_server_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
 
     let (metric_tx, _metric_rx) = broadcast::channel(256);
     let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
@@ -79,10 +75,7 @@ async fn test_collector_handles_malformed_json() {
         .await;
 
     let mock_url = url::Url::parse(&mock_server.uri()).unwrap();
-    let config = create_test_server_config(
-        mock_url.host_str().unwrap(),
-        mock_url.port().unwrap(),
-    );
+    let config = create_test_server_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
 
     let (metric_tx, _metric_rx) = broadcast::channel(256);
     let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
@@ -122,9 +115,11 @@ async fn test_storage_actor_handles_broadcast_lag() {
 
     // Send many metrics to overflow buffer
     for i in 0..20 {
-        use server_monitoring::actors::messages::MetricEvent;
         use chrono::Utc;
-        use server_monitoring::{ServerMetrics, ComponentOverview, CpuOverview, MemoryInformation, SystemInformation};
+        use server_monitoring::actors::messages::MetricEvent;
+        use server_monitoring::{
+            ComponentOverview, CpuOverview, MemoryInformation, ServerMetrics, SystemInformation,
+        };
 
         let event = MetricEvent {
             server_id: "test:3000".to_string(),
@@ -162,15 +157,15 @@ async fn test_system_continues_after_collector_error() {
     let mock_server = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/metrics"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(create_mock_metrics_json(50.0, Some(45.0))))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(create_mock_metrics_json(50.0, Some(45.0))),
+        )
         .mount(&mock_server)
         .await;
 
     let mock_url = url::Url::parse(&mock_server.uri()).unwrap();
-    let working_config = create_test_server_config(
-        mock_url.host_str().unwrap(),
-        mock_url.port().unwrap(),
-    );
+    let working_config =
+        create_test_server_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
 
     let failing_config = create_test_server_config("127.0.0.1", 9999); // Unreachable
 
@@ -179,7 +174,7 @@ async fn test_system_continues_after_collector_error() {
     let storage_handle = StorageHandle::spawn(metric_tx.subscribe());
     let alert_handle = AlertHandle::spawn(
         vec![working_config.clone(), failing_config.clone()],
-        metric_tx.subscribe()
+        metric_tx.subscribe(),
     );
 
     let working_collector = CollectorHandle::spawn(working_config, metric_tx.clone());
@@ -193,7 +188,10 @@ async fn test_system_continues_after_collector_error() {
 
     // Storage should have received metrics from working collector
     let stats = storage_handle.get_stats().await.unwrap();
-    assert!(stats.total_metrics > 0, "Should have metrics from working collector");
+    assert!(
+        stats.total_metrics > 0,
+        "Should have metrics from working collector"
+    );
 
     // Cleanup
     working_collector.shutdown().await.unwrap();
@@ -209,17 +207,16 @@ async fn test_slow_agent_response_timeout() {
     // Mock slow response (will timeout after 30s in collector)
     Mock::given(method("GET"))
         .and(path("/metrics"))
-        .respond_with(ResponseTemplate::new(200)
-            .set_body_json(create_mock_metrics_json(50.0, Some(45.0)))
-            .set_delay(std::time::Duration::from_secs(35))) // Longer than timeout
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(create_mock_metrics_json(50.0, Some(45.0)))
+                .set_delay(std::time::Duration::from_secs(35)),
+        ) // Longer than timeout
         .mount(&mock_server)
         .await;
 
     let mock_url = url::Url::parse(&mock_server.uri()).unwrap();
-    let config = create_test_server_config(
-        mock_url.host_str().unwrap(),
-        mock_url.port().unwrap(),
-    );
+    let config = create_test_server_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
 
     let (metric_tx, _metric_rx) = broadcast::channel(256);
     let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
@@ -227,11 +224,15 @@ async fn test_slow_agent_response_timeout() {
     // Poll with our own shorter timeout
     let result = tokio::time::timeout(
         tokio::time::Duration::from_secs(2),
-        collector_handle.poll_now()
-    ).await;
+        collector_handle.poll_now(),
+    )
+    .await;
 
     // Should timeout
-    assert!(result.is_err() || result.unwrap().is_err(), "Slow request should timeout");
+    assert!(
+        result.is_err() || result.unwrap().is_err(),
+        "Slow request should timeout"
+    );
 
     collector_handle.shutdown().await.unwrap();
 }
@@ -254,10 +255,7 @@ async fn test_partial_metrics_data_handled() {
         .await;
 
     let mock_url = url::Url::parse(&mock_server.uri()).unwrap();
-    let config = create_test_server_config(
-        mock_url.host_str().unwrap(),
-        mock_url.port().unwrap(),
-    );
+    let config = create_test_server_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
 
     let (metric_tx, mut metric_rx) = broadcast::channel(256);
     let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
@@ -266,10 +264,10 @@ async fn test_partial_metrics_data_handled() {
     collector_handle.poll_now().await.unwrap();
 
     // Should receive metric event
-    let event = tokio::time::timeout(
-        tokio::time::Duration::from_millis(500),
-        metric_rx.recv()
-    ).await.unwrap().unwrap();
+    let event = tokio::time::timeout(tokio::time::Duration::from_millis(500), metric_rx.recv())
+        .await
+        .unwrap()
+        .unwrap();
 
     assert_eq!(event.metrics.components.average_temperature, None);
 

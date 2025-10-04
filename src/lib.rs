@@ -3,6 +3,7 @@ pub mod alerts;
 pub mod config;
 pub mod discord;
 pub mod monitors;
+pub mod storage;
 pub mod util;
 
 use serde::{Deserialize, Serialize};

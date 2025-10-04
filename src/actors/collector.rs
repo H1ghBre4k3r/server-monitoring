@@ -276,8 +276,8 @@ impl CollectorHandle {
 mod tests {
     use super::*;
     use crate::config::ServerConfig;
-    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     fn create_test_config(ip: &str, port: u16) -> ServerConfig {
         ServerConfig {
@@ -332,8 +332,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_metrics_published_to_broadcast() {
-        use wiremock::{Mock, MockServer, ResponseTemplate};
         use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
 
         // Start mock server
         let mock_server = MockServer::start().await;
@@ -371,10 +371,7 @@ mod tests {
         // Create config pointing to mock server
         let mock_uri = mock_server.uri();
         let mock_url = url::Url::parse(&mock_uri).unwrap();
-        let mut config = create_test_config(
-            mock_url.host_str().unwrap(),
-            mock_url.port().unwrap(),
-        );
+        let mut config = create_test_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
         config.interval = 1;
 
         let (metric_tx, mut metric_rx) = broadcast::channel(16);
@@ -384,10 +381,10 @@ mod tests {
         handle.poll_now().await.unwrap();
 
         // Should receive metric event
-        let event = tokio::time::timeout(
-            tokio::time::Duration::from_millis(500),
-            metric_rx.recv()
-        ).await.unwrap().unwrap();
+        let event = tokio::time::timeout(tokio::time::Duration::from_millis(500), metric_rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
 
         assert_eq!(event.metrics.cpus.average_usage, 45.5);
         assert_eq!(event.metrics.components.average_temperature, Some(55.0));
@@ -397,8 +394,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_http_404_error_handled() {
-        use wiremock::{Mock, MockServer, ResponseTemplate};
         use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
 
         let mock_server = MockServer::start().await;
 
@@ -411,10 +408,7 @@ mod tests {
 
         let mock_uri = mock_server.uri();
         let mock_url = url::Url::parse(&mock_uri).unwrap();
-        let config = create_test_config(
-            mock_url.host_str().unwrap(),
-            mock_url.port().unwrap(),
-        );
+        let config = create_test_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
 
         let (metric_tx, _metric_rx) = broadcast::channel(16);
         let handle = CollectorHandle::spawn(config, metric_tx);
@@ -428,8 +422,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_invalid_json_response() {
-        use wiremock::{Mock, MockServer, ResponseTemplate};
         use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
 
         let mock_server = MockServer::start().await;
 
@@ -442,10 +436,7 @@ mod tests {
 
         let mock_uri = mock_server.uri();
         let mock_url = url::Url::parse(&mock_uri).unwrap();
-        let config = create_test_config(
-            mock_url.host_str().unwrap(),
-            mock_url.port().unwrap(),
-        );
+        let config = create_test_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
 
         let (metric_tx, _metric_rx) = broadcast::channel(16);
         let handle = CollectorHandle::spawn(config, metric_tx);
@@ -473,8 +464,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_concurrent_poll_now_requests() {
-        use wiremock::{Mock, MockServer, ResponseTemplate};
         use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
 
         let mock_server = MockServer::start().await;
 
@@ -498,10 +489,7 @@ mod tests {
 
         let mock_uri = mock_server.uri();
         let mock_url = url::Url::parse(&mock_uri).unwrap();
-        let config = create_test_config(
-            mock_url.host_str().unwrap(),
-            mock_url.port().unwrap(),
-        );
+        let config = create_test_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
 
         let (metric_tx, _metric_rx) = broadcast::channel(16);
         let handle = CollectorHandle::spawn(config, metric_tx);
@@ -510,9 +498,7 @@ mod tests {
         let mut tasks = vec![];
         for _ in 0..5 {
             let handle_clone = handle.clone();
-            tasks.push(tokio::spawn(async move {
-                handle_clone.poll_now().await
-            }));
+            tasks.push(tokio::spawn(async move { handle_clone.poll_now().await }));
         }
 
         // Wait for all to complete

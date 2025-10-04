@@ -14,6 +14,9 @@ use tokio::sync::oneshot;
 
 use crate::ServerMetrics;
 
+#[cfg(feature = "storage-sqlite")]
+use crate::storage::{backend::QueryRange, schema::MetricRow};
+
 /// Event published when metrics are collected from a server
 ///
 /// This event is broadcast to all interested actors (AlertActor, StorageActor, ApiActor).
@@ -107,6 +110,27 @@ pub enum StorageCommand {
     /// Get storage statistics
     GetStats {
         respond_to: oneshot::Sender<StorageStats>,
+    },
+
+    /// Query metrics within a time range (Phase 2 - with persistent backend)
+    #[cfg(feature = "storage-sqlite")]
+    QueryRange {
+        query: QueryRange,
+        respond_to: oneshot::Sender<anyhow::Result<Vec<MetricRow>>>,
+    },
+
+    /// Query the latest N metrics for a server (Phase 2 - with persistent backend)
+    #[cfg(feature = "storage-sqlite")]
+    QueryLatest {
+        server_id: String,
+        limit: usize,
+        respond_to: oneshot::Sender<anyhow::Result<Vec<MetricRow>>>,
+    },
+
+    /// Check backend health (Phase 2 - with persistent backend)
+    #[cfg(feature = "storage-sqlite")]
+    HealthCheck {
+        respond_to: oneshot::Sender<anyhow::Result<String>>,
     },
 
     /// Gracefully shut down the storage actor

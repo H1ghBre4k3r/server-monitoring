@@ -382,7 +382,9 @@ impl AlertHandle {
 mod tests {
     use super::*;
     use crate::config::{Limit, Limits};
-    use crate::{ComponentOverview, CpuOverview, MemoryInformation, SystemInformation, ServerMetrics};
+    use crate::{
+        ComponentOverview, CpuOverview, MemoryInformation, ServerMetrics, SystemInformation,
+    };
 
     // Note: ResourceEvaluation tests are in monitors/resources.rs
     // These tests focus on the AlertActor behavior

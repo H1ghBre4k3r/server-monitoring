@@ -94,6 +94,24 @@ impl StorageActor {
                             let _ = respond_to.send(stats);
                         }
 
+                        #[cfg(feature = "storage-sqlite")]
+                        StorageCommand::QueryRange { respond_to, .. } => {
+                            // Phase 2: This will be implemented when StorageActor uses persistent backend
+                            let _ = respond_to.send(Err(anyhow::anyhow!("Query operations not yet implemented in in-memory storage")));
+                        }
+
+                        #[cfg(feature = "storage-sqlite")]
+                        StorageCommand::QueryLatest { respond_to, .. } => {
+                            // Phase 2: This will be implemented when StorageActor uses persistent backend
+                            let _ = respond_to.send(Err(anyhow::anyhow!("Query operations not yet implemented in in-memory storage")));
+                        }
+
+                        #[cfg(feature = "storage-sqlite")]
+                        StorageCommand::HealthCheck { respond_to } => {
+                            // Phase 2: This will be implemented when StorageActor uses persistent backend
+                            let _ = respond_to.send(Ok("In-memory storage: operational".to_string()));
+                        }
+
                         StorageCommand::Shutdown => {
                             debug!("received shutdown command");
                             break;
