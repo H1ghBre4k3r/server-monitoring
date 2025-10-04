@@ -1,3 +1,4 @@
+pub mod actors;
 pub mod alerts;
 pub mod config;
 pub mod discord;
@@ -6,7 +7,7 @@ pub mod util;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ServerMetrics {
     pub system: SystemInformation,
     pub memory: MemoryInformation,
@@ -14,7 +15,7 @@ pub struct ServerMetrics {
     pub components: ComponentOverview,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SystemInformation {
     pub name: Option<String>,
     pub kernel_version: Option<String>,
@@ -22,7 +23,7 @@ pub struct SystemInformation {
     pub host_name: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MemoryInformation {
     pub total: u64,
     pub used: u64,
@@ -30,7 +31,7 @@ pub struct MemoryInformation {
     pub used_swap: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CpuOverview {
     pub total: usize,
     pub arch: String,
@@ -38,20 +39,20 @@ pub struct CpuOverview {
     pub cpus: Vec<CpuInformation>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CpuInformation {
     pub name: String,
     pub frequency: u64,
     pub usage: f32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ComponentOverview {
     pub average_temperature: Option<f32>,
     pub components: Vec<ComponentInformation>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ComponentInformation {
     pub name: String,
     pub temperature: Option<f32>,

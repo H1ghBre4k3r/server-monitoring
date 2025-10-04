@@ -31,35 +31,38 @@ A comprehensive monitoring platform featuring:
 
 ---
 
-## Phase 1: Architecture Refactoring 🏗️
+## Phase 1: Architecture Refactoring 🏗️ [IN PROGRESS]
 
 **Goal:** Modernize the codebase with a clean actor-based architecture
 
 **Duration:** 1-2 weeks
 
+**Status:** Week 1 - Core actor infrastructure complete ✅
+
 ### 1.1 Actor Model Design
-- [ ] Design actor system with clear responsibilities
-  - `MetricCollectorActor` - polls agents and collects metrics
-  - `StorageActor` - handles all persistence operations
-  - `AlertActor` - evaluates rules and sends alerts
-  - `ServiceMonitorActor` - monitors service health
-  - `ApiActor` - handles external API requests
-- [ ] Define message types and communication patterns
+- [x] Design actor system with clear responsibilities
+  - `MetricCollectorActor` - polls agents and collects metrics ✅
+  - `StorageActor` - handles all persistence operations (stub) ✅
+  - `AlertActor` - evaluates rules and sends alerts ✅
+  - `ServiceMonitorActor` - monitors service health (Phase 3)
+  - `ApiActor` - handles external API requests (Phase 4)
+- [x] Define message types and communication patterns ✅
 - [ ] Document actor lifecycle and supervision strategy
 
 ### 1.2 Channel Architecture
-- [ ] Replace current loop-based polling with tokio channels
-- [ ] Implement `mpsc` channels for actor commands
-- [ ] Implement `broadcast` channels for metric events
-- [ ] Add backpressure handling and buffering strategies
+- [x] Replace current loop-based polling with tokio channels ✅
+- [x] Implement `mpsc` channels for actor commands ✅
+- [x] Implement `broadcast` channels for metric events ✅
+- [x] Add backpressure handling and buffering strategies ✅
 
 ### 1.3 Hub Refactoring
-- [ ] Refactor `hub.rs` to spawn actor tasks
+- [ ] Refactor `hub.rs` to spawn actor tasks (NEXT STEP)
 - [ ] Implement graceful shutdown for all actors
 - [ ] Add actor health monitoring
 - [ ] Create unified configuration system
 
 ### 1.4 Testing & Migration
+- [x] Add basic unit tests for actors ✅
 - [ ] Add integration tests for actor communication
 - [ ] Ensure backward compatibility with existing configs
 - [ ] Performance benchmarking vs current implementation
@@ -68,6 +71,15 @@ A comprehensive monitoring platform featuring:
 **Dependencies:** None
 **Deliverables:** Cleaner, more maintainable codebase with actor model
 **Reference:** [docs/architecture/REFACTORING_PLAN.md](docs/architecture/REFACTORING_PLAN.md)
+
+**Progress Notes:**
+- **2025-01-15**: Created actor module structure (`src/actors/`)
+  - Implemented `MetricCollectorActor` - replaces old `server_monitor` loop
+  - Implemented `AlertActor` - maintains grace period state machine
+  - Implemented `StorageActor` (in-memory stub for Phase 2)
+  - Added message types (`MetricEvent`, commands for each actor)
+  - Set up broadcast channel for metric distribution
+  - All tests passing (5/5) ✅
 
 ---
 

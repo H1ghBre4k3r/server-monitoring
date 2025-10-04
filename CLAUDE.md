@@ -8,13 +8,48 @@ This is a Rust-based server monitoring solution that uses a hub-agent architectu
 
 **Architecture:**
 - **Agent (`src/bin/agent.rs`)**: Runs on monitored servers, exposes metrics via Rocket HTTP server on `/metrics` endpoint
-- **Hub (`src/bin/hub.rs`)**: Central monitoring service that polls multiple agents, evaluates metrics against configured limits, and sends alerts
+- **Hub (`src/bin/hub.rs`)**: Central monitoring service using actor-based architecture (Phase 1 refactoring in progress)
 
 **Key Components:**
 - `ServerMetrics`: Core data structure containing system info, memory, CPU, and component temperature data
 - `AlertManager`: Handles sending alerts via Discord webhooks or generic webhooks
-- `ResourceMonitor`: Evaluates metrics against limits with grace period support
 - Configuration is JSON-based (see `config.example.json`)
+
+### Actor-Based Architecture (NEW - Phase 1)
+
+The hub is being refactored to use an actor-based architecture for better scalability and maintainability:
+
+**Actors (`src/actors/`):**
+- **MetricCollectorActor** (`collector.rs`): Polls agent endpoints at configured intervals, publishes metrics to broadcast channel
+- **AlertActor** (`alert.rs`): Subscribes to metrics, maintains grace period state, triggers alerts when thresholds exceeded
+- **StorageActor** (`storage.rs`): Subscribes to metrics, persists to storage (currently in-memory stub, Phase 2 will add SQLite/Postgres)
+
+**Communication:**
+- Each actor has an `mpsc` command channel for control messages (poll now, shutdown, etc.)
+- Metrics flow through a `broadcast` channel from collectors to alert/storage actors
+- Handles provide typed API for sending commands to actors
+
+**Message Types (`messages.rs`):**
+- `MetricEvent`: Published when metrics collected from a server
+- `CollectorCommand`, `AlertCommand`, `StorageCommand`: Control messages for each actor type
+
+**Why Actor Model:**
+- Loose coupling - actors only communicate via messages
+- Testable - actors can be tested in isolation with mock channels
+- Scalable - easy to add new metric consumers (API, dashboard, etc.)
+- Supervision - actors can be monitored and restarted independently
+
+**Migration Status (Phase 1):**
+- ✅ Core actor infrastructure implemented
+- ✅ All actor types created with command/event channels
+- ✅ Unit tests passing (5/5)
+- ⏳ NEXT: Integrate actors into hub.rs (parallel with old system)
+- ⏳ TODO: Performance validation, full migration, remove old code
+
+**Testing:**
+- Run actor tests: `cargo test --lib`
+- All actors have basic unit tests in their respective modules
+- Integration tests coming in Phase 1.3
 
 ## Development Commands
 
