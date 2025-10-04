@@ -46,4 +46,5 @@
 pub mod alert;
 pub mod collector;
 pub mod messages;
+pub mod service_monitor;
 pub mod storage;

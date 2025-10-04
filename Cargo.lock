@@ -2331,6 +2331,7 @@ dependencies = [
  "futures",
  "pretty_assertions",
  "proptest",
+ "regex",
  "reqwest",
  "rocket",
  "serde",

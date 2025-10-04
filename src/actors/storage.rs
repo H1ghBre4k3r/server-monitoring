@@ -335,12 +335,18 @@ impl StorageActor {
             // Calculate cutoff date
             let cutoff = chrono::Utc::now() - chrono::Duration::days(retention_days as i64);
 
-            debug!("running retention cleanup (deleting metrics before {})", cutoff);
+            debug!(
+                "running retention cleanup (deleting metrics before {})",
+                cutoff
+            );
 
             match backend.cleanup_old_metrics(cutoff).await {
                 Ok(deleted_count) => {
                     if deleted_count > 0 {
-                        info!("retention cleanup complete: deleted {} old metrics", deleted_count);
+                        info!(
+                            "retention cleanup complete: deleted {} old metrics",
+                            deleted_count
+                        );
                     } else {
                         trace!("retention cleanup complete: no old metrics to delete");
                     }

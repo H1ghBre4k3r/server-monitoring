@@ -98,5 +98,54 @@
         }
       }
     }
+  ],
+  "_services_comment": "Service monitoring configuration (HTTP/HTTPS endpoints) - Phase 3",
+  "services": [
+    {
+      "name": "API Health Check",
+      "url": "https://api.example.com/health",
+      "interval": 60,
+      "timeout": 10,
+      "method": "GET",
+      "expected_status": [200, 204],
+      "_comment": "Discord alert when API goes down",
+      "alert": {
+        "discord": {
+          "url": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
+          "user_id": "123456789012345678"
+        }
+      }
+    },
+    {
+      "name": "Website Homepage",
+      "url": "https://example.com",
+      "interval": 120,
+      "timeout": 15,
+      "method": "GET",
+      "body_pattern": "Welcome to Example",
+      "_comment": "Check homepage loads and contains expected text",
+      "grace": 3,
+      "alert": {
+        "webhook": {
+          "url": "https://monitoring.example.com/webhook"
+        }
+      }
+    },
+    {
+      "name": "Database API",
+      "url": "https://db.example.com/api/ping",
+      "interval": 30,
+      "timeout": 5,
+      "method": "POST",
+      "expected_status": [200],
+      "_comment": "Critical database service - short interval and grace period",
+      "grace": 2,
+      "alert": {
+        "discord": {
+          "url": "https://discord.com/api/webhooks/YOUR_CRITICAL_WEBHOOK_ID/YOUR_CRITICAL_WEBHOOK_TOKEN",
+          "user_id": "&876543210987654321"
+        }
+      }
+    }
   ]
 }

@@ -149,3 +149,73 @@ pub struct StorageStats {
     /// Number of flush operations performed
     pub flush_count: u64,
 }
+
+// ============================================================================
+// Service Monitoring Messages (Phase 3)
+// ============================================================================
+
+/// Service health status
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ServiceStatus {
+    /// Service is responding correctly
+    Up,
+
+    /// Service is not responding or failing checks
+    Down,
+
+    /// Service is responding but not meeting all health criteria
+    /// (e.g., unexpected status code, body pattern mismatch)
+    Degraded,
+}
+
+/// Event published when a service health check is performed
+///
+/// This event is broadcast to all interested actors (AlertActor, StorageActor).
+#[derive(Debug, Clone)]
+pub struct ServiceCheckEvent {
+    /// Service name (from configuration)
+    pub service_name: String,
+
+    /// URL that was checked
+    pub url: String,
+
+    /// When the check was performed
+    pub timestamp: DateTime<Utc>,
+
+    /// Overall status result
+    pub status: ServiceStatus,
+
+    /// Response time in milliseconds (if request succeeded)
+    pub response_time_ms: Option<u64>,
+
+    /// HTTP status code (if received)
+    pub http_status_code: Option<u16>,
+
+    /// SSL certificate expiry in days (if HTTPS and available)
+    pub ssl_expiry_days: Option<i64>,
+
+    /// Error message (if check failed)
+    pub error_message: Option<String>,
+}
+
+/// Commands that can be sent to a ServiceMonitorActor
+#[derive(Debug)]
+pub enum ServiceCommand {
+    /// Trigger an immediate health check (bypassing the interval timer)
+    CheckNow {
+        /// Channel to send the result back
+        respond_to: oneshot::Sender<anyhow::Result<()>>,
+    },
+
+    /// Update the check interval
+    ///
+    /// The new interval takes effect after the next check completes.
+    UpdateInterval {
+        /// New interval in seconds
+        interval_secs: u64,
+    },
+
+    /// Gracefully shut down the service monitor
+    Shutdown,
+}

@@ -13,8 +13,7 @@ use tokio::sync::broadcast;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-mod helpers;
-use helpers::*;
+use crate::helpers::*;
 
 #[tokio::test]
 async fn test_collector_handles_agent_unreachable() {

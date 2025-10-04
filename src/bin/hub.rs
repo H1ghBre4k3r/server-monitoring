@@ -1,6 +1,9 @@
 use clap::Parser;
 use server_monitoring::{
-    actors::{alert::AlertHandle, collector::CollectorHandle, storage::StorageHandle},
+    actors::{
+        alert::AlertHandle, collector::CollectorHandle, service_monitor::ServiceHandle,
+        storage::StorageHandle,
+    },
     config::{Config, StorageConfig, read_config_file},
 };
 use tokio::sync::broadcast;
@@ -63,13 +66,17 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
     // Capacity of 256 allows some buffering for slow consumers
     let (metric_tx, _metric_rx) = broadcast::channel(256);
 
+    // Create broadcast channel for service check events
+    let (service_tx, _service_rx) = broadcast::channel(256);
+
     // Initialize storage backend based on config
     #[cfg(feature = "storage-sqlite")]
     let (backend, retention_days) = initialize_storage_backend(&config.storage).await;
 
     // Spawn storage actor with optional persistent backend
     #[cfg(feature = "storage-sqlite")]
-    let storage_handle = StorageHandle::spawn_with_backend(metric_tx.subscribe(), backend, retention_days);
+    let storage_handle =
+        StorageHandle::spawn_with_backend(metric_tx.subscribe(), backend, retention_days);
 
     #[cfg(not(feature = "storage-sqlite"))]
     let storage_handle = StorageHandle::spawn(metric_tx.subscribe());
@@ -93,6 +100,18 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
         collector_handles.push(handle);
     }
 
+    // Spawn service monitor actor for each configured service
+    let mut service_handles = Vec::new();
+    if let Some(services) = config.services {
+        for service_config in services {
+            let service_name = service_config.name.clone();
+
+            let handle = ServiceHandle::spawn(service_config, service_tx.clone());
+            info!("service monitor actor started for {service_name}");
+            service_handles.push(handle);
+        }
+    }
+
     info!("all actors started, monitoring active");
     info!("press Ctrl+C to shutdown gracefully");
 
@@ -112,6 +131,11 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
         if let Err(e) = handle.shutdown().await {
             warn!("error shutting down collector: {e}");
         }
+    }
+
+    info!("shutting down service monitors...");
+    for handle in service_handles {
+        handle.shutdown().await;
     }
 
     info!("shutting down alert actor...");
@@ -143,7 +167,10 @@ async fn initialize_storage_backend(
             match SqliteBackend::new(path).await {
                 Ok(backend) => {
                     info!("SQLite backend initialized successfully");
-                    (Some(Box::new(backend) as Box<dyn StorageBackend>), Some(*retention_days))
+                    (
+                        Some(Box::new(backend) as Box<dyn StorageBackend>),
+                        Some(*retention_days),
+                    )
                 }
                 Err(e) => {
                     error!("failed to initialize SQLite backend: {}", e);

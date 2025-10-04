@@ -47,6 +47,9 @@ pub struct Config {
 
     /// Storage configuration (optional - defaults to in-memory)
     pub storage: Option<StorageConfig>,
+
+    /// Service monitoring configuration (HTTP/HTTPS endpoints)
+    pub services: Option<Vec<ServiceConfig>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -90,6 +93,59 @@ pub struct Limit {
     pub limit: usize,
     pub grace: Option<usize>,
     pub alert: Option<Alert>,
+}
+
+/// HTTP method for service checks
+#[derive(Debug, Default, Clone, serde::Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum HttpMethod {
+    #[default]
+    Get,
+    Post,
+    Head,
+}
+
+/// Service monitoring configuration (HTTP/HTTPS endpoints)
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct ServiceConfig {
+    /// Service name (for display and identification)
+    pub name: String,
+
+    /// URL to monitor (HTTP or HTTPS)
+    pub url: String,
+
+    /// Check interval in seconds
+    #[serde(default = "default_service_interval")]
+    pub interval: usize,
+
+    /// Request timeout in seconds
+    #[serde(default = "default_service_timeout")]
+    pub timeout: usize,
+
+    /// HTTP method to use
+    #[serde(default)]
+    pub method: HttpMethod,
+
+    /// Expected HTTP status codes (e.g., [200, 201, 204])
+    /// If not specified, any 2xx status is considered success
+    pub expected_status: Option<Vec<u16>>,
+
+    /// Optional regex pattern to match in response body
+    pub body_pattern: Option<String>,
+
+    /// Consecutive failures before alerting
+    pub grace: Option<usize>,
+
+    /// Alert configuration
+    pub alert: Option<Alert>,
+}
+
+fn default_service_interval() -> usize {
+    60 // Check every 60 seconds by default
+}
+
+fn default_service_timeout() -> usize {
+    10 // 10 second timeout by default
 }
 
 fn default_interval() -> usize {

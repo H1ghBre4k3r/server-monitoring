@@ -7,11 +7,11 @@
 //! - Retention cleanup removes old metrics
 
 use chrono::{Duration, Utc};
-use server_monitoring::actors::storage::StorageHandle;
-use server_monitoring::actors::messages::MetricEvent;
-use server_monitoring::storage::sqlite::SqliteBackend;
-use server_monitoring::storage::StorageBackend;
 use server_monitoring::ServerMetrics;
+use server_monitoring::actors::messages::MetricEvent;
+use server_monitoring::actors::storage::StorageHandle;
+use server_monitoring::storage::StorageBackend;
+use server_monitoring::storage::sqlite::SqliteBackend;
 use tempfile::tempdir;
 use tokio::sync::broadcast;
 
@@ -72,7 +72,10 @@ async fn test_full_persistence_pipeline() {
     // Verify stats show metrics were stored
     let stats = storage_handle.get_stats().await.unwrap();
     // In-memory buffer should have 2 metrics
-    assert_eq!(stats.buffer_size, 2, "Should have 2 metrics in memory buffer");
+    assert_eq!(
+        stats.buffer_size, 2,
+        "Should have 2 metrics in memory buffer"
+    );
     assert!(stats.flush_count >= 1, "Should have flushed at least once");
 
     // Query latest metrics through the actor
@@ -84,11 +87,14 @@ async fn test_full_persistence_pipeline() {
 
     // Verify both metrics are present (with tolerance for timestamp precision)
     // SQLite stores timestamps with millisecond precision, so we check within 1 second tolerance
-    let has_first_metric = latest.iter().any(|m| {
-        (m.timestamp - base_time).num_milliseconds().abs() < 1000
-    });
+    let has_first_metric = latest
+        .iter()
+        .any(|m| (m.timestamp - base_time).num_milliseconds().abs() < 1000);
     let has_second_metric = latest.iter().any(|m| {
-        (m.timestamp - (base_time + Duration::seconds(60))).num_milliseconds().abs() < 1000
+        (m.timestamp - (base_time + Duration::seconds(60)))
+            .num_milliseconds()
+            .abs()
+            < 1000
     });
 
     assert!(has_first_metric, "Should contain first metric");
@@ -137,10 +143,7 @@ async fn test_retention_cleanup() {
     backend.insert_batch(recent_metrics).await.unwrap();
 
     // Verify both are present
-    let all_metrics = backend
-        .query_latest(&server_id, 10)
-        .await
-        .unwrap();
+    let all_metrics = backend.query_latest(&server_id, 10).await.unwrap();
     assert_eq!(all_metrics.len(), 2, "Should have 2 metrics before cleanup");
 
     // Run cleanup (30 days retention)
@@ -150,11 +153,12 @@ async fn test_retention_cleanup() {
     assert_eq!(deleted_count, 1, "Should delete 1 old metric");
 
     // Verify only recent metric remains
-    let remaining_metrics = backend
-        .query_latest(&server_id, 10)
-        .await
-        .unwrap();
-    assert_eq!(remaining_metrics.len(), 1, "Should have 1 metric after cleanup");
+    let remaining_metrics = backend.query_latest(&server_id, 10).await.unwrap();
+    assert_eq!(
+        remaining_metrics.len(),
+        1,
+        "Should have 1 metric after cleanup"
+    );
     assert!(
         remaining_metrics[0].timestamp > cutoff,
         "Remaining metric should be after cutoff"
@@ -208,7 +212,10 @@ async fn test_batch_write_performance() {
 
     // Verify all metrics were persisted
     let stats = storage_handle.get_stats().await.unwrap();
-    assert_eq!(stats.total_metrics, 150, "Should have 150 metrics in storage");
+    assert_eq!(
+        stats.total_metrics, 150,
+        "Should have 150 metrics in storage"
+    );
     assert!(
         stats.flush_count >= 2,
         "Should have flushed at least twice (auto + manual)"

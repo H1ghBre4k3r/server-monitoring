@@ -15,3 +15,6 @@ mod concurrency;
 #[cfg(feature = "storage-sqlite")]
 #[path = "integration/storage_persistence.rs"]
 mod storage_persistence;
+
+#[path = "integration/service_monitoring.rs"]
+mod service_monitoring;
