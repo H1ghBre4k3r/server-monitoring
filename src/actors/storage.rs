@@ -28,7 +28,7 @@ use std::time::Duration;
 
 use tokio::sync::{broadcast, mpsc};
 use tokio::time;
-use tracing::{debug, error, instrument, trace, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 use super::messages::{MetricEvent, StorageCommand, StorageStats};
 
@@ -43,6 +43,9 @@ const BATCH_SIZE_TRIGGER: usize = 100;
 
 /// Batch time trigger - flush after this duration
 const BATCH_TIME_TRIGGER: Duration = Duration::from_secs(5);
+
+/// Cleanup interval - run retention cleanup daily
+const CLEANUP_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60); // 24 hours
 
 /// Storage actor with optional persistent backend
 ///
@@ -69,6 +72,10 @@ pub struct StorageActor {
 
     /// Flush counter (for stats)
     flush_count: u64,
+
+    /// Retention period in days (for automatic cleanup)
+    #[cfg(feature = "storage-sqlite")]
+    retention_days: Option<u32>,
 }
 
 impl StorageActor {
@@ -78,6 +85,7 @@ impl StorageActor {
         command_rx: mpsc::Receiver<StorageCommand>,
         metric_rx: broadcast::Receiver<MetricEvent>,
         backend: Option<Box<dyn StorageBackend>>,
+        retention_days: Option<u32>,
     ) -> Self {
         let mode = if backend.is_some() {
             "persistent"
@@ -86,6 +94,10 @@ impl StorageActor {
         };
         debug!("creating storage actor in {mode} mode");
 
+        if let Some(days) = retention_days {
+            debug!("retention cleanup enabled: {} days", days);
+        }
+
         Self {
             backend,
             batch_buffer: Vec::with_capacity(BATCH_SIZE_TRIGGER),
@@ -93,6 +105,7 @@ impl StorageActor {
             command_rx,
             metric_rx,
             flush_count: 0,
+            retention_days,
         }
     }
 
@@ -119,6 +132,9 @@ impl StorageActor {
         let has_backend = self.backend.is_some();
 
         #[cfg(feature = "storage-sqlite")]
+        let has_retention = self.retention_days.is_some();
+
+        #[cfg(feature = "storage-sqlite")]
         debug!(
             "starting storage actor (mode: {})",
             if has_backend {
@@ -133,6 +149,17 @@ impl StorageActor {
 
         #[cfg(feature = "storage-sqlite")]
         let mut flush_interval = time::interval(BATCH_TIME_TRIGGER);
+
+        // Cleanup interval for retention policy
+        #[cfg(feature = "storage-sqlite")]
+        let mut cleanup_interval = time::interval(CLEANUP_INTERVAL);
+
+        // Run initial cleanup on startup if retention is configured
+        #[cfg(feature = "storage-sqlite")]
+        if has_backend && has_retention {
+            debug!("running initial retention cleanup on startup");
+            self.run_cleanup().await;
+        }
 
         loop {
             #[cfg(feature = "storage-sqlite")]
@@ -160,6 +187,12 @@ impl StorageActor {
                             trace!("time-based flush triggered ({} metrics)", self.batch_buffer.len());
                             self.flush_batch().await;
                         }
+                    }
+
+                    // Cleanup trigger for retention policy (daily)
+                    _ = cleanup_interval.tick(), if has_backend && has_retention => {
+                        debug!("daily retention cleanup triggered");
+                        self.run_cleanup().await;
                     }
 
                     // Handle commands
@@ -294,6 +327,32 @@ impl StorageActor {
         }
     }
 
+    /// Run retention cleanup - delete metrics older than retention_days
+    #[cfg(feature = "storage-sqlite")]
+    async fn run_cleanup(&self) {
+        if let (Some(backend), Some(retention_days)) = (self.backend.as_ref(), self.retention_days)
+        {
+            // Calculate cutoff date
+            let cutoff = chrono::Utc::now() - chrono::Duration::days(retention_days as i64);
+
+            debug!("running retention cleanup (deleting metrics before {})", cutoff);
+
+            match backend.cleanup_old_metrics(cutoff).await {
+                Ok(deleted_count) => {
+                    if deleted_count > 0 {
+                        info!("retention cleanup complete: deleted {} old metrics", deleted_count);
+                    } else {
+                        trace!("retention cleanup complete: no old metrics to delete");
+                    }
+                }
+                Err(e) => {
+                    error!("failed to run retention cleanup: {}", e);
+                    // Don't crash the actor - cleanup will be retried on next interval
+                }
+            }
+        }
+    }
+
     /// Handle a command
     async fn handle_command(&mut self, cmd: StorageCommand) {
         match cmd {
@@ -409,10 +468,11 @@ impl StorageHandle {
     pub fn spawn_with_backend(
         metric_rx: broadcast::Receiver<MetricEvent>,
         backend: Option<Box<dyn StorageBackend>>,
+        retention_days: Option<u32>,
     ) -> Self {
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
 
-        let actor = StorageActor::new(cmd_rx, metric_rx, backend);
+        let actor = StorageActor::new(cmd_rx, metric_rx, backend, retention_days);
 
         tokio::spawn(actor.run());
 
@@ -424,7 +484,7 @@ impl StorageHandle {
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
 
         #[cfg(feature = "storage-sqlite")]
-        let actor = StorageActor::new(cmd_rx, metric_rx, None);
+        let actor = StorageActor::new(cmd_rx, metric_rx, None, None);
 
         #[cfg(not(feature = "storage-sqlite"))]
         let actor = StorageActor::new(cmd_rx, metric_rx);

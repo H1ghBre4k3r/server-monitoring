@@ -11,3 +11,7 @@ mod failure_scenarios;
 
 #[path = "integration/concurrency.rs"]
 mod concurrency;
+
+#[cfg(feature = "storage-sqlite")]
+#[path = "integration/storage_persistence.rs"]
+mod storage_persistence;

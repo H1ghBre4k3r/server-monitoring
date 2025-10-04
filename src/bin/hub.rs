@@ -65,11 +65,11 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
 
     // Initialize storage backend based on config
     #[cfg(feature = "storage-sqlite")]
-    let backend = initialize_storage_backend(&config.storage).await;
+    let (backend, retention_days) = initialize_storage_backend(&config.storage).await;
 
     // Spawn storage actor with optional persistent backend
     #[cfg(feature = "storage-sqlite")]
-    let storage_handle = StorageHandle::spawn_with_backend(metric_tx.subscribe(), backend);
+    let storage_handle = StorageHandle::spawn_with_backend(metric_tx.subscribe(), backend, retention_days);
 
     #[cfg(not(feature = "storage-sqlite"))]
     let storage_handle = StorageHandle::spawn(metric_tx.subscribe());
@@ -126,10 +126,11 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
 }
 
 /// Initialize storage backend based on configuration
+/// Returns (backend, retention_days)
 #[cfg(feature = "storage-sqlite")]
 async fn initialize_storage_backend(
     storage_config: &Option<StorageConfig>,
-) -> Option<Box<dyn StorageBackend>> {
+) -> (Option<Box<dyn StorageBackend>>, Option<u32>) {
     match storage_config {
         Some(StorageConfig::Sqlite {
             path,
@@ -142,18 +143,18 @@ async fn initialize_storage_backend(
             match SqliteBackend::new(path).await {
                 Ok(backend) => {
                     info!("SQLite backend initialized successfully");
-                    Some(Box::new(backend) as Box<dyn StorageBackend>)
+                    (Some(Box::new(backend) as Box<dyn StorageBackend>), Some(*retention_days))
                 }
                 Err(e) => {
                     error!("failed to initialize SQLite backend: {}", e);
                     warn!("falling back to in-memory storage");
-                    None
+                    (None, None)
                 }
             }
         }
         Some(StorageConfig::None) | None => {
             info!("using in-memory storage (no persistence)");
-            None
+            (None, None)
         }
     }
 }
