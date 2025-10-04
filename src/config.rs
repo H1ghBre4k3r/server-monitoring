@@ -1,10 +1,52 @@
 use std::net::IpAddr;
+use std::path::PathBuf;
 
 use tracing::trace;
+
+/// Storage backend configuration
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(tag = "backend", rename_all = "lowercase")]
+pub enum StorageConfig {
+    /// In-memory storage (no persistence)
+    #[serde(rename = "none")]
+    None,
+
+    /// SQLite database (default for most deployments)
+    Sqlite {
+        /// Path to the SQLite database file
+        #[serde(default = "default_sqlite_path")]
+        path: PathBuf,
+
+        /// Retention period in days (metrics older than this are deleted)
+        #[serde(default = "default_retention_days")]
+        retention_days: u32,
+    },
+    // Future: PostgreSQL, Parquet, etc.
+}
+
+impl Default for StorageConfig {
+    fn default() -> Self {
+        StorageConfig::Sqlite {
+            path: default_sqlite_path(),
+            retention_days: default_retention_days(),
+        }
+    }
+}
+
+fn default_sqlite_path() -> PathBuf {
+    PathBuf::from("./metrics.db")
+}
+
+fn default_retention_days() -> u32 {
+    30
+}
 
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct Config {
     pub servers: Option<Vec<ServerConfig>>,
+
+    /// Storage configuration (optional - defaults to in-memory)
+    pub storage: Option<StorageConfig>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

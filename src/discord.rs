@@ -43,6 +43,7 @@ pub struct EmbedFooter {
     pub text: String,
 }
 
+#[derive(Default, Debug, Clone)]
 pub struct MessageBuilder {
     content: Option<String>,
     embeds: Vec<Embed>,
@@ -50,10 +51,7 @@ pub struct MessageBuilder {
 
 impl MessageBuilder {
     pub fn new() -> Self {
-        Self {
-            content: None,
-            embeds: Vec::new(),
-        }
+        Self::default()
     }
 
     pub fn content(mut self, content: impl ToString) -> Self {

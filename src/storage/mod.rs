@@ -31,6 +31,7 @@
 
 pub mod backend;
 pub mod error;
+pub mod memory;
 pub mod schema;
 pub mod sqlite;
 

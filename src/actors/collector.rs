@@ -513,7 +513,3 @@ mod tests {
         handle.shutdown().await.unwrap();
     }
 }
-
-// Add url crate dependency for URL parsing in tests
-#[cfg(test)]
-use url;
