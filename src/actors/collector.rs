@@ -276,24 +276,29 @@ impl CollectorHandle {
 mod tests {
     use super::*;
     use crate::config::ServerConfig;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    fn create_test_config(ip: &str, port: u16) -> ServerConfig {
+        ServerConfig {
+            ip: ip.parse().unwrap(),
+            port,
+            interval: 10,
+            token: None,
+            display: Some(format!("Test {ip}:{port}")),
+            limits: None,
+        }
+    }
 
     #[tokio::test]
     async fn test_collector_handle_creation() {
-        let config = ServerConfig {
-            ip: "127.0.0.1".parse().unwrap(),
-            port: 3000,
-            interval: 10,
-            token: None,
-            display: Some("Test Server".to_string()),
-            limits: None,
-        };
-
+        let config = create_test_config("127.0.0.1", 3000);
         let (metric_tx, _metric_rx) = broadcast::channel(16);
 
         let handle = CollectorHandle::spawn(config, metric_tx);
 
         assert_eq!(handle.server_id, "127.0.0.1:3000");
-        assert_eq!(handle.display_name, "Test Server");
+        assert_eq!(handle.display_name, "Test 127.0.0.1:3000");
 
         // Clean shutdown
         handle.shutdown().await.unwrap();
@@ -301,15 +306,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_interval() {
-        let config = ServerConfig {
-            ip: "127.0.0.1".parse().unwrap(),
-            port: 3000,
-            interval: 10,
-            token: None,
-            display: None,
-            limits: None,
-        };
-
+        let config = create_test_config("127.0.0.1", 3000);
         let (metric_tx, _metric_rx) = broadcast::channel(16);
         let handle = CollectorHandle::spawn(config, metric_tx);
 
@@ -318,4 +315,219 @@ mod tests {
 
         handle.shutdown().await.unwrap();
     }
+
+    #[tokio::test]
+    async fn test_poll_now_unreachable_server() {
+        // Test that poll_now returns error when server is unreachable
+        let config = create_test_config("127.0.0.1", 9999); // Unlikely to be running
+        let (metric_tx, _metric_rx) = broadcast::channel(16);
+        let handle = CollectorHandle::spawn(config, metric_tx);
+
+        // Poll should fail but not panic
+        let result = handle.poll_now().await;
+        assert!(result.is_err());
+
+        handle.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_metrics_published_to_broadcast() {
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+        use wiremock::matchers::{method, path};
+
+        // Start mock server
+        let mock_server = MockServer::start().await;
+
+        // Mock the /metrics endpoint
+        Mock::given(method("GET"))
+            .and(path("/metrics"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "system": {
+                    "name": "TestOS",
+                    "kernel_version": "5.0",
+                    "os_version": "Test",
+                    "host_name": "test-host"
+                },
+                "memory": {
+                    "total": 16000000000u64,
+                    "used": 8000000000u64,
+                    "total_swap": 4000000000u64,
+                    "used_swap": 1000000000u64
+                },
+                "cpus": {
+                    "total": 8,
+                    "arch": "x86_64",
+                    "average_usage": 45.5,
+                    "cpus": []
+                },
+                "components": {
+                    "average_temperature": 55.0,
+                    "components": []
+                }
+            })))
+            .mount(&mock_server)
+            .await;
+
+        // Create config pointing to mock server
+        let mock_uri = mock_server.uri();
+        let mock_url = url::Url::parse(&mock_uri).unwrap();
+        let mut config = create_test_config(
+            mock_url.host_str().unwrap(),
+            mock_url.port().unwrap(),
+        );
+        config.interval = 1;
+
+        let (metric_tx, mut metric_rx) = broadcast::channel(16);
+        let handle = CollectorHandle::spawn(config, metric_tx);
+
+        // Trigger poll
+        handle.poll_now().await.unwrap();
+
+        // Should receive metric event
+        let event = tokio::time::timeout(
+            tokio::time::Duration::from_millis(500),
+            metric_rx.recv()
+        ).await.unwrap().unwrap();
+
+        assert_eq!(event.metrics.cpus.average_usage, 45.5);
+        assert_eq!(event.metrics.components.average_temperature, Some(55.0));
+
+        handle.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_http_404_error_handled() {
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+        use wiremock::matchers::{method, path};
+
+        let mock_server = MockServer::start().await;
+
+        // Mock 404 response
+        Mock::given(method("GET"))
+            .and(path("/metrics"))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&mock_server)
+            .await;
+
+        let mock_uri = mock_server.uri();
+        let mock_url = url::Url::parse(&mock_uri).unwrap();
+        let config = create_test_config(
+            mock_url.host_str().unwrap(),
+            mock_url.port().unwrap(),
+        );
+
+        let (metric_tx, _metric_rx) = broadcast::channel(16);
+        let handle = CollectorHandle::spawn(config, metric_tx);
+
+        // Should return error but not panic
+        let result = handle.poll_now().await;
+        assert!(result.is_err());
+
+        handle.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_invalid_json_response() {
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+        use wiremock::matchers::{method, path};
+
+        let mock_server = MockServer::start().await;
+
+        // Mock invalid JSON response
+        Mock::given(method("GET"))
+            .and(path("/metrics"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("not valid json"))
+            .mount(&mock_server)
+            .await;
+
+        let mock_uri = mock_server.uri();
+        let mock_url = url::Url::parse(&mock_uri).unwrap();
+        let config = create_test_config(
+            mock_url.host_str().unwrap(),
+            mock_url.port().unwrap(),
+        );
+
+        let (metric_tx, _metric_rx) = broadcast::channel(16);
+        let handle = CollectorHandle::spawn(config, metric_tx);
+
+        // Should return error for invalid JSON
+        let result = handle.poll_now().await;
+        assert!(result.is_err());
+
+        handle.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_shutdown_stops_polling() {
+        let config = create_test_config("127.0.0.1", 9999);
+        let (metric_tx, _metric_rx) = broadcast::channel(16);
+        let handle = CollectorHandle::spawn(config, metric_tx);
+
+        // Shutdown immediately
+        handle.shutdown().await.unwrap();
+
+        // Try to poll - should fail because actor is shutdown
+        let result = handle.poll_now().await;
+        assert!(result.is_err(), "Poll should fail after shutdown");
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_poll_now_requests() {
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+        use wiremock::matchers::{method, path};
+
+        let mock_server = MockServer::start().await;
+
+        // Track number of requests
+        let request_count = Arc::new(AtomicUsize::new(0));
+        let request_count_clone = request_count.clone();
+
+        Mock::given(method("GET"))
+            .and(path("/metrics"))
+            .respond_with(move |_req: &wiremock::Request| {
+                request_count_clone.fetch_add(1, Ordering::SeqCst);
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "system": {},
+                    "memory": {"total": 0, "used": 0, "total_swap": 0, "used_swap": 0},
+                    "cpus": {"total": 1, "arch": "x86_64", "average_usage": 50.0, "cpus": []},
+                    "components": {"average_temperature": null, "components": []}
+                }))
+            })
+            .mount(&mock_server)
+            .await;
+
+        let mock_uri = mock_server.uri();
+        let mock_url = url::Url::parse(&mock_uri).unwrap();
+        let config = create_test_config(
+            mock_url.host_str().unwrap(),
+            mock_url.port().unwrap(),
+        );
+
+        let (metric_tx, _metric_rx) = broadcast::channel(16);
+        let handle = CollectorHandle::spawn(config, metric_tx);
+
+        // Send multiple concurrent poll requests
+        let mut tasks = vec![];
+        for _ in 0..5 {
+            let handle_clone = handle.clone();
+            tasks.push(tokio::spawn(async move {
+                handle_clone.poll_now().await
+            }));
+        }
+
+        // Wait for all to complete
+        for task in tasks {
+            let _ = task.await;
+        }
+
+        // Should have received at least 5 requests (may be slightly more due to timing)
+        let count = request_count.load(Ordering::SeqCst);
+        assert!(count >= 5, "Should have at least 5 requests, got {}", count);
+
+        handle.shutdown().await.unwrap();
+    }
 }
+
+// Add url crate dependency for URL parsing in tests
+#[cfg(test)]
+use url;

@@ -19,3 +19,23 @@ sysinfo = "0.37.0"
 tokio = { version = "1.47.1", features = ["full"] }
 tracing = "0.1.41"
 tracing-subscriber = "0.3.20"
+
+[dev-dependencies]
+# Mock HTTP server for testing agent endpoints
+wiremock = "0.6"
+
+# Property-based testing framework
+proptest = "1.5"
+
+# Enhanced test assertions
+assert_matches = "1.5"
+pretty_assertions = "1.4"
+
+# Test utilities for tokio
+tokio-test = "0.4"
+
+# Async utilities for testing
+futures = "0.3"
+
+# URL parsing for tests
+url = "2.5"
