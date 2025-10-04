@@ -15,9 +15,9 @@ This is a Rust-based server monitoring solution that uses a hub-agent architectu
 - `AlertManager`: Handles sending alerts via Discord webhooks or generic webhooks
 - Configuration is JSON-based (see `config.example.json`)
 
-### Actor-Based Architecture (NEW - Phase 1)
+### Actor-Based Architecture (✅ Phase 1 COMPLETE)
 
-The hub is being refactored to use an actor-based architecture for better scalability and maintainability:
+The hub now uses an actor-based architecture for better scalability and maintainability:
 
 **Actors (`src/actors/`):**
 - **MetricCollectorActor** (`collector.rs`): Polls agent endpoints at configured intervals, publishes metrics to broadcast channel
@@ -38,18 +38,26 @@ The hub is being refactored to use an actor-based architecture for better scalab
 - Testable - actors can be tested in isolation with mock channels
 - Scalable - easy to add new metric consumers (API, dashboard, etc.)
 - Supervision - actors can be monitored and restarted independently
+- Efficiency - HTTP client reused across requests (old system created new client each poll)
 
-**Migration Status (Phase 1):**
+**Phase 1 Status (COMPLETE):**
 - ✅ Core actor infrastructure implemented
 - ✅ All actor types created with command/event channels
 - ✅ Unit tests passing (5/5)
-- ⏳ NEXT: Integrate actors into hub.rs (parallel with old system)
-- ⏳ TODO: Performance validation, full migration, remove old code
+- ✅ Actors integrated into hub.rs
+- ✅ Graceful shutdown on Ctrl+C
+- ✅ Feature parity verified with old implementation
+- ⏳ NEXT: Phase 2 - Metric Persistence (SQLite/PostgreSQL backends)
+
+**Legacy Code:**
+- Old `monitors/server.rs` and `monitors/resources.rs` are kept for reference
+- The `ResourceEvaluation` logic in `monitors/resources.rs` is still used by AlertActor
+- Will be cleaned up after Phase 2
 
 **Testing:**
 - Run actor tests: `cargo test --lib`
 - All actors have basic unit tests in their respective modules
-- Integration tests coming in Phase 1.3
+- Integration tests planned for Phase 2
 
 ## Development Commands
 
@@ -117,12 +125,14 @@ Agent configuration via environment variables:
 - `AGENT_PORT`: HTTP port (default: 3000)
 - `AGENT_SECRET`: Optional authentication token
 
-## Alert Flow
+## Alert Flow (Actor-Based)
 
-1. Hub polls agent at configured intervals
-2. `ResourceMonitor` evaluates metrics against limits with grace period tracking
-3. On `StartsToExceed` (grace period reached) or `BackToOk` (recovered), `AlertManager` triggers
-4. Alerts formatted and sent via Discord (with embeds) or webhook (JSON payload)
+1. **CollectorActor** polls agent HTTP endpoint at configured intervals
+2. Metrics published to broadcast channel as `MetricEvent`
+3. **AlertActor** receives events and evaluates against thresholds using grace period state machine
+4. On `StartsToExceed` (grace period exhausted) or `BackToOk` (recovered), `AlertManager` sends alerts
+5. Alerts formatted and sent via Discord (with embeds) or webhook (JSON payload)
+6. **StorageActor** also receives events (currently logs only, persistence in Phase 2)
 
 ## Binary Structure
 
