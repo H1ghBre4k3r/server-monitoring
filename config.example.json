@@ -1,6 +1,13 @@
 {
   "_comment": "Server Monitoring Configuration with Discord User Mentions",
   "_discord_user_id_help": "To find Discord user ID: Enable Developer Mode in Discord Settings > Advanced, then right-click on a user and select 'Copy ID'",
+  "_storage_comment": "Storage configuration (optional - defaults to in-memory if omitted)",
+  "storage": {
+    "backend": "sqlite",
+    "path": "./metrics.db",
+    "retention_days": 30,
+    "_note": "Use 'backend: none' for in-memory storage (no persistence)"
+  },
   "servers": [
     {
       "ip": "192.168.1.100",

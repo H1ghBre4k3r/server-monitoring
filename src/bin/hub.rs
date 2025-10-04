@@ -1,11 +1,14 @@
 use clap::Parser;
 use server_monitoring::{
     actors::{alert::AlertHandle, collector::CollectorHandle, storage::StorageHandle},
-    config::{Config, read_config_file},
+    config::{Config, StorageConfig, read_config_file},
 };
 use tokio::sync::broadcast;
 use tracing::{error, info, level_filters::LevelFilter, trace, warn};
 use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
+
+#[cfg(feature = "storage-sqlite")]
+use server_monitoring::storage::{StorageBackend, sqlite::SqliteBackend};
 
 #[derive(Debug, Clone, Parser)]
 struct Args {
@@ -60,8 +63,17 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
     // Capacity of 256 allows some buffering for slow consumers
     let (metric_tx, _metric_rx) = broadcast::channel(256);
 
-    // Spawn storage actor (currently a stub)
+    // Initialize storage backend based on config
+    #[cfg(feature = "storage-sqlite")]
+    let backend = initialize_storage_backend(&config.storage).await;
+
+    // Spawn storage actor with optional persistent backend
+    #[cfg(feature = "storage-sqlite")]
+    let storage_handle = StorageHandle::spawn_with_backend(metric_tx.subscribe(), backend);
+
+    #[cfg(not(feature = "storage-sqlite"))]
     let storage_handle = StorageHandle::spawn(metric_tx.subscribe());
+
     info!("storage actor started");
 
     // Spawn alert actor with all server configs
@@ -111,4 +123,37 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
     info!("all actors stopped, exiting");
 
     Ok(())
+}
+
+/// Initialize storage backend based on configuration
+#[cfg(feature = "storage-sqlite")]
+async fn initialize_storage_backend(
+    storage_config: &Option<StorageConfig>,
+) -> Option<Box<dyn StorageBackend>> {
+    match storage_config {
+        Some(StorageConfig::Sqlite {
+            path,
+            retention_days,
+        }) => {
+            info!(
+                "initializing SQLite backend at: {:?} (retention: {} days)",
+                path, retention_days
+            );
+            match SqliteBackend::new(path).await {
+                Ok(backend) => {
+                    info!("SQLite backend initialized successfully");
+                    Some(Box::new(backend) as Box<dyn StorageBackend>)
+                }
+                Err(e) => {
+                    error!("failed to initialize SQLite backend: {}", e);
+                    warn!("falling back to in-memory storage");
+                    None
+                }
+            }
+        }
+        Some(StorageConfig::None) | None => {
+            info!("using in-memory storage (no persistence)");
+            None
+        }
+    }
 }

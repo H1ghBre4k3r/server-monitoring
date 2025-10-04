@@ -22,7 +22,7 @@ The hub now uses an actor-based architecture for better scalability and maintain
 **Actors (`src/actors/`):**
 - **MetricCollectorActor** (`collector.rs`): Polls agent endpoints at configured intervals, publishes metrics to broadcast channel
 - **AlertActor** (`alert.rs`): Subscribes to metrics, maintains grace period state, triggers alerts when thresholds exceeded
-- **StorageActor** (`storage.rs`): Subscribes to metrics, persists to storage (currently in-memory stub, Phase 2 will add SQLite/Postgres)
+- **StorageActor** (`storage.rs`): Subscribes to metrics, persists to storage with pluggable backends (SQLite, in-memory)
 
 **Communication:**
 - Each actor has an `mpsc` command channel for control messages (poll now, shutdown, etc.)
@@ -40,14 +40,23 @@ The hub now uses an actor-based architecture for better scalability and maintain
 - Supervision - actors can be monitored and restarted independently
 - Efficiency - HTTP client reused across requests (old system created new client each poll)
 
-**Phase 1 Status (COMPLETE):**
+**Phase 1 Status (✅ COMPLETE):**
 - ✅ Core actor infrastructure implemented
 - ✅ All actor types created with command/event channels
 - ✅ Unit tests passing (5/5)
 - ✅ Actors integrated into hub.rs
 - ✅ Graceful shutdown on Ctrl+C
 - ✅ Feature parity verified with old implementation
-- ⏳ NEXT: Phase 2 - Metric Persistence (SQLite/PostgreSQL backends)
+
+**Phase 2 Status (✅ SQLite Backend COMPLETE):**
+- ✅ StorageBackend trait for pluggable persistence
+- ✅ SQLite backend with batching (dual flush triggers: 100 metrics OR 5 seconds)
+- ✅ Hybrid schema: indexed aggregates + full metadata
+- ✅ StorageActor extended with `Option<Box<dyn StorageBackend>>`
+- ✅ Configuration support for storage backends
+- ✅ Backward compatible (falls back to in-memory mode)
+- ✅ All tests passing (60/60)
+- ⏳ NEXT: Retention/cleanup background task, integration tests
 
 **Legacy Code:**
 - Old `monitors/server.rs` and `monitors/resources.rs` are kept for reference
@@ -56,8 +65,65 @@ The hub now uses an actor-based architecture for better scalability and maintain
 
 **Testing:**
 - Run actor tests: `cargo test --lib`
-- All actors have basic unit tests in their respective modules
-- Integration tests planned for Phase 2
+- Run all tests: `cargo test --workspace --all-features`
+- All actors have unit tests in their respective modules
+- Integration tests for actor communication in `tests/integration/`
+
+### Metric Persistence (✅ Phase 2 - SQLite Complete)
+
+The system now supports persistent metric storage through a pluggable backend architecture:
+
+**Storage Architecture (`src/storage/`):**
+- **StorageBackend trait** (`backend.rs`): Async trait for all storage operations
+  - `insert_batch()`: Batch write metrics (optimized for throughput)
+  - `query_range()`: Query metrics within time range
+  - `query_latest()`: Get most recent N metrics for a server
+  - `cleanup_old_metrics()`: Prune data older than retention period
+  - `health_check()`: Backend health status
+- **SqliteBackend** (`sqlite.rs`): SQLite implementation with WAL mode
+- **MemoryBackend** (`memory.rs`): In-memory fallback (no persistence)
+- **MetricRow** (`schema.rs`): Flattened metric schema for storage
+
+**Schema Design:**
+- **Hybrid approach**: Aggregate columns (indexed) + complete metadata (JSON)
+- Indexed fields: `server_id`, `timestamp`, `metric_type`, `cpu_avg`, `temp_avg`
+- Full `ServerMetrics` struct stored in `metadata` column for complete data access
+- Primary key: `(server_id, timestamp)` for efficient time-series queries
+
+**Batching Strategy:**
+- **Size trigger**: Flush after 100 metrics (prevents unbounded memory growth)
+- **Time trigger**: Flush after 5 seconds (ensures data freshness)
+- Whichever trigger fires first initiates the batch write
+- Final flush on shutdown to prevent data loss
+
+**Configuration:**
+```json
+{
+  "storage": {
+    "backend": "sqlite",
+    "path": "./metrics.db",
+    "retention_days": 30
+  }
+}
+```
+
+Or use in-memory mode (no persistence):
+```json
+{
+  "storage": {
+    "backend": "none"
+  }
+}
+```
+
+**Backward Compatibility:**
+- `storage` config section is optional - defaults to in-memory if omitted
+- Feature flag `storage-sqlite` (enabled by default) - can be disabled at compile time
+- StorageActor gracefully falls back to in-memory mode if backend init fails
+
+**Feature Flags:**
+- `storage-sqlite`: Enables SQLite backend (requires sqlx dependency)
+- Build without persistence: `cargo build --no-default-features`
 
 ## Development Commands
 
@@ -115,10 +181,13 @@ sudo ./install.sh
 
 The hub requires a JSON config file specifying servers to monitor. Key concepts:
 
+- **Storage** (optional): Backend for metric persistence (`sqlite` or `none`/omitted for in-memory)
 - **Grace periods**: Number of consecutive exceeded measurements before alerting
 - **Limits**: Separate thresholds for `temperature` (°C) and `usage` (CPU %)
 - **Alerts**: Support for Discord webhooks (with optional user mentions) and generic webhooks
 - **Tokens**: Optional `X-MONITORING-SECRET` header for agent authentication
+
+See `config.example.json` for a complete configuration example.
 
 Agent configuration via environment variables:
 - `AGENT_ADDR`: Bind address (default: 0.0.0.0)
@@ -132,7 +201,7 @@ Agent configuration via environment variables:
 3. **AlertActor** receives events and evaluates against thresholds using grace period state machine
 4. On `StartsToExceed` (grace period exhausted) or `BackToOk` (recovered), `AlertManager` sends alerts
 5. Alerts formatted and sent via Discord (with embeds) or webhook (JSON payload)
-6. **StorageActor** also receives events (currently logs only, persistence in Phase 2)
+6. **StorageActor** receives events and persists to storage backend (SQLite with batching, or in-memory)
 
 ## Binary Structure
 

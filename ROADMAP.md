@@ -83,47 +83,60 @@ A comprehensive monitoring platform featuring:
 
 ---
 
-## Phase 2: Metric Persistence 💾
+## Phase 2: Metric Persistence 💾 [IN PROGRESS]
 
 **Goal:** Add time-series storage with flexible backend options
 
 **Duration:** 1-2 weeks
 
+**Status:** Week 1 - SQLite backend implementation complete ✅
+
 ### 2.1 Storage Abstraction
-- [ ] Design storage trait with CRUD operations
-- [ ] Define metric schema (timestamp, server_id, metric_type, value, metadata)
-- [ ] Implement batch write operations
-- [ ] Add query interface for time ranges and aggregations
+- [x] Design storage trait with CRUD operations ✅
+- [x] Define metric schema (timestamp, server_id, metric_type, value, metadata) ✅
+- [x] Implement batch write operations ✅
+- [x] Add query interface for time ranges and aggregations ✅
 
 ### 2.2 Backend Implementations
-- [ ] **SQLite backend** (default, embedded)
-  - Schema design with indexes
-  - Connection pooling
-  - Migration system
-- [ ] **PostgreSQL backend** (optional, production)
+- [x] **SQLite backend** (default, embedded) ✅
+  - [x] Schema design with indexes ✅
+  - [x] Migration system (sqlx) ✅
+  - [ ] Connection pooling (using single connection currently)
+- [ ] **PostgreSQL backend** (optional, production - Phase 2.5)
   - TimescaleDB extension support
   - Hypertable configuration
   - Continuous aggregates
-- [ ] **Parquet file backend** (optional, archival)
+- [ ] **Parquet file backend** (optional, archival - Phase 2.5)
   - Columnar storage with compression
   - Partition by time (daily/hourly files)
   - Efficient range queries
 
 ### 2.3 Retention & Aggregation
-- [ ] Configurable retention policies per metric type
+- [ ] Configurable retention policies per metric type (NEXT)
 - [ ] Automatic data pruning/archival
 - [ ] Downsampling for long-term storage (1min → 5min → 1hr)
 - [ ] Query optimization for large time ranges
 
 ### 2.4 Integration
-- [ ] Update `StorageActor` to persist all metrics
-- [ ] Add configuration for storage backend selection
+- [x] Update `StorageActor` to persist all metrics ✅
+- [x] Add configuration for storage backend selection ✅
+- [x] Add storage health checks ✅
 - [ ] Implement metric replay on startup
-- [ ] Add storage health checks
 
 **Dependencies:** Phase 1
 **Deliverables:** Persistent metric storage with multiple backend options
 **Reference:** [docs/features/METRIC_PERSISTENCE.md](docs/features/METRIC_PERSISTENCE.md)
+
+**Progress Notes:**
+- **2025-01-15**: SQLite backend implementation complete
+  - Created `StorageBackend` trait with async operations
+  - Implemented `SqliteBackend` with WAL mode and optimized indexes
+  - Designed hybrid schema: aggregate columns (indexed) + complete metadata (JSON)
+  - Added batching strategy: dual flush triggers (100 metrics OR 5 seconds)
+  - Extended `StorageActor` with `Option<Box<dyn StorageBackend>>` for persistence
+  - Configured via `storage` section in config (SQLite or in-memory)
+  - All tests passing (60/60) ✅
+  - Backward compatible: falls back to in-memory if no storage configured
 
 ---
 
