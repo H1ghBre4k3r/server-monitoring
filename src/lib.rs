@@ -1,5 +1,7 @@
 pub mod actors;
 pub mod alerts;
+#[cfg(feature = "api")]
+pub mod api;
 pub mod config;
 pub mod discord;
 pub mod monitors;

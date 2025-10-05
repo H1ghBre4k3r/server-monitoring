@@ -136,6 +136,51 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
     }
 
     info!("all actors started, monitoring active");
+
+    // TODO: do we need the api_addr? Maybe for logging
+    // Spawn API server if configured
+    #[cfg(feature = "api")]
+    let api_addr = if let Some(api_config) = config.api {
+        use server_monitoring::api::{ApiConfig, ApiState, spawn_api_server};
+        use std::net::SocketAddr;
+
+        let bind_addr: SocketAddr = format!("{}:{}", api_config.bind, api_config.port)
+            .parse()
+            .expect("Invalid API bind address");
+
+        let api_state = ApiState::new(
+            storage_handle.clone(),
+            alert_handle.clone(),
+            collector_handles.clone(),
+            service_handles.clone(),
+            metric_tx.clone(),
+            service_tx.clone(),
+        );
+
+        let api_config = ApiConfig {
+            bind_addr,
+            auth_token: api_config.auth_token,
+            enable_cors: api_config.enable_cors,
+        };
+
+        match spawn_api_server(api_config, api_state).await {
+            Ok(addr) => {
+                info!("API server started on http://{}", addr);
+                Some(addr)
+            }
+            Err(e) => {
+                error!("Failed to start API server: {}", e);
+                None
+            }
+        }
+    } else {
+        info!("API server disabled (not configured)");
+        None
+    };
+
+    #[cfg(not(feature = "api"))]
+    let api_addr: Option<std::net::SocketAddr> = None;
+
     info!("press Ctrl+C to shutdown gracefully");
 
     // Wait for shutdown signal

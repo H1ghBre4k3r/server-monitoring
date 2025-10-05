@@ -260,6 +260,7 @@ impl ServiceMonitorActor {
 pub struct ServiceHandle {
     sender: mpsc::Sender<ServiceCommand>,
     service_name: String,
+    service_url: String,
 }
 
 impl ServiceHandle {
@@ -267,6 +268,7 @@ impl ServiceHandle {
     pub fn spawn(config: ServiceConfig, event_tx: broadcast::Sender<ServiceCheckEvent>) -> Self {
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
         let service_name = config.name.clone();
+        let service_url = config.url.clone();
 
         let actor = ServiceMonitorActor::new(config, cmd_rx, event_tx);
 
@@ -275,6 +277,7 @@ impl ServiceHandle {
         Self {
             sender: cmd_tx,
             service_name,
+            service_url,
         }
     }
 
@@ -305,6 +308,11 @@ impl ServiceHandle {
     /// Get the service name
     pub fn service_name(&self) -> &str {
         &self.service_name
+    }
+
+    /// Get the service URL
+    pub fn service_url(&self) -> &str {
+        &self.service_url
     }
 }
 

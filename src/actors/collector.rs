@@ -270,6 +270,11 @@ impl CollectorHandle {
             .context("failed to send Shutdown command")?;
         Ok(())
     }
+
+    /// Get the server ID (ip:port format)
+    pub fn server_id(&self) -> &str {
+        &self.server_id
+    }
 }
 
 #[cfg(test)]

@@ -102,6 +102,45 @@ pub struct Config {
 
     /// Service monitoring configuration (HTTP/HTTPS endpoints)
     pub services: Option<Vec<ServiceConfig>>,
+
+    /// API server configuration (optional - API disabled if not specified)
+    #[cfg(feature = "api")]
+    pub api: Option<ApiConfig>,
+}
+
+/// API server configuration
+#[cfg(feature = "api")]
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct ApiConfig {
+    /// Bind address (e.g., "127.0.0.1" or "0.0.0.0")
+    #[serde(default = "default_api_bind")]
+    pub bind: String,
+
+    /// Port to listen on
+    #[serde(default = "default_api_port")]
+    pub port: u16,
+
+    /// Optional Bearer token for authentication
+    pub auth_token: Option<String>,
+
+    /// Enable CORS (for web dashboards)
+    #[serde(default = "default_api_cors")]
+    pub enable_cors: bool,
+}
+
+#[cfg(feature = "api")]
+fn default_api_bind() -> String {
+    "127.0.0.1".to_string()
+}
+
+#[cfg(feature = "api")]
+fn default_api_port() -> u16 {
+    8080
+}
+
+#[cfg(feature = "api")]
+fn default_api_cors() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
