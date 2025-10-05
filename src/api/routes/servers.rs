@@ -6,10 +6,13 @@ use axum::{
 };
 use chrono::{DateTime, Duration, Utc};
 use serde::Deserialize;
-use serde_json::{Value, json};
 
 use crate::{
-    api::{error::ApiResult, state::ApiState, types::ServerInfo},
+    api::{
+        error::ApiResult,
+        state::ApiState,
+        types::{LatestMetricsResponse, MetricsResponse, ServerInfo, ServersResponse},
+    },
     storage::backend::QueryRange,
 };
 
@@ -29,7 +32,7 @@ pub struct MetricQuery {
 /// GET /api/v1/servers
 ///
 /// List all monitored servers with health status
-pub async fn list_servers(State(state): State<ApiState>) -> ApiResult<Json<Value>> {
+pub async fn list_servers(State(state): State<ApiState>) -> ApiResult<Json<ServersResponse>> {
     let mut servers = Vec::new();
 
     for collector in &state.collectors {
@@ -62,10 +65,8 @@ pub async fn list_servers(State(state): State<ApiState>) -> ApiResult<Json<Value
         });
     }
 
-    Ok(Json(json!({
-        "servers": servers,
-        "count": servers.len(),
-    })))
+    let count = servers.len();
+    Ok(Json(ServersResponse { servers, count }))
 }
 
 /// GET /api/v1/servers/:id/metrics
@@ -75,7 +76,7 @@ pub async fn get_server_metrics(
     State(state): State<ApiState>,
     Path(server_id): Path<String>,
     Query(query): Query<MetricQuery>,
-) -> ApiResult<Json<Value>> {
+) -> ApiResult<Json<MetricsResponse>> {
     let end = query.end.unwrap_or_else(Utc::now);
     let start = query.start.unwrap_or_else(|| end - Duration::hours(1));
     let limit = query.limit.unwrap_or(1000).min(10000);
@@ -89,13 +90,13 @@ pub async fn get_server_metrics(
 
     let metrics = state.storage.query_range(query_range).await?;
 
-    Ok(Json(json!({
-        "server_id": server_id,
-        "start": start.to_rfc3339(),
-        "end": end.to_rfc3339(),
-        "count": metrics.len(),
-        "metrics": metrics,
-    })))
+    Ok(Json(MetricsResponse {
+        server_id,
+        start: start.to_rfc3339(),
+        end: end.to_rfc3339(),
+        count: metrics.len(),
+        metrics,
+    }))
 }
 
 /// GET /api/v1/servers/:id/metrics/latest
@@ -105,16 +106,16 @@ pub async fn get_latest_metrics(
     State(state): State<ApiState>,
     Path(server_id): Path<String>,
     Query(query): Query<LatestQuery>,
-) -> ApiResult<Json<Value>> {
+) -> ApiResult<Json<LatestMetricsResponse>> {
     let limit = query.limit.unwrap_or(100).min(1000);
 
     let metrics = state.storage.query_latest(server_id.clone(), limit).await?;
 
-    Ok(Json(json!({
-        "server_id": server_id,
-        "count": metrics.len(),
-        "metrics": metrics,
-    })))
+    Ok(Json(LatestMetricsResponse {
+        server_id,
+        count: metrics.len(),
+        metrics,
+    }))
 }
 
 #[derive(Debug, Deserialize)]

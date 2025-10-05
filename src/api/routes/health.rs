@@ -1,14 +1,14 @@
 //! Health check endpoint
 
+use crate::api::types::HealthResponse;
 use axum::Json;
-use serde_json::{Value, json};
 
 /// GET /api/v1/health
 ///
 /// Returns a simple health check response
-pub async fn health_check() -> Json<Value> {
-    Json(json!({
-        "status": "ok",
-        "timestamp": chrono::Utc::now().to_rfc3339(),
-    }))
+pub async fn health_check() -> Json<HealthResponse> {
+    Json(HealthResponse {
+        status: "ok".to_string(),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+    })
 }

@@ -38,7 +38,10 @@ pub use error::{ApiError, ApiResult};
 #[cfg(feature = "api")]
 pub use state::ApiState;
 #[cfg(feature = "api")]
-pub use types::{ServerInfo, ServiceInfo};
+pub use types::{
+    HealthResponse, LatestMetricsResponse, MetricsResponse, ServerInfo, ServersResponse,
+    ServiceChecksResponse, ServiceInfo, ServicesResponse, StatsResponse, UptimeResponse,
+};
 
 #[cfg(feature = "api")]
 use axum::{Router, routing::get};

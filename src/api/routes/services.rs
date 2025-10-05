@@ -6,14 +6,17 @@ use axum::{
 };
 use chrono::{DateTime, Duration, Utc};
 use serde::Deserialize;
-use serde_json::{Value, json};
 
-use crate::api::{error::ApiResult, state::ApiState, types::ServiceInfo};
+use crate::api::{
+    error::ApiResult,
+    state::ApiState,
+    types::{ServiceChecksResponse, ServiceInfo, ServicesResponse, UptimeResponse},
+};
 
 /// GET /api/v1/services
 ///
 /// List all monitored services with health status
-pub async fn list_services(State(state): State<ApiState>) -> ApiResult<Json<Value>> {
+pub async fn list_services(State(state): State<ApiState>) -> ApiResult<Json<ServicesResponse>> {
     let mut services = Vec::new();
 
     for monitor in &state.service_monitors {
@@ -35,11 +38,11 @@ pub async fn list_services(State(state): State<ApiState>) -> ApiResult<Json<Valu
                     (
                         "stale".to_string(),
                         Some(check.timestamp.to_rfc3339()),
-                        Some(format!("{:?}", check.status).to_lowercase()),
+                        Some(check.status.as_str().to_string()),
                     )
                 } else {
                     // Use the actual check status
-                    let status = format!("{:?}", check.status).to_lowercase();
+                    let status = check.status.as_str().to_string();
                     (
                         status.clone(),
                         Some(check.timestamp.to_rfc3339()),
@@ -60,10 +63,8 @@ pub async fn list_services(State(state): State<ApiState>) -> ApiResult<Json<Valu
         });
     }
 
-    Ok(Json(json!({
-        "services": services,
-        "count": services.len(),
-    })))
+    let count = services.len();
+    Ok(Json(ServicesResponse { services, count }))
 }
 
 /// GET /api/v1/services/:name/checks
@@ -73,7 +74,7 @@ pub async fn get_service_checks(
     State(state): State<ApiState>,
     Path(service_name): Path<String>,
     Query(query): Query<ServiceCheckQuery>,
-) -> ApiResult<Json<Value>> {
+) -> ApiResult<Json<ServiceChecksResponse>> {
     let end = query.end.unwrap_or_else(Utc::now);
     let start = query.start.unwrap_or_else(|| end - Duration::hours(24));
 
@@ -82,13 +83,13 @@ pub async fn get_service_checks(
         .query_service_checks_range(service_name.clone(), start, end)
         .await?;
 
-    Ok(Json(json!({
-        "service_name": service_name,
-        "start": start.to_rfc3339(),
-        "end": end.to_rfc3339(),
-        "count": checks.len(),
-        "checks": checks,
-    })))
+    Ok(Json(ServiceChecksResponse {
+        service_name,
+        start: start.to_rfc3339(),
+        end: end.to_rfc3339(),
+        count: checks.len(),
+        checks,
+    }))
 }
 
 /// GET /api/v1/services/:name/uptime
@@ -98,7 +99,7 @@ pub async fn get_uptime(
     State(state): State<ApiState>,
     Path(service_name): Path<String>,
     Query(query): Query<UptimeQuery>,
-) -> ApiResult<Json<Value>> {
+) -> ApiResult<Json<UptimeResponse>> {
     let since = query
         .since
         .unwrap_or_else(|| Utc::now() - Duration::hours(24));
@@ -108,16 +109,16 @@ pub async fn get_uptime(
         .calculate_uptime(service_name.clone(), since)
         .await?;
 
-    Ok(Json(json!({
-        "service_name": service_name,
-        "since": since.to_rfc3339(),
-        "start": uptime_stats.start.to_rfc3339(),
-        "end": uptime_stats.end.to_rfc3339(),
-        "uptime_percentage": uptime_stats.uptime_percentage,
-        "total_checks": uptime_stats.total_checks,
-        "successful_checks": uptime_stats.successful_checks,
-        "avg_response_time_ms": uptime_stats.avg_response_time_ms,
-    })))
+    Ok(Json(UptimeResponse {
+        service_name,
+        since: since.to_rfc3339(),
+        start: uptime_stats.start.to_rfc3339(),
+        end: uptime_stats.end.to_rfc3339(),
+        uptime_percentage: uptime_stats.uptime_percentage,
+        total_checks: uptime_stats.total_checks,
+        successful_checks: uptime_stats.successful_checks,
+        avg_response_time_ms: uptime_stats.avg_response_time_ms,
+    }))
 }
 
 #[derive(Debug, Deserialize)]

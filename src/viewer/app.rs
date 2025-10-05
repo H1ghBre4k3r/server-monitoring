@@ -177,75 +177,44 @@ impl App {
             }
 
             match request.send().await {
-                Ok(response) => {
-                    let status = response.status();
-                    if status.is_success() {
-                        match response.json::<serde_json::Value>().await {
-                            Ok(json) => {
-                                if let Some(metrics) = json["metrics"].as_array() {
-                                    let mut loaded_count = 0;
-                                    // Parse metrics into a Vec first
-                                    let mut parsed_metrics: Vec<crate::storage::schema::MetricRow> =
-                                        Vec::new();
-                                    for metric_value in metrics {
-                                        match serde_json::from_value::<
-                                            crate::storage::schema::MetricRow,
-                                        >(
-                                            metric_value.clone()
-                                        ) {
-                                            Ok(metric_row) => {
-                                                parsed_metrics.push(metric_row);
-                                            }
-                                            Err(e) => {
-                                                tracing::warn!(
-                                                    "Failed to deserialize metric for {}: {}",
-                                                    server.server_id,
-                                                    e
-                                                );
-                                            }
-                                        }
-                                    }
+                Ok(response) if response.status().is_success() => {
+                    // Direct deserialization - no double parsing!
+                    match response.json::<crate::api::LatestMetricsResponse>().await {
+                        Ok(metrics_response) => {
+                            // Reverse so oldest metrics are first (API returns newest first)
+                            let mut metrics = metrics_response.metrics;
+                            metrics.reverse();
 
-                                    // Reverse so oldest metrics are first (API returns newest first)
-                                    parsed_metrics.reverse();
-
-                                    // Add to history in chronological order
-                                    for metric_row in parsed_metrics {
-                                        self.state.add_metric(
-                                            metric_row.server_id.clone(),
-                                            metric_row.metadata,
-                                            metric_row.timestamp,
-                                        );
-                                        loaded_count += 1;
-                                    }
-
-                                    tracing::debug!(
-                                        "Loaded {} historical metrics for {}",
-                                        loaded_count,
-                                        server.server_id
-                                    );
-                                } else {
-                                    tracing::warn!(
-                                        "No 'metrics' array in response for {}",
-                                        server.server_id
-                                    );
-                                }
-                            }
-                            Err(e) => {
-                                tracing::error!(
-                                    "Failed to parse JSON response for {}: {}",
-                                    server.server_id,
-                                    e
+                            // Add to history in chronological order
+                            for metric_row in metrics {
+                                self.state.add_metric(
+                                    metric_row.server_id,
+                                    metric_row.metadata,
+                                    metric_row.timestamp,
                                 );
                             }
+
+                            tracing::debug!(
+                                "Loaded {} historical metrics for {}",
+                                metrics_response.count,
+                                server.server_id
+                            );
                         }
-                    } else {
-                        tracing::error!(
-                            "HTTP error fetching historical metrics for {}: {}",
-                            server.server_id,
-                            status
-                        );
+                        Err(e) => {
+                            tracing::error!(
+                                "Failed to parse metrics response for {}: {}",
+                                server.server_id,
+                                e
+                            );
+                        }
                     }
+                }
+                Ok(response) => {
+                    tracing::error!(
+                        "HTTP error fetching historical metrics for {}: {}",
+                        server.server_id,
+                        response.status()
+                    );
                 }
                 Err(e) => {
                     tracing::error!(
@@ -309,14 +278,8 @@ impl App {
 
         if let Ok(response) = request.send().await {
             if response.status().is_success() {
-                if let Ok(json) = response.json::<serde_json::Value>().await {
-                    if let Some(servers) = json["servers"].as_array() {
-                        if let Ok(servers) = serde_json::from_value::<Vec<ServerInfo>>(
-                            serde_json::Value::Array(servers.clone()),
-                        ) {
-                            self.state.update_servers(servers);
-                        }
-                    }
+                if let Ok(servers_response) = response.json::<crate::api::ServersResponse>().await {
+                    self.state.update_servers(servers_response.servers);
                 }
             }
         }
@@ -331,14 +294,9 @@ impl App {
 
         if let Ok(response) = request.send().await {
             if response.status().is_success() {
-                if let Ok(json) = response.json::<serde_json::Value>().await {
-                    if let Some(services) = json["services"].as_array() {
-                        if let Ok(services) = serde_json::from_value::<Vec<ServiceInfo>>(
-                            serde_json::Value::Array(services.clone()),
-                        ) {
-                            self.state.update_services(services);
-                        }
-                    }
+                if let Ok(services_response) = response.json::<crate::api::ServicesResponse>().await
+                {
+                    self.state.update_services(services_response.services);
                 }
             }
         }

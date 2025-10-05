@@ -216,6 +216,19 @@ pub enum ServiceStatus {
     Degraded,
 }
 
+impl ServiceStatus {
+    /// Get the string representation (lowercase)
+    ///
+    /// This matches the serde serialization format.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ServiceStatus::Up => "up",
+            ServiceStatus::Down => "down",
+            ServiceStatus::Degraded => "degraded",
+        }
+    }
+}
+
 /// Event published when a service health check is performed
 ///
 /// This event is broadcast to all interested actors (AlertActor, StorageActor).
