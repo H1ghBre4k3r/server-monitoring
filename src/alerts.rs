@@ -3,6 +3,7 @@ use reqwest::Client;
 use serde_json::json;
 use tracing::{error, info, instrument};
 
+use crate::actors::messages::ServiceStatus;
 use crate::config::{Alert, ServerConfig, Webhook};
 use crate::discord::{DiscordManager, MessageBuilder};
 use crate::monitors::resources::ResourceEvaluation;
@@ -179,6 +180,129 @@ impl AlertManager {
             }
             Err(e) => {
                 error!("Failed to send webhook alert: {}", e);
+            }
+        }
+    }
+
+    /// Send service health alert (for HTTP/HTTPS service monitoring)
+    ///
+    /// # Arguments
+    /// - `alert_config`: Alert configuration (Discord or Webhook)
+    /// - `service_name`: Name of the service
+    /// - `url`: Service URL being monitored
+    /// - `previous_status`: Previous service status (None if first check)
+    /// - `current_status`: Current service status
+    /// - `error_message`: Optional error message if service is down
+    ///
+    /// TODO: this should be in an own kind of alert manager, probably.
+    #[instrument(skip(self, alert_config))]
+    pub async fn send_service_alert(
+        &self,
+        alert_config: &Alert,
+        service_name: &str,
+        url: &str,
+        previous_status: Option<ServiceStatus>,
+        current_status: ServiceStatus,
+        error_message: Option<&str>,
+    ) {
+        // Determine if we should send an alert
+        let should_alert = match (previous_status, current_status) {
+            // Service went down
+            (Some(ServiceStatus::Up), ServiceStatus::Down | ServiceStatus::Degraded) => true,
+            (None, ServiceStatus::Down | ServiceStatus::Degraded) => true,
+
+            // Service recovered
+            (Some(ServiceStatus::Down | ServiceStatus::Degraded), ServiceStatus::Up) => true,
+
+            // No state change or not significant
+            _ => false,
+        };
+
+        if !should_alert {
+            return;
+        }
+
+        match alert_config {
+            Alert::Discord(discord) => {
+                let embed = self.discord_manager.build_service_embed(
+                    service_name,
+                    url,
+                    current_status,
+                    error_message,
+                );
+
+                let mut message_builder = MessageBuilder::new().add_embed(embed);
+                if let Some(user_id) = &discord.user_id {
+                    let emoji = match current_status {
+                        ServiceStatus::Down | ServiceStatus::Degraded => "🔴",
+                        ServiceStatus::Up => "✅",
+                    };
+                    message_builder = message_builder.content(format!(
+                        "{} Service: `{}` <@{user_id}>",
+                        emoji, service_name
+                    ));
+                }
+
+                self.discord_manager
+                    .send_message(discord, &message_builder.build())
+                    .await;
+            }
+            Alert::Webhook(webhook) => {
+                let message = match current_status {
+                    ServiceStatus::Down | ServiceStatus::Degraded => {
+                        let status_text = if current_status == ServiceStatus::Down {
+                            "DOWN"
+                        } else {
+                            "DEGRADED"
+                        };
+                        if let Some(err) = error_message {
+                            format!(
+                                "🔴 **Service {}**: `{}` is {} ({})\nURL: {}",
+                                status_text, service_name, status_text, err, url
+                            )
+                        } else {
+                            format!(
+                                "🔴 **Service {}**: `{}` is {}\nURL: {}",
+                                status_text, service_name, status_text, url
+                            )
+                        }
+                    }
+                    ServiceStatus::Up => {
+                        format!(
+                            "✅ **Service Recovered**: `{}` is back UP\nURL: {}",
+                            service_name, url
+                        )
+                    }
+                };
+
+                let payload = json!({
+                    "message": message,
+                    "service": service_name,
+                    "url": url,
+                    "status": match current_status {
+                        ServiceStatus::Up => "up",
+                        ServiceStatus::Down => "down",
+                        ServiceStatus::Degraded => "degraded",
+                    },
+                    "error": error_message,
+                    "timestamp": Utc::now().to_rfc3339()
+                });
+
+                match self.client.post(&webhook.url).json(&payload).send().await {
+                    Ok(response) => {
+                        if response.status().is_success() {
+                            info!("Successfully sent service webhook alert");
+                        } else {
+                            error!(
+                                "Service webhook alert failed with status: {}",
+                                response.status()
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        error!("Failed to send service webhook alert: {}", e);
+                    }
+                }
             }
         }
     }

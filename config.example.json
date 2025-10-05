@@ -1,6 +1,16 @@
 {
   "_comment": "Server Monitoring Configuration with Discord User Mentions",
   "_discord_user_id_help": "To find Discord user ID: Enable Developer Mode in Discord Settings > Advanced, then right-click on a user and select 'Copy ID'",
+  "_storage_comment": "Storage configuration (optional - defaults to in-memory if omitted)",
+  "storage": {
+    "backend": "sqlite",
+    "path": "./metrics.db",
+    "retention_days": 30,
+    "cleanup_interval_hours": 24,
+    "_retention_note": "Metrics older than retention_days will be deleted",
+    "_cleanup_note": "Cleanup runs every cleanup_interval_hours (default: 24, range: 1-720)",
+    "_backend_note": "Use 'backend: none' for in-memory storage (no persistence)"
+  },
   "servers": [
     {
       "ip": "192.168.1.100",
@@ -88,6 +98,55 @@
               "user_id": "123456789012345678 987654321098765432"
             }
           }
+        }
+      }
+    }
+  ],
+  "_services_comment": "Service monitoring configuration (HTTP/HTTPS endpoints) - Phase 3",
+  "services": [
+    {
+      "name": "API Health Check",
+      "url": "https://api.example.com/health",
+      "interval": 60,
+      "timeout": 10,
+      "method": "GET",
+      "expected_status": [200, 204],
+      "_comment": "Discord alert when API goes down",
+      "alert": {
+        "discord": {
+          "url": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
+          "user_id": "123456789012345678"
+        }
+      }
+    },
+    {
+      "name": "Website Homepage",
+      "url": "https://example.com",
+      "interval": 120,
+      "timeout": 15,
+      "method": "GET",
+      "body_pattern": "Welcome to Example",
+      "_comment": "Check homepage loads and contains expected text",
+      "grace": 3,
+      "alert": {
+        "webhook": {
+          "url": "https://monitoring.example.com/webhook"
+        }
+      }
+    },
+    {
+      "name": "Database API",
+      "url": "https://db.example.com/api/ping",
+      "interval": 30,
+      "timeout": 5,
+      "method": "POST",
+      "expected_status": [200],
+      "_comment": "Critical database service - short interval and grace period",
+      "grace": 2,
+      "alert": {
+        "discord": {
+          "url": "https://discord.com/api/webhooks/YOUR_CRITICAL_WEBHOOK_ID/YOUR_CRITICAL_WEBHOOK_TOKEN",
+          "user_id": "&876543210987654321"
         }
       }
     }

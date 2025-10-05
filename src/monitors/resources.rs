@@ -36,7 +36,7 @@ pub enum ResourceEvaluation {
 }
 
 impl ResourceEvaluation {
-    fn evaluate(
+    pub fn evaluate(
         resource: f32,
         limit: f32,
         grace: usize,
