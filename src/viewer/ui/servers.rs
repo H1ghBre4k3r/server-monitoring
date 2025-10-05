@@ -1,11 +1,11 @@
 //! Servers tab UI
 
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph},
-    Frame,
 };
 
 use crate::viewer::state::AppState;
@@ -52,9 +52,7 @@ fn render_server_list(frame: &mut Frame, area: Rect, state: &AppState) {
 
             let mut style = Style::default();
             if i == state.selected_server {
-                style = style
-                    .bg(Color::DarkGray)
-                    .add_modifier(Modifier::BOLD);
+                style = style.bg(Color::DarkGray).add_modifier(Modifier::BOLD);
             }
 
             ListItem::new(content).style(style)
@@ -89,7 +87,11 @@ fn render_server_metrics(frame: &mut Frame, area: Rect, state: &AppState) {
         render_temp_chart(frame, chunks[3], &server.server_id, state);
     } else {
         let message = Paragraph::new("No servers configured")
-            .block(Block::default().borders(Borders::ALL).title("Server Metrics"))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Server Metrics"),
+            )
             .style(Style::default().fg(Color::Gray));
 
         frame.render_widget(message, area);
@@ -103,63 +105,70 @@ fn render_server_info(
     server: &crate::api::ServerInfo,
     state: &AppState,
 ) {
-    let mut lines = vec![
-        Line::from(vec![
-            Span::styled("Server: ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            Span::raw(&server.display_name),
-            Span::raw("  "),
-            Span::styled(
-                format!("[{}]", &server.health_status),
-                Style::default().fg(match server.health_status.as_str() {
+    let mut lines = vec![Line::from(vec![
+        Span::styled(
+            "Server: ",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(&server.display_name),
+        Span::raw("  "),
+        Span::styled(
+            format!("[{}]", &server.health_status),
+            Style::default()
+                .fg(match server.health_status.as_str() {
                     "up" => Color::Green,
                     "stale" => Color::Yellow,
                     "unknown" => Color::Gray,
                     _ => Color::Red,
-                }).add_modifier(Modifier::BOLD),
-            ),
-        ]),
-    ];
+                })
+                .add_modifier(Modifier::BOLD),
+        ),
+    ])];
 
     // Add system information if available
     if let Some(history) = state.get_metrics_history(&server.server_id)
-        && let Some(latest) = history.back() {
-            let system = &latest.metrics.system;
+        && let Some(latest) = history.back()
+    {
+        let system = &latest.metrics.system;
 
-            // Hostname and OS
-            if let Some(hostname) = &system.host_name {
-                lines.push(Line::from(vec![
-                    Span::styled("Host: ", Style::default().fg(Color::Cyan)),
-                    Span::raw(hostname),
-                ]));
-            }
-
-            if let Some(os) = &system.os_version {
-                lines.push(Line::from(vec![
-                    Span::styled("OS: ", Style::default().fg(Color::Cyan)),
-                    Span::raw(os),
-                    Span::raw("  "),
-                    Span::styled("Arch: ", Style::default().fg(Color::Cyan)),
-                    Span::raw(&latest.metrics.cpus.arch),
-                ]));
-            }
-
-            // Quick metrics summary
-            let mem_percent = (latest.metrics.memory.used as f64 / latest.metrics.memory.total as f64) * 100.0;
-            let mut summary = vec![
-                Span::styled("CPU: ", Style::default().fg(Color::Cyan)),
-                Span::raw(format!("{:.1}% ", latest.metrics.cpus.average_usage)),
-            ];
-
-            if let Some(temp) = latest.metrics.components.average_temperature {
-                summary.push(Span::styled(" Temp: ", Style::default().fg(Color::Cyan)));
-                summary.push(Span::raw(format!("{:.1}°C ", temp)));
-            }
-
-            summary.push(Span::styled(" Mem: ", Style::default().fg(Color::Cyan)));
-            summary.push(Span::raw(format!("{:.1}%", mem_percent)));
-
-            lines.push(Line::from(summary));
+        // Hostname and OS
+        if let Some(hostname) = &system.host_name {
+            lines.push(Line::from(vec![
+                Span::styled("Host: ", Style::default().fg(Color::Cyan)),
+                Span::raw(hostname),
+            ]));
         }
+
+        if let Some(os) = &system.os_version {
+            lines.push(Line::from(vec![
+                Span::styled("OS: ", Style::default().fg(Color::Cyan)),
+                Span::raw(os),
+                Span::raw("  "),
+                Span::styled("Arch: ", Style::default().fg(Color::Cyan)),
+                Span::raw(&latest.metrics.cpus.arch),
+            ]));
+        }
+
+        // Quick metrics summary
+        let mem_percent =
+            (latest.metrics.memory.used as f64 / latest.metrics.memory.total as f64) * 100.0;
+        let mut summary = vec![
+            Span::styled("CPU: ", Style::default().fg(Color::Cyan)),
+            Span::raw(format!("{:.1}% ", latest.metrics.cpus.average_usage)),
+        ];
+
+        if let Some(temp) = latest.metrics.components.average_temperature {
+            summary.push(Span::styled(" Temp: ", Style::default().fg(Color::Cyan)));
+            summary.push(Span::raw(format!("{:.1}°C ", temp)));
+        }
+
+        summary.push(Span::styled(" Mem: ", Style::default().fg(Color::Cyan)));
+        summary.push(Span::raw(format!("{:.1}%", mem_percent)));
+
+        lines.push(Line::from(summary));
+    }
 
     if let Some(last_seen) = &server.last_seen {
         lines.push(Line::from(vec![
@@ -168,7 +177,8 @@ fn render_server_info(
         ]));
     }
 
-    let info = Paragraph::new(lines).block(Block::default().borders(Borders::ALL).title("Server Info"));
+    let info =
+        Paragraph::new(lines).block(Block::default().borders(Borders::ALL).title("Server Info"));
 
     frame.render_widget(info, area);
 }

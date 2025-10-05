@@ -77,6 +77,9 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
     // Create broadcast channel for service check events
     let (service_tx, _service_rx) = broadcast::channel(256);
 
+    // Clone services for alert actor registration (needed before storage actor)
+    let services_for_alert = config.services.clone().unwrap_or_default();
+
     // Initialize storage backend based on config
     #[cfg(feature = "storage-sqlite")]
     let (backend, retention_days, cleanup_interval_hours) =
@@ -96,10 +99,6 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
     let storage_handle = StorageHandle::spawn(metric_tx.subscribe(), service_tx.subscribe());
 
     info!("storage actor started");
-
-    // TODO: move this up to the head of the function
-    // Clone services for alert actor registration
-    let services_for_alert = config.services.clone().unwrap_or_default();
 
     // Spawn alert actor with all server and service configs
     let alert_handle = AlertHandle::spawn(
@@ -137,10 +136,9 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
 
     info!("all actors started, monitoring active");
 
-    // TODO: do we need the api_addr? Maybe for logging
     // Spawn API server if configured
     #[cfg(feature = "api")]
-    let api_addr = if let Some(api_config) = config.api {
+    if let Some(api_config) = config.api {
         use server_monitoring::api::{ApiConfig, ApiState, spawn_api_server};
         use std::net::SocketAddr;
 
@@ -166,20 +164,17 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
         match spawn_api_server(api_config, api_state).await {
             Ok(addr) => {
                 info!("API server started on http://{}", addr);
-                Some(addr)
             }
             Err(e) => {
                 error!("Failed to start API server: {}", e);
-                None
             }
         }
     } else {
         info!("API server disabled (not configured)");
-        None
-    };
+    }
 
     #[cfg(not(feature = "api"))]
-    let api_addr: Option<std::net::SocketAddr> = None;
+    info!("API server disabled (feature not enabled)");
 
     info!("press Ctrl+C to shutdown gracefully");
 

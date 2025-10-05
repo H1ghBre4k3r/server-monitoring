@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use crate::{actors::messages::ServiceStatus, ServerMetrics};
+use crate::{ServerMetrics, actors::messages::ServiceStatus};
 
 /// WebSocket event from the API server
 #[derive(Debug, Clone, Serialize, Deserialize)]

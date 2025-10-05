@@ -1,11 +1,11 @@
 //! Main dashboard layout
 
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Tabs},
-    Frame,
 };
 
 use crate::viewer::state::{AppState, Tab};
@@ -115,7 +115,8 @@ fn render_footer(frame: &mut Frame, area: Rect, state: &AppState) {
         ));
     }
 
-    let footer = Paragraph::new(Line::from(footer_text)).block(Block::default().borders(Borders::ALL));
+    let footer =
+        Paragraph::new(Line::from(footer_text)).block(Block::default().borders(Borders::ALL));
 
     frame.render_widget(footer, area);
 }

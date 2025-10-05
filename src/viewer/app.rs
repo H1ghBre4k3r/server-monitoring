@@ -4,12 +4,9 @@ use anyhow::Result;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use ratatui::{
-    backend::CrosstermBackend,
-    Terminal,
-};
+use ratatui::{Terminal, backend::CrosstermBackend};
 use std::io;
 use tokio::sync::mpsc;
 
@@ -27,6 +24,8 @@ pub struct App {
     config: Config,
     state: AppState,
     ws_rx: mpsc::UnboundedReceiver<WsEvent>,
+    /// Reusable HTTP client for API requests
+    http_client: reqwest::Client,
 }
 
 impl App {
@@ -40,10 +39,16 @@ impl App {
             tokio::runtime::Handle::current().block_on(ws_client.connect())
         })?;
 
+        // Create reusable HTTP client
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()?;
+
         Ok(Self {
             state: AppState::new(config.time_window_seconds),
             config,
             ws_rx,
+            http_client,
         })
     }
 
@@ -72,7 +77,8 @@ impl App {
         // Update state with calculated data limit
         self.state.data_limit = data_limit;
 
-        // Initial data fetch
+        // Initial data fetch - load server/service lists and historical metrics
+        // This provides immediate visualization instead of waiting for WebSocket data
         self.fetch_initial_data().await?;
 
         // Run event loop
@@ -91,12 +97,14 @@ impl App {
     }
 
     /// Fetch initial data from API
+    ///
+    /// Loads server/service lists and historical metrics for immediate visualization.
+    /// After this, the WebSocket provides real-time updates.
     async fn fetch_initial_data(&mut self) -> Result<()> {
-        let client = reqwest::Client::new();
-        let base_url = self.config.api_url.clone();
-
         // Build request with optional auth
-        let mut request = client.get(format!("{}/api/v1/servers", &base_url));
+        let mut request = self
+            .http_client
+            .get(format!("{}/api/v1/servers", &self.config.api_url));
         if let Some(token) = &self.config.api_token {
             request = request.header("Authorization", format!("Bearer {}", token));
         }
@@ -107,12 +115,13 @@ impl App {
                 if response.status().is_success() {
                     let json: serde_json::Value = response.json().await?;
                     if let Some(servers) = json["servers"].as_array() {
-                        let servers: Vec<ServerInfo> = serde_json::from_value(serde_json::Value::Array(servers.clone()))?;
+                        let servers: Vec<ServerInfo> =
+                            serde_json::from_value(serde_json::Value::Array(servers.clone()))?;
                         self.state.update_servers(servers);
                         self.state.connected = true;
 
                         // Fetch historical metrics for each server
-                        self.fetch_historical_metrics(&client).await;
+                        self.fetch_historical_metrics().await;
                     }
                 } else {
                     self.state.error_message = Some(format!("API error: {}", response.status()));
@@ -124,7 +133,9 @@ impl App {
         }
 
         // Fetch services
-        let mut request = client.get(format!("{}/api/v1/services", &base_url));
+        let mut request = self
+            .http_client
+            .get(format!("{}/api/v1/services", &self.config.api_url));
         if let Some(token) = &self.config.api_token {
             request = request.header("Authorization", format!("Bearer {}", token));
         }
@@ -134,7 +145,8 @@ impl App {
                 if response.status().is_success() {
                     let json: serde_json::Value = response.json().await?;
                     if let Some(services) = json["services"].as_array() {
-                        let services: Vec<ServiceInfo> = serde_json::from_value(serde_json::Value::Array(services.clone()))?;
+                        let services: Vec<ServiceInfo> =
+                            serde_json::from_value(serde_json::Value::Array(services.clone()))?;
                         self.state.update_services(services);
                     }
                 }
@@ -148,21 +160,19 @@ impl App {
     }
 
     /// Fetch historical metrics for all servers
-    async fn fetch_historical_metrics(&mut self, client: &reqwest::Client) {
+    async fn fetch_historical_metrics(&mut self) {
         // Use terminal-width-aware data limit for optimal visualization
         let limit = self.state.data_limit;
 
-        let base_url = self.config.api_url.clone();
-        let api_token = self.config.api_token.clone();
         let servers = self.state.servers.clone(); // Clone to avoid borrow issues
 
         for server in servers {
-            let mut request = client.get(format!(
+            let mut request = self.http_client.get(format!(
                 "{}/api/v1/servers/{}/metrics/latest?limit={}",
-                base_url, server.server_id, limit
+                self.config.api_url, server.server_id, limit
             ));
 
-            if let Some(token) = &api_token {
+            if let Some(token) = &self.config.api_token {
                 request = request.header("Authorization", format!("Bearer {}", token));
             }
 
@@ -175,14 +185,23 @@ impl App {
                                 if let Some(metrics) = json["metrics"].as_array() {
                                     let mut loaded_count = 0;
                                     // Parse metrics into a Vec first
-                                    let mut parsed_metrics: Vec<crate::storage::schema::MetricRow> = Vec::new();
+                                    let mut parsed_metrics: Vec<crate::storage::schema::MetricRow> =
+                                        Vec::new();
                                     for metric_value in metrics {
-                                        match serde_json::from_value::<crate::storage::schema::MetricRow>(metric_value.clone()) {
+                                        match serde_json::from_value::<
+                                            crate::storage::schema::MetricRow,
+                                        >(
+                                            metric_value.clone()
+                                        ) {
                                             Ok(metric_row) => {
                                                 parsed_metrics.push(metric_row);
                                             }
                                             Err(e) => {
-                                                tracing::warn!("Failed to deserialize metric for {}: {}", server.server_id, e);
+                                                tracing::warn!(
+                                                    "Failed to deserialize metric for {}: {}",
+                                                    server.server_id,
+                                                    e
+                                                );
                                             }
                                         }
                                     }
@@ -200,28 +219,50 @@ impl App {
                                         loaded_count += 1;
                                     }
 
-                                    tracing::debug!("Loaded {} historical metrics for {}", loaded_count, server.server_id);
+                                    tracing::debug!(
+                                        "Loaded {} historical metrics for {}",
+                                        loaded_count,
+                                        server.server_id
+                                    );
                                 } else {
-                                    tracing::warn!("No 'metrics' array in response for {}", server.server_id);
+                                    tracing::warn!(
+                                        "No 'metrics' array in response for {}",
+                                        server.server_id
+                                    );
                                 }
                             }
                             Err(e) => {
-                                tracing::error!("Failed to parse JSON response for {}: {}", server.server_id, e);
+                                tracing::error!(
+                                    "Failed to parse JSON response for {}: {}",
+                                    server.server_id,
+                                    e
+                                );
                             }
                         }
                     } else {
-                        tracing::error!("HTTP error fetching historical metrics for {}: {}", server.server_id, status);
+                        tracing::error!(
+                            "HTTP error fetching historical metrics for {}: {}",
+                            server.server_id,
+                            status
+                        );
                     }
                 }
                 Err(e) => {
-                    tracing::error!("Failed to fetch historical metrics for {}: {}", server.server_id, e);
+                    tracing::error!(
+                        "Failed to fetch historical metrics for {}: {}",
+                        server.server_id,
+                        e
+                    );
                 }
             }
         }
     }
 
     /// Main event loop
-    async fn run_event_loop(&mut self, terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> {
+    async fn run_event_loop(
+        &mut self,
+        terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> Result<()> {
         let mut last_refresh = std::time::Instant::now();
 
         loop {
@@ -236,15 +277,69 @@ impl App {
             // Handle keyboard events (with timeout)
             if event::poll(std::time::Duration::from_millis(100))?
                 && let Event::Key(key) = event::read()?
-                    && key.kind == KeyEventKind::Press
-                        && self.handle_key_event(key.code).await? {
-                            break; // Quit
-                        }
+                && key.kind == KeyEventKind::Press
+                && self.handle_key_event(key.code).await?
+            {
+                break; // Quit
+            }
 
-            // Periodic refresh
+            // Periodic refresh - only update server/service lists
+            // WebSocket provides real-time metric updates, so no need to refetch historical data
             if last_refresh.elapsed().as_secs() >= self.config.refresh_interval {
-                self.fetch_initial_data().await?;
+                self.refresh_server_list().await.ok(); // Ignore errors
                 last_refresh = std::time::Instant::now();
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Refresh server and service lists (without refetching historical metrics)
+    ///
+    /// This lightweight refresh only updates the list of monitored servers/services.
+    /// Metric data comes from WebSocket, so we don't need to refetch it periodically.
+    async fn refresh_server_list(&mut self) -> Result<()> {
+        // Fetch servers
+        let mut request = self
+            .http_client
+            .get(format!("{}/api/v1/servers", &self.config.api_url));
+        if let Some(token) = &self.config.api_token {
+            request = request.header("Authorization", format!("Bearer {}", token));
+        }
+
+        if let Ok(response) = request.send().await {
+            if response.status().is_success() {
+                if let Ok(json) = response.json::<serde_json::Value>().await {
+                    if let Some(servers) = json["servers"].as_array() {
+                        if let Ok(servers) = serde_json::from_value::<Vec<ServerInfo>>(
+                            serde_json::Value::Array(servers.clone()),
+                        ) {
+                            self.state.update_servers(servers);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fetch services
+        let mut request = self
+            .http_client
+            .get(format!("{}/api/v1/services", &self.config.api_url));
+        if let Some(token) = &self.config.api_token {
+            request = request.header("Authorization", format!("Bearer {}", token));
+        }
+
+        if let Ok(response) = request.send().await {
+            if response.status().is_success() {
+                if let Ok(json) = response.json::<serde_json::Value>().await {
+                    if let Some(services) = json["services"].as_array() {
+                        if let Ok(services) = serde_json::from_value::<Vec<ServiceInfo>>(
+                            serde_json::Value::Array(services.clone()),
+                        ) {
+                            self.state.update_services(services);
+                        }
+                    }
+                }
             }
         }
 
@@ -280,7 +375,8 @@ impl App {
                         timestamp,
                         server_id: service_name.clone(),
                         alert_type: "Service Down".to_string(),
-                        message: error_message.unwrap_or_else(|| "Service check failed".to_string()),
+                        message: error_message
+                            .unwrap_or_else(|| "Service check failed".to_string()),
                         severity: AlertSeverity::Critical,
                     });
                 }

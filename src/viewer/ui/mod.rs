@@ -1,9 +1,9 @@
 //! UI rendering module
 
+mod alerts;
 mod layout;
 mod servers;
 mod services;
-mod alerts;
 mod widgets;
 
 pub use layout::render;

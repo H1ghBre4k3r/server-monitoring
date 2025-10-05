@@ -1,12 +1,12 @@
 //! Reusable UI widgets
 
 use ratatui::{
+    Frame,
     layout::Rect,
     style::{Color, Style},
     symbols,
     text::{Line, Span},
     widgets::{Axis, Block, Borders, Chart, Dataset, GraphType, Paragraph},
-    Frame,
 };
 
 use crate::viewer::state::AppState;
@@ -55,17 +55,20 @@ pub fn render_cpu_chart(frame: &mut Frame, area: Rect, server_id: &str, state: &
 
         // Create time labels based on fixed window (not data range)
         let start_time = window_start.format("%H:%M:%S").to_string();
-        let mid_time = (window_start + chrono::Duration::seconds(state.time_window_seconds as i64 / 2))
-            .format("%H:%M:%S")
-            .to_string();
+        let mid_time = (window_start
+            + chrono::Duration::seconds(state.time_window_seconds as i64 / 2))
+        .format("%H:%M:%S")
+        .to_string();
         let end_time = now.format("%H:%M:%S").to_string();
 
-        let datasets = vec![Dataset::default()
-            .name("CPU %")
-            .marker(symbols::Marker::Braille)
-            .graph_type(GraphType::Line)
-            .style(Style::default().fg(Color::Cyan))
-            .data(&data)];
+        let datasets = vec![
+            Dataset::default()
+                .name("CPU %")
+                .marker(symbols::Marker::Braille)
+                .graph_type(GraphType::Line)
+                .style(Style::default().fg(Color::Cyan))
+                .data(&data),
+        ];
 
         let chart = Chart::new(datasets)
             .block(
@@ -112,14 +115,10 @@ pub fn render_temp_chart(frame: &mut Frame, area: Rect, server_id: &str, state: 
             .iter()
             .filter(|point| point.timestamp >= window_start)
             .filter_map(|point| {
-                point
-                    .metrics
-                    .components
-                    .average_temperature
-                    .map(|temp| {
-                        let timestamp = point.timestamp.timestamp() as f64;
-                        (timestamp, temp as f64)
-                    })
+                point.metrics.components.average_temperature.map(|temp| {
+                    let timestamp = point.timestamp.timestamp() as f64;
+                    (timestamp, temp as f64)
+                })
             })
             .collect();
 
@@ -143,17 +142,20 @@ pub fn render_temp_chart(frame: &mut Frame, area: Rect, server_id: &str, state: 
 
         // Create time labels based on fixed window (not data range)
         let start_time = window_start.format("%H:%M:%S").to_string();
-        let mid_time = (window_start + chrono::Duration::seconds(state.time_window_seconds as i64 / 2))
-            .format("%H:%M:%S")
-            .to_string();
+        let mid_time = (window_start
+            + chrono::Duration::seconds(state.time_window_seconds as i64 / 2))
+        .format("%H:%M:%S")
+        .to_string();
         let end_time = now.format("%H:%M:%S").to_string();
 
-        let datasets = vec![Dataset::default()
-            .name("Temp °C")
-            .marker(symbols::Marker::Braille)
-            .graph_type(GraphType::Line)
-            .style(Style::default().fg(Color::Red))
-            .data(&data)];
+        let datasets = vec![
+            Dataset::default()
+                .name("Temp °C")
+                .marker(symbols::Marker::Braille)
+                .graph_type(GraphType::Line)
+                .style(Style::default().fg(Color::Red))
+                .data(&data),
+        ];
 
         let chart = Chart::new(datasets)
             .block(
@@ -185,68 +187,66 @@ pub fn render_temp_chart(frame: &mut Frame, area: Rect, server_id: &str, state: 
 /// Render memory usage gauge
 pub fn render_memory_gauge(frame: &mut Frame, area: Rect, server_id: &str, state: &AppState) {
     if let Some(history) = state.get_metrics_history(server_id)
-        && let Some(latest) = history.back() {
-            let memory = &latest.metrics.memory;
+        && let Some(latest) = history.back()
+    {
+        let memory = &latest.metrics.memory;
 
-            // Calculate percentages
-            let mem_percent = (memory.used as f64 / memory.total as f64) * 100.0;
-            let swap_percent = if memory.total_swap > 0 {
-                (memory.used_swap as f64 / memory.total_swap as f64) * 100.0
-            } else {
-                0.0
-            };
+        // Calculate percentages
+        let mem_percent = (memory.used as f64 / memory.total as f64) * 100.0;
+        let swap_percent = if memory.total_swap > 0 {
+            (memory.used_swap as f64 / memory.total_swap as f64) * 100.0
+        } else {
+            0.0
+        };
 
-            // Format values in GB
-            let mem_used_gb = memory.used as f64 / 1_000_000_000.0;
-            let mem_total_gb = memory.total as f64 / 1_000_000_000.0;
-            let swap_used_gb = memory.used_swap as f64 / 1_000_000_000.0;
-            let swap_total_gb = memory.total_swap as f64 / 1_000_000_000.0;
+        // Format values in GB
+        let mem_used_gb = memory.used as f64 / 1_000_000_000.0;
+        let mem_total_gb = memory.total as f64 / 1_000_000_000.0;
+        let swap_used_gb = memory.used_swap as f64 / 1_000_000_000.0;
+        let swap_total_gb = memory.total_swap as f64 / 1_000_000_000.0;
 
-            // Color based on usage
-            let mem_color = if mem_percent >= 85.0 {
-                Color::Red
-            } else if mem_percent >= 70.0 {
-                Color::Yellow
-            } else {
-                Color::Green
-            };
+        // Color based on usage
+        let mem_color = if mem_percent >= 85.0 {
+            Color::Red
+        } else if mem_percent >= 70.0 {
+            Color::Yellow
+        } else {
+            Color::Green
+        };
 
-            let swap_color = if swap_percent >= 85.0 {
-                Color::Red
-            } else if swap_percent >= 70.0 {
-                Color::Yellow
-            } else {
-                Color::Green
-            };
+        let swap_color = if swap_percent >= 85.0 {
+            Color::Red
+        } else if swap_percent >= 70.0 {
+            Color::Yellow
+        } else {
+            Color::Green
+        };
 
-            // Create progress bars
-            let mem_bar_width = (mem_percent / 100.0 * 20.0) as usize;
-            let mem_bar = "█".repeat(mem_bar_width) + &"░".repeat(20 - mem_bar_width);
+        // Create progress bars
+        let mem_bar_width = (mem_percent / 100.0 * 20.0) as usize;
+        let mem_bar = "█".repeat(mem_bar_width) + &"░".repeat(20 - mem_bar_width);
 
-            let swap_bar_width = (swap_percent / 100.0 * 20.0) as usize;
-            let swap_bar = "█".repeat(swap_bar_width) + &"░".repeat(20 - swap_bar_width);
+        let swap_bar_width = (swap_percent / 100.0 * 20.0) as usize;
+        let swap_bar = "█".repeat(swap_bar_width) + &"░".repeat(20 - swap_bar_width);
 
-            let lines = vec![
-                Line::from(vec![
-                    Span::styled("RAM: ", Style::default().fg(Color::Cyan)),
-                    Span::raw(format!("{:.1}/{:.1} GB ", mem_used_gb, mem_total_gb)),
-                    Span::styled(&mem_bar, Style::default().fg(mem_color)),
-                    Span::raw(format!(" {:.1}%", mem_percent)),
-                ]),
-                Line::from(vec![
-                    Span::styled("Swap: ", Style::default().fg(Color::Cyan)),
-                    Span::raw(format!("{:.1}/{:.1} GB ", swap_used_gb, swap_total_gb)),
-                    Span::styled(&swap_bar, Style::default().fg(swap_color)),
-                    Span::raw(format!(" {:.1}%", swap_percent)),
-                ]),
-            ];
+        let lines = vec![
+            Line::from(vec![
+                Span::styled("RAM: ", Style::default().fg(Color::Cyan)),
+                Span::raw(format!("{:.1}/{:.1} GB ", mem_used_gb, mem_total_gb)),
+                Span::styled(&mem_bar, Style::default().fg(mem_color)),
+                Span::raw(format!(" {:.1}%", mem_percent)),
+            ]),
+            Line::from(vec![
+                Span::styled("Swap: ", Style::default().fg(Color::Cyan)),
+                Span::raw(format!("{:.1}/{:.1} GB ", swap_used_gb, swap_total_gb)),
+                Span::styled(&swap_bar, Style::default().fg(swap_color)),
+                Span::raw(format!(" {:.1}%", swap_percent)),
+            ]),
+        ];
 
-            let gauge = Paragraph::new(lines).block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title("Memory Usage"),
-            );
+        let gauge = Paragraph::new(lines)
+            .block(Block::default().borders(Borders::ALL).title("Memory Usage"));
 
-            frame.render_widget(gauge, area);
-        }
+        frame.render_widget(gauge, area);
+    }
 }

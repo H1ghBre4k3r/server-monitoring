@@ -1,11 +1,11 @@
 //! Alerts tab UI
 
 use ratatui::{
+    Frame,
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph},
-    Frame,
 };
 
 use crate::viewer::state::{AlertSeverity, AppState};
@@ -14,7 +14,11 @@ use crate::viewer::state::{AlertSeverity, AppState};
 pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     if state.alerts.is_empty() {
         let message = Paragraph::new("No alerts yet")
-            .block(Block::default().borders(Borders::ALL).title("Alerts Timeline"))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Alerts Timeline"),
+            )
             .style(Style::default().fg(Color::Gray));
 
         frame.render_widget(message, area);
@@ -62,9 +66,7 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
 
             let mut style = Style::default();
             if i == state.selected_alert {
-                style = style
-                    .bg(Color::DarkGray)
-                    .add_modifier(Modifier::BOLD);
+                style = style.bg(Color::DarkGray).add_modifier(Modifier::BOLD);
             }
 
             ListItem::new(content).style(style)

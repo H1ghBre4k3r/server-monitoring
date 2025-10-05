@@ -1,12 +1,12 @@
 //! Services tab UI
 
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     prelude::Stylize,
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Row, Table},
-    Frame,
 };
 
 use crate::viewer::state::AppState;
@@ -37,7 +37,11 @@ fn render_service_list(frame: &mut Frame, area: Rect, state: &AppState) {
     }
 
     let header = Row::new(vec!["Status", "Service Name", "URL", "Last Check"])
-        .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )
         .bottom_margin(1);
 
     let rows: Vec<Row> = state
@@ -56,16 +60,17 @@ fn render_service_list(frame: &mut Frame, area: Rect, state: &AppState) {
 
             let mut style = Style::default();
             if i == state.selected_service {
-                style = style
-                    .bg(Color::DarkGray)
-                    .add_modifier(Modifier::BOLD);
+                style = style.bg(Color::DarkGray).add_modifier(Modifier::BOLD);
             }
 
             Row::new(vec![
                 format!("● {}", service.health_status),
                 service.name.clone(),
                 service.url.clone(),
-                service.last_check.clone().unwrap_or_else(|| "Never".to_string()),
+                service
+                    .last_check
+                    .clone()
+                    .unwrap_or_else(|| "Never".to_string()),
             ])
             .style(style)
             .fg(health_color)
