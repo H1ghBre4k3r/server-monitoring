@@ -10,7 +10,7 @@ use ratatui::{
 
 use crate::viewer::state::AppState;
 
-use super::widgets::{render_cpu_chart, render_memory_gauge, render_temp_chart};
+use super::widgets::{render_cpu_chart, render_memory_chart, render_memory_gauge, render_temp_chart};
 
 /// Render servers tab
 pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
@@ -75,14 +75,14 @@ fn render_server_metrics(frame: &mut Frame, area: Rect, state: &AppState) {
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(7),      // Server info
-                Constraint::Length(4),      // Memory gauge
-                Constraint::Percentage(45), // CPU chart
-                Constraint::Percentage(45), // Temperature chart
+                Constraint::Percentage(25), // Memory chart (new!)
+                Constraint::Percentage(37), // CPU per-core chart (enhanced!)
+                Constraint::Percentage(31), // Temperature per-component chart (enhanced!)
             ])
             .split(area);
 
         render_server_info(frame, chunks[0], server, state);
-        render_memory_gauge(frame, chunks[1], &server.server_id, state);
+        render_memory_chart(frame, chunks[1], &server.server_id, state);
         render_cpu_chart(frame, chunks[2], &server.server_id, state);
         render_temp_chart(frame, chunks[3], &server.server_id, state);
     } else {
