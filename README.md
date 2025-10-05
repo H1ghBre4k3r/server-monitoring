@@ -55,7 +55,7 @@
 **Components:**
 - **Agent** (`guardia-agent`): Runs on each monitored server, exposes metrics via HTTP
 - **Hub** (`guardia-hub`): Central monitoring service with actor-based architecture
-- **Viewer** (`guardia-viewer`): TUI dashboard for real-time visualization (Phase 4.2)
+- **Viewer** (`guardia-viewer`): TUI dashboard for real-time visualization
 
 ## 🚀 Quick Start
 
@@ -158,7 +158,33 @@ Create `config.json`:
 guardia-hub -f config.json
 ```
 
-### 5. Access the API
+### 5. Start the Viewer (TUI Dashboard)
+
+```bash
+# Create viewer config
+mkdir -p ~/.config/guardia
+cat > ~/.config/guardia/viewer.toml <<EOF
+api_url = "http://localhost:8080"
+api_token = "api-secret-token"
+refresh_interval = 5
+max_metrics = 100
+EOF
+
+# Run the viewer
+guardia-viewer
+
+# Or with CLI args
+guardia-viewer --url http://localhost:8080 --token api-secret-token
+```
+
+**Keybindings:**
+- `Tab` / `←` `→` - Navigate between tabs (Servers, Services, Alerts)
+- `↑` `↓` / `j` `k` - Select items in lists
+- `Space` - Pause/resume real-time updates
+- `r` - Refresh data from API
+- `q` / `Esc` - Quit
+
+### 6. Access the API (Optional)
 
 ```bash
 # Health check
@@ -387,12 +413,11 @@ This project is licensed under the GPL-3.0 License - see the [LICENSE](LICENSE) 
 - ✅ Phase 3: Service health monitoring
 - ✅ Phase 4.0: Automatic cleanup
 - ✅ Phase 4.1: REST API + WebSocket server
-
-**In Progress:**
-- 🚧 Phase 4.2: TUI Dashboard with Ratatui
+- ✅ Phase 4.2: TUI Dashboard with Ratatui
 
 **Planned:**
 - 📋 Phase 5: Production hardening and performance optimization
+- 📋 Alert architecture refactoring (split metric/service alerts)
 
 See [ROADMAP.md](ROADMAP.md) for detailed plans.
 

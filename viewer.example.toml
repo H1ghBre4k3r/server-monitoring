@@ -1,0 +1,26 @@
+# Example configuration file for guardia-viewer
+#
+# Place this file at:
+# - Linux/macOS: ~/.config/guardia/viewer.toml
+# - Windows: %APPDATA%\guardia\viewer.toml
+#
+# Or specify a custom path with: guardia-viewer --config /path/to/config.toml
+
+# API server URL (required)
+api_url = "http://localhost:8080"
+
+# API authentication token (optional)
+# If the hub requires authentication, provide the token here
+api_token = "your-api-token-here"
+
+# Refresh interval in seconds (default: 5)
+# How often to poll the API for updated server/service lists
+refresh_interval = 5
+
+# Maximum metrics to keep in memory per server (default: 100)
+# Older metrics are discarded to prevent memory growth
+max_metrics = 100
+
+# Enable debug mode (default: false)
+# Shows additional debug information in the UI
+debug = false

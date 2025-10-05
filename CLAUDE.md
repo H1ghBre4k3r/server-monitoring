@@ -104,8 +104,20 @@ The hub now uses an actor-based architecture for better scalability and maintain
 - ✅ Feature flag: `api` (enabled by default)
 - ✅ All tests passing (75/75)
 
-**📋 Phase 4.2: TUI Dashboard (NEXT)**
-- See "TUI Dashboard Architecture" section below for detailed plans
+**✅ Phase 4.2: TUI Dashboard COMPLETE**
+- ✅ Ratatui-based terminal UI (`guardia-viewer` binary)
+- ✅ WebSocket client for real-time metric/service check streaming
+- ✅ Three-tab interface: Servers, Services, Alerts
+- ✅ Real-time CPU and temperature charts (line graphs with Braille markers)
+- ✅ Server health status display (up/stale/unknown)
+- ✅ Service health monitoring (up/down/degraded/stale/unknown)
+- ✅ Alert timeline with severity indicators
+- ✅ Keybindings: Tab navigation, arrow keys, space to pause, R to refresh, Q to quit
+- ✅ TOML configuration support (`~/.config/guardia/viewer.toml`)
+- ✅ Automatic reconnection on WebSocket disconnect
+- ✅ Ring buffer for metrics (configurable max_metrics, default 100)
+- ✅ Feature flag: `dashboard` (enabled by default)
+- See "TUI Dashboard Architecture" section below for implementation details
 
 **Legacy Code:**
 - Old `monitors/server.rs` and `monitors/resources.rs` are kept for reference
@@ -226,138 +238,125 @@ cargo run --bin hub -- -f config.json
 # API will start automatically: "API server started on http://127.0.0.1:8080"
 ```
 
-### TUI Dashboard Architecture (📋 Phase 4.2 - Planned)
+### TUI Dashboard Architecture (✅ Phase 4.2 - COMPLETE)
 
 A beautiful terminal dashboard for monitoring servers and services in real-time.
 
-**Binary:** `src/bin/viewer.rs` (new binary: `guardia-viewer`)
+**Binary:** `src/bin/viewer.rs` → `guardia-viewer`
+
+**Implementation (`src/viewer/`):**
+- `app.rs` - Main application loop, event handling, WebSocket integration
+- `config.rs` - TOML configuration loading from `~/.config/guardia/viewer.toml`
+- `state.rs` - Application state management with ring buffers for metrics
+- `websocket.rs` - WebSocket client with automatic reconnection
+- `ui/` - Ratatui-based UI modules
 
 **Architecture:**
 - Connects to API server (local or remote) via HTTP + WebSocket
-- Real-time updates via `/api/v1/stream` WebSocket
-- Historical data via REST endpoints on demand
-- Configuration file: `~/.config/guardia/viewer.toml`
+- Real-time updates via `/api/v1/stream` WebSocket endpoint
+- Initial data fetch via REST endpoints (`/api/v1/servers`, `/api/v1/services`)
+- Periodic refresh (configurable interval, default 5s)
+- Configuration file: `~/.config/guardia/viewer.toml` or via CLI args
 
 **UI Design (Ratatui + Crossterm):**
 
-**Tab 1: Overview** - All servers at a glance
-- Grid layout with server cards (3-4 per row)
-- Each card shows: server name, health badge, CPU/temp sparklines, last seen
-- Color coding: green (up), yellow (stale), red (unknown/down)
-- Auto-scrolls if more servers than fit on screen
+**Tab 1: Servers** - Server monitoring
+- **Left panel**: Server list with health status indicators (●)
+  - Color coding: green (up), yellow (stale), gray (unknown)
+  - Shows display name and status badge
+  - Arrow keys to select servers
+- **Right panel**: Selected server details
+  - Server info box: ID, status, last seen, current CPU/temp/memory
+  - Real-time CPU usage chart (line graph with Braille markers)
+  - Real-time temperature chart (line graph with Braille markers)
+  - Charts auto-update as WebSocket events arrive
 
-**Tab 2-N: Server Details** - Per-server graphs
-- One tab per monitored server
-- CPU usage over time (line chart with threshold)
-- Temperature over time (line chart with threshold)
-- Memory usage gauge
-- Last 10 metrics table
-- Navigation: left/right arrows to switch servers
+**Tab 2: Services** - Service health monitoring
+- **Table view**: Service list with columns
+  - Status indicator (●), Service Name, URL, Last Check
+  - Color-coded: green (up), red (down), yellow (degraded), magenta (stale), gray (unknown)
+  - Arrow keys to navigate
+- **Detail panel**: Selected service details
+  - Service name, URL, status, monitoring status, last check, last status
 
-**Tab N+1: Services** - Service health status
-- Table with columns: Name, URL, Status, Last Check, Uptime %, Avg Response
-- Sortable by any column
-- Color-coded status indicators
-- Filter by status (all/up/down/degraded)
+**Tab 3: Alerts** - Alert timeline
+- **Scrollable list** of alerts (newest first, max 500 in memory)
+- Shows: timestamp, severity icon (⚠/⚡/ℹ), server/service ID, alert type, message
+- Color-coded by severity: red (critical), yellow (warning), blue (info)
+- Currently captures service DOWN events automatically
 
-**Tab N+2: Alerts** - Recent alerts timeline
-- Scrollable list of recent alerts (last 100)
-- Shows: timestamp, server/service, type (CPU/temp/service), message
-- Color-coded by severity
-- Filter by server/service/type
-
-**Custom Widgets:**
-```rust
-// src/dashboard/widgets/server_card.rs
-struct ServerCard {
-    server_id: String,
-    display_name: String,
-    health_status: HealthStatus,
-    cpu_sparkline: Vec<f32>,      // Last 60 values
-    temp_sparkline: Vec<f32>,     // Last 60 values
-    last_seen: DateTime<Utc>,
-}
-
-// src/dashboard/widgets/metric_graph.rs
-struct MetricGraph {
-    title: String,
-    data: Vec<(DateTime<Utc>, f32)>,
-    threshold: Option<f32>,       // Draws horizontal line
-    y_range: (f32, f32),
-    time_window: Duration,        // e.g., last 5 minutes
-}
-
-// src/dashboard/widgets/service_list.rs
-struct ServiceList {
-    services: Vec<ServiceRow>,
-    sort_column: Column,
-    filter_status: Option<ServiceStatus>,
-}
-
-// src/dashboard/widgets/alert_timeline.rs
-struct AlertTimeline {
-    alerts: Vec<Alert>,
-    scroll_offset: usize,
-}
-```
+**Implemented Widgets (`src/viewer/ui/`):**
+- `layout.rs` - Main dashboard layout with header (tabs), content area, footer (keybindings/status)
+- `servers.rs` - Server list + metrics display (info panel + CPU/temp charts)
+- `services.rs` - Service table + detail panel
+- `alerts.rs` - Alert timeline with severity indicators
+- `widgets.rs` - Reusable chart widgets (`render_cpu_chart`, `render_temp_chart`)
 
 **Keybindings:**
-- `Tab` / `Shift+Tab` - Navigate between tabs
-- `↑` `↓` - Navigate within lists/tables
-- `←` `→` - Switch server detail tabs
+- `Tab` / `→` - Next tab
+- `Shift+Tab` / `←` - Previous tab
+- `↑` / `k` - Select previous item (in lists/tables)
+- `↓` / `j` - Select next item (in lists/tables)
 - `Space` - Pause/resume real-time updates
-- `r` - Force refresh (re-query API)
-- `+` / `-` - Zoom time range (5min/15min/1hr/6hr/24hr)
-- `s` - Sort services table (cycles through columns)
-- `f` - Filter services by status
-- `q` - Quit
-- `h` - Show help overlay
+- `r` / `R` - Force refresh (re-query API)
+- `c` - Clear error message
+- `q` / `Q` / `Esc` - Quit
 
 **Data Flow:**
 1. Viewer connects to API server on startup
 2. Fetches initial state via REST endpoints (`/api/v1/servers`, `/api/v1/services`)
-3. Opens WebSocket to `/api/v1/stream`
-4. Receives `MetricEvent` and `ServiceCheckEvent` messages
-5. Updates in-memory ring buffers (last 5 minutes of data)
-6. Renders UI at 60fps using Crossterm
-7. On user navigation to server detail, queries `/api/v1/servers/:id/metrics?start=...` for historical data
+3. Opens WebSocket to `/api/v1/stream` (automatic reconnection on disconnect)
+4. Receives `MetricEvent` and `ServiceCheckEvent` messages from WebSocket
+5. Updates in-memory ring buffers (configurable max, default 100 metrics per server, 500 alerts)
+6. Renders UI on state changes or keyboard events (event-driven, ~10 FPS polling)
+7. Periodic refresh (default 5s) re-fetches server/service lists from API
+8. Paused mode freezes updates but maintains WebSocket connection
 
 **Configuration (`~/.config/guardia/viewer.toml`):**
 ```toml
-[api]
-endpoint = "http://localhost:8080"
-auth_token = "your-secret-token"  # Optional
+# API server URL
+api_url = "http://localhost:8080"
 
-[ui]
-refresh_rate = 60         # FPS (1-120)
-buffer_size = 300         # Seconds of data in memory
-theme = "dark"            # "dark" or "light"
-graph_style = "line"      # "line", "bar", "area"
+# Optional API authentication token
+api_token = "your-api-token-here"
 
-[timeranges]
-default = "5m"            # Default zoom: 5m, 15m, 1h, 6h, 24h
-zoom_levels = ["5m", "15m", "1h", "6h", "24h"]
+# Refresh interval in seconds (default: 5)
+refresh_interval = 5
+
+# Maximum metrics to keep in memory per server (default: 100)
+max_metrics = 100
+
+# Enable debug mode (default: false)
+debug = false
 ```
 
-**Running the Dashboard:**
+See `viewer.example.toml` for full configuration template.
+
+**Running the Viewer:**
 ```bash
-# Connect to local hub (default: http://localhost:8080)
-cargo run --bin viewer
+# With default config (~/.config/guardia/viewer.toml)
+guardia-viewer
 
-# Connect to remote hub
-cargo run --bin viewer -- --endpoint http://monitoring.example.com:8080 --token <token>
+# With custom config file
+guardia-viewer --config viewer.toml
 
-# Use config file
-cargo run --bin viewer -- --config ~/.config/guardia/viewer.toml
+# Override API URL and token via CLI
+guardia-viewer --url http://remote-server:8080 --token secret123
 ```
+
+**Dependencies:**
+- `ratatui` (0.29) - Terminal UI framework
+- `crossterm` (0.28) - Terminal manipulation
+- `tokio-tungstenite` (0.24) - WebSocket client
+- `toml` (0.8) - Config file parsing
+- `dirs` (5.0) - Cross-platform config directory
 
 **Implementation Notes:**
-- Use `Ratatui` for rendering (modern, well-maintained TUI framework)
-- Use `Crossterm` as backend (cross-platform terminal control)
-- Use `tokio-tungstenite` for WebSocket client
-- Store data in `Arc<RwLock<AppState>>` for concurrent access
-- Separate thread for WebSocket to avoid blocking UI
-- Use `mpsc` channel to send events from WebSocket thread to UI thread
+- WebSocket client runs in background tokio task with automatic reconnection
+- Events sent to app via `mpsc::unbounded_channel`
+- State updates are non-blocking (try_recv in event loop)
+- Charts use Ratatui's `Chart` widget with Braille markers for smooth rendering
+- Ring buffers (VecDeque) for metric history prevent unbounded memory growth
 
 ## Development Commands
 
