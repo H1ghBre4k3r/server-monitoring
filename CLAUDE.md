@@ -21,17 +21,20 @@ The hub now uses an actor-based architecture for better scalability and maintain
 
 **Actors (`src/actors/`):**
 - **MetricCollectorActor** (`collector.rs`): Polls agent endpoints at configured intervals, publishes metrics to broadcast channel
-- **AlertActor** (`alert.rs`): Subscribes to metrics, maintains grace period state, triggers alerts when thresholds exceeded
-- **StorageActor** (`storage.rs`): Subscribes to metrics, persists to storage with pluggable backends (SQLite, in-memory)
+- **ServiceMonitorActor** (`service_monitor.rs`): Performs HTTP/HTTPS service health checks, publishes service check events to broadcast channel
+- **AlertActor** (`alert.rs`): Subscribes to metrics and service checks, maintains grace period state, triggers alerts when thresholds exceeded
+- **StorageActor** (`storage.rs`): Subscribes to metrics and service checks, persists to storage with pluggable backends (SQLite, in-memory)
 
 **Communication:**
 - Each actor has an `mpsc` command channel for control messages (poll now, shutdown, etc.)
 - Metrics flow through a `broadcast` channel from collectors to alert/storage actors
+- Service checks flow through a separate `broadcast` channel from service monitors to alert/storage actors
 - Handles provide typed API for sending commands to actors
 
 **Message Types (`messages.rs`):**
 - `MetricEvent`: Published when metrics collected from a server
-- `CollectorCommand`, `AlertCommand`, `StorageCommand`: Control messages for each actor type
+- `ServiceCheckEvent`: Published when service health check completes (UP/DOWN/DEGRADED)
+- `CollectorCommand`, `ServiceMonitorCommand`, `AlertCommand`, `StorageCommand`: Control messages for each actor type
 
 **Why Actor Model:**
 - Loose coupling - actors only communicate via messages
@@ -56,7 +59,23 @@ The hub now uses an actor-based architecture for better scalability and maintain
 - ✅ Configuration support for storage backends
 - ✅ Backward compatible (falls back to in-memory mode)
 - ✅ All tests passing (60/60)
-- ⏳ NEXT: Retention/cleanup background task, integration tests
+- ✅ COMPLETE - Moving to Phase 4 (retention cleanup)
+
+**Phase 3 Status (✅ Service Monitoring COMPLETE):**
+- ✅ HTTP/HTTPS service check monitoring
+- ✅ ServiceMonitorActor with configurable check intervals
+- ✅ Service check persistence (SQLite + in-memory)
+- ✅ Service status tracking (UP/DOWN/DEGRADED)
+- ✅ Grace periods for flapping detection
+- ✅ Alert integration (Discord + Webhook)
+- ✅ Uptime calculation with statistics
+- ✅ Public query API in StorageHandle
+  - `query_service_checks_range()` - time range queries
+  - `query_latest_service_checks()` - latest N checks
+  - `calculate_uptime()` - uptime statistics
+- ✅ Integration tests (persistence, uptime, range queries)
+- ✅ All tests passing (75/75: 29 unit + 34 integration + 9 property + 3 doc)
+- 📋 NEXT: Phase 4 - Retention cleanup, then dashboard/API
 
 **Legacy Code:**
 - Old `monitors/server.rs` and `monitors/resources.rs` are kept for reference
@@ -217,3 +236,47 @@ Both share common code from `src/lib.rs` and its modules.
 - `Exceeding`: Above limit but within grace period
 - `StartsToExceed`: Grace period exhausted, triggers alert
 - `BackToOk`: Returned to normal after exceeding, triggers recovery alert
+
+## Known Technical Debt
+
+### Alert Architecture (Phase 3.5 - Medium Priority)
+
+**Current State:**
+- `AlertManager` (`src/alerts.rs`) handles both metric alerts (CPU, temp) and service alerts (uptime)
+- Single manager with methods for different alert types (`send_temperature_alert`, `send_usage_alert`, `send_service_alert`)
+- See TODO comment in `src/alerts.rs:197` acknowledging this should be split
+
+**Why Split:**
+- Different concerns: metrics (resource monitoring) vs services (availability monitoring)
+- Different alert patterns: metrics use threshold percentages, services need SLA tracking
+- Future extensibility: easier to add new alert types (log alerts, security alerts, disk space)
+- Better separation of concerns and testability
+
+**Proposed Refactoring:**
+```rust
+// Shared alert delivery abstraction
+trait AlertSender {
+    async fn send_discord(&self, discord: &Discord, message: &Message);
+    async fn send_webhook(&self, webhook: &Webhook, payload: &Value);
+}
+
+// Metric-specific alerts (CPU, temp, disk, memory)
+struct MetricAlertManager {
+    sender: Box<dyn AlertSender>,
+    server_config: ServerConfig,
+}
+
+// Service-specific alerts (uptime, SSL expiry, response times)
+struct ServiceAlertManager {
+    sender: Box<dyn AlertSender>,
+    server_config: ServerConfig,
+}
+```
+
+**When to Do:**
+- **Priority**: Medium - after Phase 4.1 (retention cleanup and basic API)
+- **Reason**: Current implementation works without bugs or performance issues
+- **Timing**: 3-5 days after retention/API features are complete
+- **Before**: Adding more alert types (would compound the technical debt)
+
+See [ROADMAP.md Phase 3.5](ROADMAP.md#phase-35-alert-architecture-refactoring-) for full plan.
