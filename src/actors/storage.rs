@@ -30,10 +30,10 @@ use tokio::sync::{broadcast, mpsc};
 use tokio::time;
 use tracing::{debug, error, info, instrument, trace, warn};
 
-use super::messages::{MetricEvent, StorageCommand, StorageStats};
+use super::messages::{MetricEvent, ServiceCheckEvent, StorageCommand, StorageStats};
 
 #[cfg(feature = "storage-sqlite")]
-use crate::storage::{StorageBackend, backend::QueryRange, schema::MetricRow};
+use crate::storage::{backend::QueryRange, schema::{MetricRow, ServiceCheckRow}, StorageBackend};
 
 /// Maximum metrics to keep in in-memory buffer (ring buffer)
 const MAX_BUFFER_SIZE: usize = 1000;
@@ -61,6 +61,10 @@ pub struct StorageActor {
     #[cfg(feature = "storage-sqlite")]
     batch_buffer: Vec<MetricRow>,
 
+    /// Batch buffer for service checks (Phase 3)
+    #[cfg(feature = "storage-sqlite")]
+    service_check_batch_buffer: Vec<ServiceCheckRow>,
+
     /// In-memory ring buffer (used when backend is None, or as cache)
     memory_buffer: VecDeque<MetricEvent>,
 
@@ -69,6 +73,9 @@ pub struct StorageActor {
 
     /// Metric event receiver (broadcast subscription)
     metric_rx: broadcast::Receiver<MetricEvent>,
+
+    /// Service check event receiver (broadcast subscription, Phase 3)
+    service_check_rx: broadcast::Receiver<ServiceCheckEvent>,
 
     /// Flush counter (for stats)
     flush_count: u64,
@@ -84,6 +91,7 @@ impl StorageActor {
     pub fn new(
         command_rx: mpsc::Receiver<StorageCommand>,
         metric_rx: broadcast::Receiver<MetricEvent>,
+        service_check_rx: broadcast::Receiver<ServiceCheckEvent>,
         backend: Option<Box<dyn StorageBackend>>,
         retention_days: Option<u32>,
     ) -> Self {
@@ -101,9 +109,11 @@ impl StorageActor {
         Self {
             backend,
             batch_buffer: Vec::with_capacity(BATCH_SIZE_TRIGGER),
+            service_check_batch_buffer: Vec::with_capacity(BATCH_SIZE_TRIGGER),
             memory_buffer: VecDeque::with_capacity(MAX_BUFFER_SIZE),
             command_rx,
             metric_rx,
+            service_check_rx,
             flush_count: 0,
             retention_days,
         }
@@ -114,6 +124,7 @@ impl StorageActor {
     pub fn new(
         command_rx: mpsc::Receiver<StorageCommand>,
         metric_rx: broadcast::Receiver<MetricEvent>,
+        service_check_rx: broadcast::Receiver<ServiceCheckEvent>,
     ) -> Self {
         debug!("creating storage actor in in-memory mode");
 
@@ -121,6 +132,7 @@ impl StorageActor {
             memory_buffer: VecDeque::with_capacity(MAX_BUFFER_SIZE),
             command_rx,
             metric_rx,
+            service_check_rx,
             flush_count: 0,
         }
     }
@@ -181,11 +193,31 @@ impl StorageActor {
                         }
                     }
 
+                    // Receive service check events
+                    result = self.service_check_rx.recv() => {
+                        match result {
+                            Ok(event) => {
+                                self.store_service_check(event).await;
+                            }
+                            Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                                warn!("storage actor lagged, skipped {skipped} service checks");
+                            }
+                            Err(broadcast::error::RecvError::Closed) => {
+                                trace!("service check channel closed");
+                                // Don't break - metric channel might still be open
+                            }
+                        }
+                    }
+
                     // Time-based flush trigger (only with persistent backend)
                     _ = flush_interval.tick(), if has_backend => {
                         if !self.batch_buffer.is_empty() {
                             trace!("time-based flush triggered ({} metrics)", self.batch_buffer.len());
                             self.flush_batch().await;
+                        }
+                        if !self.service_check_batch_buffer.is_empty() {
+                            trace!("time-based flush triggered ({} service checks)", self.service_check_batch_buffer.len());
+                            self.flush_service_checks_batch().await;
                         }
                     }
 
@@ -227,6 +259,22 @@ impl StorageActor {
                         }
                     }
 
+                    // Receive service check events
+                    result = self.service_check_rx.recv() => {
+                        match result {
+                            Ok(event) => {
+                                self.store_service_check(event).await;
+                            }
+                            Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                                warn!("storage actor lagged, skipped {skipped} service checks");
+                            }
+                            Err(broadcast::error::RecvError::Closed) => {
+                                trace!("service check channel closed");
+                                // Don't break - metric channel might still be open
+                            }
+                        }
+                    }
+
                     // Handle commands
                     Some(cmd) = self.command_rx.recv() => {
                         self.handle_command(cmd).await;
@@ -243,12 +291,22 @@ impl StorageActor {
 
         // Final flush before shutdown
         #[cfg(feature = "storage-sqlite")]
-        if has_backend && !self.batch_buffer.is_empty() {
-            debug!(
-                "final flush before shutdown ({} metrics)",
-                self.batch_buffer.len()
-            );
-            self.flush_batch().await;
+        if has_backend {
+            if !self.batch_buffer.is_empty() {
+                debug!(
+                    "final flush before shutdown ({} metrics)",
+                    self.batch_buffer.len()
+                );
+                self.flush_batch().await;
+            }
+
+            if !self.service_check_batch_buffer.is_empty() {
+                debug!(
+                    "final flush before shutdown ({} service checks)",
+                    self.service_check_batch_buffer.len()
+                );
+                self.flush_service_checks_batch().await;
+            }
         }
 
         #[cfg(feature = "storage-sqlite")]
@@ -327,6 +385,55 @@ impl StorageActor {
         }
     }
 
+    /// Store a service check (in batch buffer for persistent backend)
+    async fn store_service_check(&mut self, event: ServiceCheckEvent) {
+        trace!(
+            "storing service check for {} at {}",
+            event.service_name, event.timestamp
+        );
+
+        // If we have a persistent backend, add to batch buffer
+        #[cfg(feature = "storage-sqlite")]
+        if self.backend.is_some() {
+            let row = ServiceCheckRow::from_event(&event);
+            self.service_check_batch_buffer.push(row);
+
+            // Size-based flush trigger
+            if self.service_check_batch_buffer.len() >= BATCH_SIZE_TRIGGER {
+                trace!(
+                    "size-based flush triggered ({} service checks)",
+                    self.service_check_batch_buffer.len()
+                );
+                self.flush_service_checks_batch().await;
+            }
+        }
+    }
+
+    /// Flush the service check batch buffer to persistent backend
+    #[cfg(feature = "storage-sqlite")]
+    async fn flush_service_checks_batch(&mut self) {
+        if let Some(backend) = self.backend.as_ref() {
+            if self.service_check_batch_buffer.is_empty() {
+                return;
+            }
+
+            let batch_size = self.service_check_batch_buffer.len();
+            debug!("flushing {} service checks to backend", batch_size);
+
+            let batch: Vec<ServiceCheckRow> = self.service_check_batch_buffer.drain(..).collect();
+
+            match backend.insert_service_checks_batch(batch).await {
+                Ok(()) => {
+                    trace!("service check flush complete ({} checks)", batch_size);
+                }
+                Err(e) => {
+                    error!("failed to flush service check batch: {}", e);
+                    // Service checks are lost - could implement retry logic here
+                }
+            }
+        }
+    }
+
     /// Run retention cleanup - delete metrics older than retention_days
     #[cfg(feature = "storage-sqlite")]
     async fn run_cleanup(&self) {
@@ -336,10 +443,11 @@ impl StorageActor {
             let cutoff = chrono::Utc::now() - chrono::Duration::days(retention_days as i64);
 
             debug!(
-                "running retention cleanup (deleting metrics before {})",
+                "running retention cleanup (deleting data before {})",
                 cutoff
             );
 
+            // Cleanup old metrics
             match backend.cleanup_old_metrics(cutoff).await {
                 Ok(deleted_count) => {
                     if deleted_count > 0 {
@@ -348,11 +456,29 @@ impl StorageActor {
                             deleted_count
                         );
                     } else {
-                        trace!("retention cleanup complete: no old metrics to delete");
+                        trace!("retention cleanup: no old metrics to delete");
                     }
                 }
                 Err(e) => {
-                    error!("failed to run retention cleanup: {}", e);
+                    error!("failed to cleanup old metrics: {}", e);
+                    // Don't crash the actor - cleanup will be retried on next interval
+                }
+            }
+
+            // Cleanup old service checks
+            match backend.cleanup_old_service_checks(cutoff).await {
+                Ok(deleted_count) => {
+                    if deleted_count > 0 {
+                        info!(
+                            "retention cleanup complete: deleted {} old service checks",
+                            deleted_count
+                        );
+                    } else {
+                        trace!("retention cleanup: no old service checks to delete");
+                    }
+                }
+                Err(e) => {
+                    error!("failed to cleanup old service checks: {}", e);
                     // Don't crash the actor - cleanup will be retried on next interval
                 }
             }
@@ -368,6 +494,7 @@ impl StorageActor {
                 #[cfg(feature = "storage-sqlite")]
                 if self.backend.is_some() {
                     self.flush_batch().await;
+                    self.flush_service_checks_batch().await;
                 } else {
                     self.flush_count += 1;
                     trace!("flush #{} (no-op for in-memory storage)", self.flush_count);
@@ -429,6 +556,79 @@ impl StorageActor {
                 let _ = respond_to.send(result);
             }
 
+            // ====================================================================
+            // Service Check Query Commands (Phase 3)
+            // ====================================================================
+
+            #[cfg(feature = "storage-sqlite")]
+            StorageCommand::QueryServiceChecksRange {
+                service_name,
+                start,
+                end,
+                respond_to,
+            } => {
+                let result = match self.backend.as_ref() {
+                    Some(backend) => backend
+                        .query_service_checks_range(&service_name, start, end)
+                        .await
+                        .map_err(Into::into),
+                    None => Err(anyhow::anyhow!(
+                        "Query operations not available in in-memory mode"
+                    )),
+                };
+                let _ = respond_to.send(result);
+            }
+
+            #[cfg(feature = "storage-sqlite")]
+            StorageCommand::QueryLatestServiceChecks {
+                service_name,
+                limit,
+                respond_to,
+            } => {
+                let result = match self.backend.as_ref() {
+                    Some(backend) => backend
+                        .query_latest_service_checks(&service_name, limit)
+                        .await
+                        .map_err(Into::into),
+                    None => Err(anyhow::anyhow!(
+                        "Query operations not available in in-memory mode"
+                    )),
+                };
+                let _ = respond_to.send(result);
+            }
+
+            #[cfg(feature = "storage-sqlite")]
+            StorageCommand::CalculateUptime {
+                service_name,
+                since,
+                respond_to,
+            } => {
+                let result = match self.backend.as_ref() {
+                    Some(backend) => backend
+                        .calculate_uptime(&service_name, since)
+                        .await
+                        .map_err(Into::into),
+                    None => Err(anyhow::anyhow!(
+                        "Uptime calculation not available in in-memory mode"
+                    )),
+                };
+                let _ = respond_to.send(result);
+            }
+
+            #[cfg(feature = "storage-sqlite")]
+            StorageCommand::CleanupOldServiceChecks { before, respond_to } => {
+                let result = match self.backend.as_ref() {
+                    Some(backend) => backend
+                        .cleanup_old_service_checks(before)
+                        .await
+                        .map_err(Into::into),
+                    None => Err(anyhow::anyhow!(
+                        "Cleanup operations not available in in-memory mode"
+                    )),
+                };
+                let _ = respond_to.send(result);
+            }
+
             StorageCommand::Shutdown => {
                 debug!("received shutdown command");
                 // The loop will break and handle cleanup
@@ -473,12 +673,13 @@ impl StorageHandle {
     #[cfg(feature = "storage-sqlite")]
     pub fn spawn_with_backend(
         metric_rx: broadcast::Receiver<MetricEvent>,
+        service_check_rx: broadcast::Receiver<ServiceCheckEvent>,
         backend: Option<Box<dyn StorageBackend>>,
         retention_days: Option<u32>,
     ) -> Self {
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
 
-        let actor = StorageActor::new(cmd_rx, metric_rx, backend, retention_days);
+        let actor = StorageActor::new(cmd_rx, metric_rx, service_check_rx, backend, retention_days);
 
         tokio::spawn(actor.run());
 
@@ -486,14 +687,17 @@ impl StorageHandle {
     }
 
     /// Spawn a new in-memory storage actor (backward compatible)
-    pub fn spawn(metric_rx: broadcast::Receiver<MetricEvent>) -> Self {
+    pub fn spawn(
+        metric_rx: broadcast::Receiver<MetricEvent>,
+        service_check_rx: broadcast::Receiver<ServiceCheckEvent>,
+    ) -> Self {
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
 
         #[cfg(feature = "storage-sqlite")]
-        let actor = StorageActor::new(cmd_rx, metric_rx, None, None);
+        let actor = StorageActor::new(cmd_rx, metric_rx, service_check_rx, None, None);
 
         #[cfg(not(feature = "storage-sqlite"))]
-        let actor = StorageActor::new(cmd_rx, metric_rx);
+        let actor = StorageActor::new(cmd_rx, metric_rx, service_check_rx);
 
         tokio::spawn(actor.run());
 
@@ -581,7 +785,8 @@ mod tests {
     #[tokio::test]
     async fn test_storage_actor_basic() {
         let (metric_tx, metric_rx) = broadcast::channel(16);
-        let handle = StorageHandle::spawn(metric_rx);
+        let (_service_tx, service_rx) = broadcast::channel(16);
+        let handle = StorageHandle::spawn(metric_rx, service_rx);
 
         // Send a metric
         let event = MetricEvent {
@@ -607,7 +812,8 @@ mod tests {
     #[tokio::test]
     async fn test_storage_flush() {
         let (_metric_tx, metric_rx) = broadcast::channel(16);
-        let handle = StorageHandle::spawn(metric_rx);
+        let (_service_tx, service_rx) = broadcast::channel(16);
+        let handle = StorageHandle::spawn(metric_rx, service_rx);
 
         // Flush should succeed even with empty buffer
         handle.flush().await.unwrap();

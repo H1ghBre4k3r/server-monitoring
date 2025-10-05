@@ -25,12 +25,14 @@ async fn test_full_persistence_pipeline() {
     // Initialize backend
     let backend = SqliteBackend::new(&db_path).await.unwrap();
 
-    // Create broadcast channel
+    // Create broadcast channels
     let (metric_tx, _) = broadcast::channel(256);
+    let (_service_tx, service_rx) = broadcast::channel(256);
 
     // Spawn storage actor with backend
     let storage_handle = StorageHandle::spawn_with_backend(
         metric_tx.subscribe(),
+        service_rx,
         Some(Box::new(backend) as Box<dyn StorageBackend>),
         Some(30), // 30 days retention
     );
@@ -178,12 +180,14 @@ async fn test_batch_write_performance() {
     // Initialize backend
     let backend = SqliteBackend::new(&db_path).await.unwrap();
 
-    // Create broadcast channel
+    // Create broadcast channels
     let (metric_tx, _) = broadcast::channel(1024);
+    let (_service_tx, service_rx) = broadcast::channel(1024);
 
     // Spawn storage actor with backend
     let storage_handle = StorageHandle::spawn_with_backend(
         metric_tx.subscribe(),
+        service_rx,
         Some(Box::new(backend) as Box<dyn StorageBackend>),
         None, // No retention cleanup for this test
     );

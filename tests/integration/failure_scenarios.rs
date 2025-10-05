@@ -89,9 +89,10 @@ async fn test_collector_handles_malformed_json() {
 #[tokio::test]
 async fn test_alert_actor_handles_broadcast_channel_closed() {
     let (metric_tx, metric_rx) = broadcast::channel(16);
+    let (_service_tx, service_rx) = broadcast::channel(16);
     let config = create_test_server_with_limits("127.0.0.1", 3000, Some(70), Some(80), 3);
 
-    let alert_handle = AlertHandle::spawn(vec![config], metric_rx);
+    let alert_handle = AlertHandle::spawn(vec![config], vec![], metric_rx, service_rx);
 
     // Drop the sender to close the channel
     drop(metric_tx);
@@ -109,8 +110,9 @@ async fn test_alert_actor_handles_broadcast_channel_closed() {
 #[tokio::test]
 async fn test_storage_actor_handles_broadcast_lag() {
     let (metric_tx, metric_rx) = broadcast::channel(2); // Very small buffer
+    let (_service_tx, service_rx) = broadcast::channel(2);
 
-    let storage_handle = StorageHandle::spawn(metric_rx);
+    let storage_handle = StorageHandle::spawn(metric_rx, service_rx);
 
     // Send many metrics to overflow buffer
     for i in 0..20 {
@@ -169,11 +171,14 @@ async fn test_system_continues_after_collector_error() {
     let failing_config = create_test_server_config("127.0.0.1", 9999); // Unreachable
 
     let (metric_tx, _metric_rx) = broadcast::channel(256);
+    let (_service_tx, service_rx) = broadcast::channel(256);
 
-    let storage_handle = StorageHandle::spawn(metric_tx.subscribe());
+    let storage_handle = StorageHandle::spawn(metric_tx.subscribe(), service_rx.resubscribe());
     let alert_handle = AlertHandle::spawn(
         vec![working_config.clone(), failing_config.clone()],
+        vec![],
         metric_tx.subscribe(),
+        service_rx,
     );
 
     let working_collector = CollectorHandle::spawn(working_config, metric_tx.clone());

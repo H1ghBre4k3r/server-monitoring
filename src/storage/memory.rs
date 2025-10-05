@@ -20,10 +20,14 @@ use tracing::debug;
 
 use super::backend::{HealthStatus, QueryRange, StorageBackend};
 use super::error::StorageResult;
-use super::schema::MetricRow;
+use super::schema::{MetricRow, ServiceCheckRow, UptimeStats};
+use crate::actors::messages::ServiceStatus;
 
 /// Maximum metrics to keep in memory per server
 const MAX_METRICS_PER_SERVER: usize = 1000;
+
+/// Maximum service checks to keep in memory per service
+const MAX_SERVICE_CHECKS_PER_SERVICE: usize = 1000;
 
 /// In-memory storage backend
 ///
@@ -33,8 +37,14 @@ pub struct MemoryBackend {
     /// Metrics grouped by server_id
     metrics: HashMap<String, VecDeque<MetricRow>>,
 
+    /// Service checks grouped by service_name
+    service_checks: HashMap<String, VecDeque<ServiceCheckRow>>,
+
     /// Total metrics stored (across all servers)
     total_count: usize,
+
+    /// Total service checks stored (across all services)
+    total_service_checks: usize,
 }
 
 impl MemoryBackend {
@@ -42,7 +52,9 @@ impl MemoryBackend {
     pub fn new() -> Self {
         Self {
             metrics: HashMap::new(),
+            service_checks: HashMap::new(),
             total_count: 0,
+            total_service_checks: 0,
         }
     }
 }
@@ -112,10 +124,120 @@ impl StorageBackend for MemoryBackend {
 
     async fn get_stats(&self) -> StorageResult<String> {
         Ok(format!(
-            "In-Memory: {} metrics across {} servers",
+            "In-Memory: {} metrics across {} servers, {} service checks across {} services",
             self.total_count,
-            self.metrics.len()
+            self.metrics.len(),
+            self.total_service_checks,
+            self.service_checks.len()
         ))
+    }
+
+    // ========================================================================
+    // Service Check Operations
+    // ========================================================================
+
+    async fn insert_service_checks_batch(&self, _checks: Vec<ServiceCheckRow>) -> StorageResult<()> {
+        // MemoryBackend needs interior mutability
+        // For now, this is a placeholder - we'll use RwLock in the actor
+        debug!("in-memory backend: insert_service_checks_batch called (requires interior mutability)");
+        Ok(())
+    }
+
+    async fn query_service_checks_range(
+        &self,
+        service_name: &str,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> StorageResult<Vec<ServiceCheckRow>> {
+        debug!("querying in-memory service checks for {}", service_name);
+
+        let checks = self
+            .service_checks
+            .get(service_name)
+            .map(|deque| {
+                deque
+                    .iter()
+                    .filter(|c| c.timestamp >= start && c.timestamp <= end)
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        Ok(checks)
+    }
+
+    async fn query_latest_service_checks(
+        &self,
+        service_name: &str,
+        limit: usize,
+    ) -> StorageResult<Vec<ServiceCheckRow>> {
+        debug!("querying latest {} service checks for {}", limit, service_name);
+
+        let checks = self
+            .service_checks
+            .get(service_name)
+            .map(|deque| deque.iter().rev().take(limit).cloned().collect())
+            .unwrap_or_default();
+
+        Ok(checks)
+    }
+
+    async fn calculate_uptime(
+        &self,
+        service_name: &str,
+        since: DateTime<Utc>,
+    ) -> StorageResult<UptimeStats> {
+        debug!("calculating uptime for {} since {}", service_name, since);
+
+        let now = Utc::now();
+        let checks: Vec<ServiceCheckRow> = self
+            .service_checks
+            .get(service_name)
+            .map(|deque| {
+                deque
+                    .iter()
+                    .filter(|c| c.timestamp >= since)
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let total_checks = checks.len();
+        let successful_checks = checks.iter().filter(|c| c.status == ServiceStatus::Up).count();
+
+        let uptime_percentage = if total_checks > 0 {
+            (successful_checks as f64 / total_checks as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        let avg_response_time_ms = if !checks.is_empty() {
+            let sum: u64 = checks.iter().filter_map(|c| c.response_time_ms).sum();
+            let count = checks.iter().filter(|c| c.response_time_ms.is_some()).count();
+            if count > 0 {
+                Some(sum as f64 / count as f64)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        Ok(UptimeStats {
+            service_name: service_name.to_string(),
+            start: since,
+            end: now,
+            total_checks,
+            successful_checks,
+            uptime_percentage,
+            avg_response_time_ms,
+        })
+    }
+
+    async fn cleanup_old_service_checks(&self, before: DateTime<Utc>) -> StorageResult<usize> {
+        debug!("cleanup requested for service checks before {}", before);
+        // Would need interior mutability
+        Ok(0)
     }
 
     async fn close(&self) -> StorageResult<()> {

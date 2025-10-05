@@ -76,7 +76,8 @@ async fn test_concurrent_alert_state_queries() {
     let server_id = format!("{}:{}", config.ip, config.port);
 
     let (_metric_tx, metric_rx) = broadcast::channel(256);
-    let alert_handle = AlertHandle::spawn(vec![config], metric_rx);
+    let (_service_tx, service_rx) = broadcast::channel(256);
+    let alert_handle = AlertHandle::spawn(vec![config], vec![], metric_rx, service_rx);
 
     // Query state concurrently from multiple tasks
     let mut tasks = vec![];
@@ -110,8 +111,9 @@ async fn test_rapid_metric_updates_no_data_loss() {
     let config = create_test_server_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
 
     let (metric_tx, _metric_rx) = broadcast::channel(256);
+    let (_service_tx, service_rx) = broadcast::channel(256);
 
-    let storage_handle = StorageHandle::spawn(metric_tx.subscribe());
+    let storage_handle = StorageHandle::spawn(metric_tx.subscribe(), service_rx);
     let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
 
     // Trigger many rapid polls
@@ -142,8 +144,9 @@ async fn test_rapid_metric_updates_no_data_loss() {
 #[tokio::test]
 async fn test_channel_backpressure_handling() {
     let (metric_tx, _metric_rx) = broadcast::channel(8); // Small buffer
+    let (_service_tx, service_rx) = broadcast::channel(8);
 
-    let storage_handle = StorageHandle::spawn(metric_tx.subscribe());
+    let storage_handle = StorageHandle::spawn(metric_tx.subscribe(), service_rx);
 
     // Send many metrics rapidly to test backpressure
     for i in 0..100 {
@@ -231,7 +234,8 @@ async fn test_grace_period_race_condition() {
     let server_id = format!("{}:{}", config.ip, config.port);
 
     let (metric_tx, _metric_rx) = broadcast::channel(256);
-    let alert_handle = AlertHandle::spawn(vec![config.clone()], metric_tx.subscribe());
+    let (_service_tx, service_rx) = broadcast::channel(256);
+    let alert_handle = AlertHandle::spawn(vec![config.clone()], vec![], metric_tx.subscribe(), service_rx);
     let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
 
     // Wait for initialization and get initial counter (may have auto-polled)
@@ -283,11 +287,12 @@ async fn test_multiple_subscribers_all_receive_metrics() {
     let config = create_test_server_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
 
     let (metric_tx, _metric_rx) = broadcast::channel(256);
+    let (_service_tx, service_rx) = broadcast::channel(256);
 
     // Create multiple subscribers
-    let storage_handle1 = StorageHandle::spawn(metric_tx.subscribe());
-    let storage_handle2 = StorageHandle::spawn(metric_tx.subscribe());
-    let alert_handle = AlertHandle::spawn(vec![config.clone()], metric_tx.subscribe());
+    let storage_handle1 = StorageHandle::spawn(metric_tx.subscribe(), service_rx.resubscribe());
+    let storage_handle2 = StorageHandle::spawn(metric_tx.subscribe(), service_rx.resubscribe());
+    let alert_handle = AlertHandle::spawn(vec![config.clone()], vec![], metric_tx.subscribe(), service_rx);
 
     let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
 

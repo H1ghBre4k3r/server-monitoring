@@ -75,16 +75,29 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
 
     // Spawn storage actor with optional persistent backend
     #[cfg(feature = "storage-sqlite")]
-    let storage_handle =
-        StorageHandle::spawn_with_backend(metric_tx.subscribe(), backend, retention_days);
+    let storage_handle = StorageHandle::spawn_with_backend(
+        metric_tx.subscribe(),
+        service_tx.subscribe(),
+        backend,
+        retention_days,
+    );
 
     #[cfg(not(feature = "storage-sqlite"))]
-    let storage_handle = StorageHandle::spawn(metric_tx.subscribe());
+    let storage_handle = StorageHandle::spawn(metric_tx.subscribe(), service_tx.subscribe());
 
     info!("storage actor started");
 
-    // Spawn alert actor with all server configs
-    let alert_handle = AlertHandle::spawn(servers.clone(), metric_tx.subscribe());
+    // TODO: move this up to the head of the function
+    // Clone services for alert actor registration
+    let services_for_alert = config.services.clone().unwrap_or_default();
+
+    // Spawn alert actor with all server and service configs
+    let alert_handle = AlertHandle::spawn(
+        servers.clone(),
+        services_for_alert,
+        metric_tx.subscribe(),
+        service_tx.subscribe(),
+    );
     info!("alert actor started");
 
     // Spawn collector actor for each server

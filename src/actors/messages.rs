@@ -15,7 +15,10 @@ use tokio::sync::oneshot;
 use crate::ServerMetrics;
 
 #[cfg(feature = "storage-sqlite")]
-use crate::storage::{backend::QueryRange, schema::MetricRow};
+use crate::storage::{
+    backend::QueryRange,
+    schema::{MetricRow, ServiceCheckRow, UptimeStats},
+};
 
 /// Event published when metrics are collected from a server
 ///
@@ -131,6 +134,42 @@ pub enum StorageCommand {
     #[cfg(feature = "storage-sqlite")]
     HealthCheck {
         respond_to: oneshot::Sender<anyhow::Result<String>>,
+    },
+
+    // ========================================================================
+    // Service Check Commands (Phase 3)
+    // ========================================================================
+
+    /// Query service checks within a time range (Phase 3 - with persistent backend)
+    #[cfg(feature = "storage-sqlite")]
+    QueryServiceChecksRange {
+        service_name: String,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        respond_to: oneshot::Sender<anyhow::Result<Vec<ServiceCheckRow>>>,
+    },
+
+    /// Query the latest N service checks for a service (Phase 3 - with persistent backend)
+    #[cfg(feature = "storage-sqlite")]
+    QueryLatestServiceChecks {
+        service_name: String,
+        limit: usize,
+        respond_to: oneshot::Sender<anyhow::Result<Vec<ServiceCheckRow>>>,
+    },
+
+    /// Calculate uptime statistics for a service (Phase 3 - with persistent backend)
+    #[cfg(feature = "storage-sqlite")]
+    CalculateUptime {
+        service_name: String,
+        since: DateTime<Utc>,
+        respond_to: oneshot::Sender<anyhow::Result<UptimeStats>>,
+    },
+
+    /// Cleanup old service checks (Phase 3 - with persistent backend)
+    #[cfg(feature = "storage-sqlite")]
+    CleanupOldServiceChecks {
+        before: DateTime<Utc>,
+        respond_to: oneshot::Sender<anyhow::Result<usize>>,
     },
 
     /// Gracefully shut down the storage actor

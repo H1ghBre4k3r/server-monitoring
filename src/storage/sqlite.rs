@@ -33,7 +33,8 @@ use tracing::{debug, info, instrument, warn};
 
 use super::backend::{HealthStatus, QueryRange, StorageBackend};
 use super::error::{StorageError, StorageResult};
-use super::schema::{MetricRow, MetricType};
+use super::schema::{MetricRow, MetricType, ServiceCheckRow, UptimeStats};
+use crate::actors::messages::ServiceStatus;
 
 /// SQLite storage backend
 ///
@@ -406,6 +407,233 @@ impl StorageBackend for SqliteBackend {
             "SQLite: {} rows, {:.2} MB on disk, time range: {}",
             total_rows, file_size_mb, time_range
         ))
+    }
+
+    // ========================================================================
+    // Service Check Operations
+    // ========================================================================
+
+    #[instrument(skip(self, checks), fields(count = checks.len()))]
+    async fn insert_service_checks_batch(&self, checks: Vec<ServiceCheckRow>) -> StorageResult<()> {
+        if checks.is_empty() {
+            return Ok(());
+        }
+
+        debug!("inserting {} service checks", checks.len());
+
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| StorageError::QueryFailed(e.to_string()))?;
+
+        for check in checks {
+            let timestamp = Self::timestamp_to_millis(&check.timestamp);
+            let status_str = match check.status {
+                ServiceStatus::Up => "up",
+                ServiceStatus::Down => "down",
+                ServiceStatus::Degraded => "degraded",
+            };
+
+            sqlx::query(
+                r#"
+                INSERT INTO service_checks
+                (service_name, timestamp, url, status, response_time_ms, http_status_code, error_message)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                "#,
+            )
+            .bind(&check.service_name)
+            .bind(timestamp)
+            .bind(&check.url)
+            .bind(status_str)
+            .bind(check.response_time_ms.map(|v| v as i64))
+            .bind(check.http_status_code.map(|v| v as i64))
+            .bind(&check.error_message)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| StorageError::QueryFailed(e.to_string()))?;
+        }
+
+        tx.commit()
+            .await
+            .map_err(|e| StorageError::QueryFailed(e.to_string()))?;
+
+        debug!("service check batch insert complete");
+        Ok(())
+    }
+
+    #[instrument(skip(self), fields(service_name))]
+    async fn query_service_checks_range(
+        &self,
+        service_name: &str,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> StorageResult<Vec<ServiceCheckRow>> {
+        let start_millis = Self::timestamp_to_millis(&start);
+        let end_millis = Self::timestamp_to_millis(&end);
+
+        debug!(
+            "querying service checks for {} from {} to {}",
+            service_name, start, end
+        );
+
+        let rows = sqlx::query(
+            r#"
+            SELECT service_name, timestamp, url, status, response_time_ms, http_status_code, error_message
+            FROM service_checks
+            WHERE service_name = ? AND timestamp >= ? AND timestamp <= ?
+            ORDER BY timestamp ASC
+            "#,
+        )
+        .bind(service_name)
+        .bind(start_millis)
+        .bind(end_millis)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| StorageError::QueryFailed(e.to_string()))?;
+
+        let checks: Result<Vec<ServiceCheckRow>, StorageError> = rows
+            .into_iter()
+            .map(|row| {
+                let timestamp = Self::millis_to_timestamp(row.get("timestamp"));
+                let status_str: String = row.get("status");
+                let status = match status_str.as_str() {
+                    "up" => ServiceStatus::Up,
+                    "down" => ServiceStatus::Down,
+                    "degraded" => ServiceStatus::Degraded,
+                    _ => ServiceStatus::Down,
+                };
+
+                Ok(ServiceCheckRow {
+                    service_name: row.get("service_name"),
+                    timestamp,
+                    url: row.get("url"),
+                    status,
+                    response_time_ms: row.get::<Option<i64>, _>("response_time_ms").map(|v| v as u64),
+                    http_status_code: row.get::<Option<i64>, _>("http_status_code").map(|v| v as u16),
+                    error_message: row.get("error_message"),
+                })
+            })
+            .collect();
+
+        checks
+    }
+
+    #[instrument(skip(self), fields(service_name, limit))]
+    async fn query_latest_service_checks(
+        &self,
+        service_name: &str,
+        limit: usize,
+    ) -> StorageResult<Vec<ServiceCheckRow>> {
+        debug!("querying latest {} service checks for {}", limit, service_name);
+
+        let rows = sqlx::query(
+            r#"
+            SELECT service_name, timestamp, url, status, response_time_ms, http_status_code, error_message
+            FROM service_checks
+            WHERE service_name = ?
+            ORDER BY timestamp DESC
+            LIMIT ?
+            "#,
+        )
+        .bind(service_name)
+        .bind(limit as i64)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| StorageError::QueryFailed(e.to_string()))?;
+
+        let checks: Result<Vec<ServiceCheckRow>, StorageError> = rows
+            .into_iter()
+            .map(|row| {
+                let timestamp = Self::millis_to_timestamp(row.get("timestamp"));
+                let status_str: String = row.get("status");
+                let status = match status_str.as_str() {
+                    "up" => ServiceStatus::Up,
+                    "down" => ServiceStatus::Down,
+                    "degraded" => ServiceStatus::Degraded,
+                    _ => ServiceStatus::Down,
+                };
+
+                Ok(ServiceCheckRow {
+                    service_name: row.get("service_name"),
+                    timestamp,
+                    url: row.get("url"),
+                    status,
+                    response_time_ms: row.get::<Option<i64>, _>("response_time_ms").map(|v| v as u64),
+                    http_status_code: row.get::<Option<i64>, _>("http_status_code").map(|v| v as u16),
+                    error_message: row.get("error_message"),
+                })
+            })
+            .collect();
+
+        checks
+    }
+
+    #[instrument(skip(self), fields(service_name))]
+    async fn calculate_uptime(
+        &self,
+        service_name: &str,
+        since: DateTime<Utc>,
+    ) -> StorageResult<UptimeStats> {
+        let since_millis = Self::timestamp_to_millis(&since);
+        let now = Utc::now();
+
+        debug!("calculating uptime for {} since {}", service_name, since);
+
+        // Get total checks and successful checks in one query
+        let row = sqlx::query(
+            r#"
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'up' THEN 1 ELSE 0 END) as successful,
+                AVG(response_time_ms) as avg_response_time
+            FROM service_checks
+            WHERE service_name = ? AND timestamp >= ?
+            "#,
+        )
+        .bind(service_name)
+        .bind(since_millis)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| StorageError::QueryFailed(e.to_string()))?;
+
+        let total_checks: i64 = row.get("total");
+        let successful_checks: i64 = row.get("successful");
+        let avg_response_time: Option<f64> = row.get("avg_response_time");
+
+        let uptime_percentage = if total_checks > 0 {
+            (successful_checks as f64 / total_checks as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        Ok(UptimeStats {
+            service_name: service_name.to_string(),
+            start: since,
+            end: now,
+            total_checks: total_checks as usize,
+            successful_checks: successful_checks as usize,
+            uptime_percentage,
+            avg_response_time_ms: avg_response_time,
+        })
+    }
+
+    #[instrument(skip(self), fields(before = %before))]
+    async fn cleanup_old_service_checks(&self, before: DateTime<Utc>) -> StorageResult<usize> {
+        let before_millis = Self::timestamp_to_millis(&before);
+
+        debug!("deleting service checks older than {}", before);
+
+        let result = sqlx::query("DELETE FROM service_checks WHERE timestamp < ?")
+            .bind(before_millis)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| StorageError::QueryFailed(e.to_string()))?;
+
+        let deleted = result.rows_affected() as usize;
+        debug!("deleted {} service checks", deleted);
+
+        Ok(deleted)
     }
 
     async fn close(&self) -> StorageResult<()> {

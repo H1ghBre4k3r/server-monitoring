@@ -26,11 +26,11 @@ use tracing::{debug, instrument, trace, warn};
 
 use crate::{
     alerts::AlertManager,
-    config::{Limit, ServerConfig},
+    config::{Limit, ServerConfig, ServiceConfig},
     monitors::resources::ResourceEvaluation,
 };
 
-use super::messages::{AlertCommand, AlertState, MetricEvent};
+use super::messages::{AlertCommand, AlertState, MetricEvent, ServiceCheckEvent, ServiceStatus};
 
 /// Per-server alert state
 #[derive(Debug, Clone)]
@@ -48,16 +48,38 @@ struct ServerAlertState {
     usage_grace_counter: usize,
 }
 
+/// Per-service alert state (Phase 3)
+#[derive(Debug, Clone)]
+struct ServiceAlertState {
+    /// Service configuration
+    config: ServiceConfig,
+
+    /// Alert manager for sending notifications
+    alert_manager: AlertManager,
+
+    /// Last known status
+    last_status: Option<ServiceStatus>,
+
+    /// Consecutive down checks counter (for grace period)
+    consecutive_down: usize,
+}
+
 /// Actor that evaluates metrics and sends alerts
 pub struct AlertActor {
     /// Per-server state
     servers: HashMap<String, ServerAlertState>,
+
+    /// Per-service state (Phase 3)
+    services: HashMap<String, ServiceAlertState>,
 
     /// Command receiver
     command_rx: mpsc::Receiver<AlertCommand>,
 
     /// Metric event receiver (broadcast subscription)
     metric_rx: broadcast::Receiver<MetricEvent>,
+
+    /// Service check event receiver (broadcast subscription, Phase 3)
+    service_check_rx: broadcast::Receiver<ServiceCheckEvent>,
 
     /// Whether alerts are muted
     muted: bool,
@@ -68,11 +90,14 @@ impl AlertActor {
     pub fn new(
         command_rx: mpsc::Receiver<AlertCommand>,
         metric_rx: broadcast::Receiver<MetricEvent>,
+        service_check_rx: broadcast::Receiver<ServiceCheckEvent>,
     ) -> Self {
         Self {
             servers: HashMap::new(),
+            services: HashMap::new(),
             command_rx,
             metric_rx,
+            service_check_rx,
             muted: false,
         }
     }
@@ -91,6 +116,37 @@ impl AlertActor {
                 alert_manager,
                 temp_grace_counter: 0,
                 usage_grace_counter: 0,
+            },
+        );
+    }
+
+    /// Register a service for monitoring (Phase 3)
+    ///
+    /// This should be called for each service before checks start flowing.
+    pub fn register_service(&mut self, config: ServiceConfig) {
+        let service_name = config.name.clone();
+
+        // TODO: Create AlertManager for service alerts
+        // For now, we'll create a minimal ServerConfig just to initialize AlertManager
+        use std::net::IpAddr;
+        let pseudo_server_config = ServerConfig {
+            ip: IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
+            port: 0,
+            display: Some(service_name.clone()),
+            limits: None,
+            interval: 60,
+            token: None,
+        };
+
+        let alert_manager = AlertManager::new(pseudo_server_config);
+
+        self.services.insert(
+            service_name,
+            ServiceAlertState {
+                config,
+                alert_manager,
+                last_status: None,
+                consecutive_down: 0,
             },
         );
     }
@@ -116,6 +172,24 @@ impl AlertActor {
                         Err(broadcast::error::RecvError::Closed) => {
                             warn!("metric channel closed, shutting down");
                             break;
+                        }
+                    }
+                }
+
+                // Receive service check events (Phase 3)
+                result = self.service_check_rx.recv() => {
+                    match result {
+                        Ok(event) => {
+                            if !self.muted {
+                                self.handle_service_check_event(event).await;
+                            }
+                        }
+                        Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                            warn!("alert actor lagged, skipped {skipped} service checks");
+                        }
+                        Err(broadcast::error::RecvError::Closed) => {
+                            trace!("service check channel closed");
+                            // Don't break - metric channel might still be open
                         }
                     }
                 }
@@ -307,6 +381,65 @@ impl AlertActor {
         }
     }
 
+    /// Handle a service check event (Phase 3)
+    #[instrument(skip(self, event), fields(service_name = %event.service_name))]
+    async fn handle_service_check_event(&mut self, event: ServiceCheckEvent) {
+        let state = match self.services.get_mut(&event.service_name) {
+            Some(s) => s,
+            None => {
+                trace!("received service check for unregistered service, ignoring");
+                return;
+            }
+        };
+
+        let grace = state.config.grace.unwrap_or(1);
+
+        trace!(
+            "service check: {} status={:?}, consecutive_down={}/{}",
+            event.service_name,
+            event.status,
+            state.consecutive_down,
+            grace
+        );
+
+        match event.status {
+            ServiceStatus::Down | ServiceStatus::Degraded => {
+                state.consecutive_down += 1;
+
+                // Send alert if grace period exhausted
+                if state.consecutive_down == grace {
+                    debug!(
+                        "{}: service went down (grace period exhausted: {}/{})",
+                        event.service_name, state.consecutive_down, grace
+                    );
+
+                    // TODO: Add send_service_down_alert method to AlertManager
+                    // For now, we'll use a generic approach
+                    trace!("service down alert would be sent here");
+                }
+
+                state.last_status = Some(event.status);
+            }
+
+            ServiceStatus::Up => {
+                // Service is up - check if it recovered from down state
+                if state.consecutive_down >= grace {
+                    debug!(
+                        "{}: service recovered (was down {} consecutive checks)",
+                        event.service_name, state.consecutive_down
+                    );
+
+                    // TODO: Add send_service_recovered_alert method to AlertManager
+                    trace!("service recovered alert would be sent here");
+                }
+
+                // Reset counter
+                state.consecutive_down = 0;
+                state.last_status = Some(ServiceStatus::Up);
+            }
+        }
+    }
+
     /// Get alert state for a server
     fn get_alert_state(&self, server_id: &str) -> Option<AlertState> {
         self.servers.get(server_id).map(|state| AlertState {
@@ -329,15 +462,27 @@ impl AlertHandle {
     ///
     /// # Arguments
     /// - `servers`: Initial server configurations to monitor
+    /// - `services`: Initial service configurations to monitor (Phase 3)
     /// - `metric_rx`: Broadcast receiver for metric events
-    pub fn spawn(servers: Vec<ServerConfig>, metric_rx: broadcast::Receiver<MetricEvent>) -> Self {
+    /// - `service_check_rx`: Broadcast receiver for service check events (Phase 3)
+    pub fn spawn(
+        servers: Vec<ServerConfig>,
+        services: Vec<ServiceConfig>,
+        metric_rx: broadcast::Receiver<MetricEvent>,
+        service_check_rx: broadcast::Receiver<ServiceCheckEvent>,
+    ) -> Self {
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
 
-        let mut actor = AlertActor::new(cmd_rx, metric_rx);
+        let mut actor = AlertActor::new(cmd_rx, metric_rx, service_check_rx);
 
         // Register all servers
         for config in servers {
             actor.register_server(config);
+        }
+
+        // Register all services
+        for config in services {
+            actor.register_service(config);
         }
 
         tokio::spawn(actor.run());
@@ -434,9 +579,11 @@ mod tests {
     #[tokio::test]
     async fn test_alert_handle_creation() {
         let (_metric_tx, metric_rx) = broadcast::channel(16);
+        let (_service_tx, service_rx) = broadcast::channel(16);
         let servers = vec![];
+        let services = vec![];
 
-        let _handle = AlertHandle::spawn(servers, metric_rx);
+        let _handle = AlertHandle::spawn(servers, services, metric_rx, service_rx);
 
         // Handle created successfully
     }
@@ -444,11 +591,12 @@ mod tests {
     #[tokio::test]
     async fn test_grace_period_temperature_increments_until_alert() {
         let (metric_tx, metric_rx) = broadcast::channel(16);
+        let (_service_tx, service_rx) = broadcast::channel(16);
         let config = create_test_server_config("127.0.0.1", 3000);
         let server_id = "127.0.0.1:3000".to_string();
 
         let servers = vec![config];
-        let handle = AlertHandle::spawn(servers, metric_rx);
+        let handle = AlertHandle::spawn(servers, vec![], metric_rx, service_rx);
 
         // Send metrics below limit - should not alert
         for _ in 0..2 {
@@ -502,11 +650,12 @@ mod tests {
     #[tokio::test]
     async fn test_grace_period_cpu_independent_from_temperature() {
         let (metric_tx, metric_rx) = broadcast::channel(16);
+        let (_service_tx, service_rx) = broadcast::channel(16);
         let config = create_test_server_config("127.0.0.1", 3000);
         let server_id = "127.0.0.1:3000".to_string();
 
         let servers = vec![config];
-        let handle = AlertHandle::spawn(servers, metric_rx);
+        let handle = AlertHandle::spawn(servers, vec![], metric_rx, service_rx);
 
         // Exceed temperature grace period
         for _ in 0..3 {
@@ -546,11 +695,12 @@ mod tests {
     #[tokio::test]
     async fn test_back_to_ok_resets_grace_counter() {
         let (metric_tx, metric_rx) = broadcast::channel(16);
+        let (_service_tx, service_rx) = broadcast::channel(16);
         let config = create_test_server_config("127.0.0.1", 3000);
         let server_id = "127.0.0.1:3000".to_string();
 
         let servers = vec![config];
-        let handle = AlertHandle::spawn(servers, metric_rx);
+        let handle = AlertHandle::spawn(servers, vec![], metric_rx, service_rx);
 
         // Exceed grace period
         for _ in 0..4 {
@@ -586,11 +736,12 @@ mod tests {
     #[tokio::test]
     async fn test_mute_prevents_alert_processing() {
         let (metric_tx, metric_rx) = broadcast::channel(16);
+        let (_service_tx, service_rx) = broadcast::channel(16);
         let config = create_test_server_config("127.0.0.1", 3000);
         let server_id = "127.0.0.1:3000".to_string();
 
         let servers = vec![config];
-        let handle = AlertHandle::spawn(servers, metric_rx);
+        let handle = AlertHandle::spawn(servers, vec![], metric_rx, service_rx);
 
         // Mute alerts
         handle.mute_alerts(60).await;
@@ -620,13 +771,14 @@ mod tests {
     #[tokio::test]
     async fn test_multiple_servers_independent_state() {
         let (metric_tx, metric_rx) = broadcast::channel(16);
+        let (_service_tx, service_rx) = broadcast::channel(16);
         let config1 = create_test_server_config("127.0.0.1", 3000);
         let config2 = create_test_server_config("127.0.0.1", 3001);
         let server1_id = "127.0.0.1:3000".to_string();
         let server2_id = "127.0.0.1:3001".to_string();
 
         let servers = vec![config1, config2];
-        let handle = AlertHandle::spawn(servers, metric_rx);
+        let handle = AlertHandle::spawn(servers, vec![], metric_rx, service_rx);
 
         // Exceed grace for server 1 only
         for _ in 0..3 {
@@ -655,10 +807,11 @@ mod tests {
     #[tokio::test]
     async fn test_get_state_unregistered_server_returns_none() {
         let (_metric_tx, metric_rx) = broadcast::channel(16);
+        let (_service_tx, service_rx) = broadcast::channel(16);
         let config = create_test_server_config("127.0.0.1", 3000);
 
         let servers = vec![config];
-        let handle = AlertHandle::spawn(servers, metric_rx);
+        let handle = AlertHandle::spawn(servers, vec![], metric_rx, service_rx);
 
         // Query state for non-existent server
         let state = handle.get_state("192.168.1.100:3000".to_string()).await;
@@ -670,13 +823,14 @@ mod tests {
     #[tokio::test]
     async fn test_broadcast_lag_warning_logged() {
         let (metric_tx, _metric_rx) = broadcast::channel(2); // Very small buffer
+        let (_service_tx, service_rx) = broadcast::channel(16);
 
         // Subscribe and don't read from it (will cause lag)
         let metric_rx_lagging = metric_tx.subscribe();
 
         let config = create_test_server_config("127.0.0.1", 3000);
         let servers = vec![config];
-        let _handle = AlertHandle::spawn(servers, metric_rx_lagging);
+        let _handle = AlertHandle::spawn(servers, vec![], metric_rx_lagging, service_rx);
 
         // Send many metrics to overflow the buffer
         for i in 0..10 {

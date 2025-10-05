@@ -39,8 +39,9 @@ async fn test_metric_flows_from_collector_to_alert() {
 
     // Create actor system
     let (metric_tx, _metric_rx) = broadcast::channel(256);
+    let (_service_tx, service_rx) = broadcast::channel(256);
 
-    let alert_handle = AlertHandle::spawn(vec![config.clone()], metric_tx.subscribe());
+    let alert_handle = AlertHandle::spawn(vec![config.clone()], vec![], metric_tx.subscribe(), service_rx);
     let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
 
     // Wait a moment for actor startup
@@ -85,8 +86,9 @@ async fn test_metric_flows_from_collector_to_storage() {
 
     // Create actor system
     let (metric_tx, _metric_rx) = broadcast::channel(256);
+    let (_service_tx, service_rx) = broadcast::channel(256);
 
-    let storage_handle = StorageHandle::spawn(metric_tx.subscribe());
+    let storage_handle = StorageHandle::spawn(metric_tx.subscribe(), service_rx);
     let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
 
     // Trigger a few polls
@@ -153,10 +155,13 @@ async fn test_multiple_collectors_single_alert_actor() {
 
     // Create actor system
     let (metric_tx, _metric_rx) = broadcast::channel(256);
+    let (_service_tx, service_rx) = broadcast::channel(256);
 
     let alert_handle = AlertHandle::spawn(
         vec![config1.clone(), config2.clone()],
+        vec![],
         metric_tx.subscribe(),
+        service_rx,
     );
     let collector1 = CollectorHandle::spawn(config1, metric_tx.clone());
     let collector2 = CollectorHandle::spawn(config2, metric_tx.clone());
@@ -211,9 +216,10 @@ async fn test_graceful_shutdown_all_actors() {
 
     // Create full actor system
     let (metric_tx, _metric_rx) = broadcast::channel(256);
+    let (_service_tx, service_rx) = broadcast::channel(256);
 
-    let storage_handle = StorageHandle::spawn(metric_tx.subscribe());
-    let alert_handle = AlertHandle::spawn(vec![config.clone()], metric_tx.subscribe());
+    let storage_handle = StorageHandle::spawn(metric_tx.subscribe(), service_rx.resubscribe());
+    let alert_handle = AlertHandle::spawn(vec![config.clone()], vec![], metric_tx.subscribe(), service_rx);
     let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
 
     // Let them run briefly
@@ -261,8 +267,9 @@ async fn test_alert_triggered_after_exact_grace_period() {
 
     // Create actor system
     let (metric_tx, _metric_rx) = broadcast::channel(256);
+    let (_service_tx, service_rx) = broadcast::channel(256);
 
-    let alert_handle = AlertHandle::spawn(vec![config.clone()], metric_tx.subscribe());
+    let alert_handle = AlertHandle::spawn(vec![config.clone()], vec![], metric_tx.subscribe(), service_rx);
     let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
 
     // Wait for actors to initialize and any initial auto-polling to complete
@@ -329,8 +336,9 @@ async fn test_recovery_alert_when_back_to_ok() {
 
     // Create actor system
     let (metric_tx, _metric_rx) = broadcast::channel(256);
+    let (_service_tx, service_rx) = broadcast::channel(256);
 
-    let alert_handle = AlertHandle::spawn(vec![config.clone()], metric_tx.subscribe());
+    let alert_handle = AlertHandle::spawn(vec![config.clone()], vec![], metric_tx.subscribe(), service_rx);
     let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
 
     // Wait for initial auto-poll to complete

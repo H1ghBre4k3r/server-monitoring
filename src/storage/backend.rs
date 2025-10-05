@@ -124,6 +124,64 @@ pub trait StorageBackend: Send + Sync {
     /// (e.g., "SQLite: 1.2M rows, 450MB on disk").
     async fn get_stats(&self) -> StorageResult<String>;
 
+    // ========================================================================
+    // Service Check Operations (Phase 3)
+    // ========================================================================
+
+    /// Insert a batch of service check results
+    ///
+    /// Similar to metric batching, this allows efficient bulk inserts
+    /// of service health check data.
+    ///
+    /// ## Performance
+    ///
+    /// Should handle 100+ service checks in <50ms.
+    async fn insert_service_checks_batch(
+        &self,
+        checks: Vec<crate::storage::schema::ServiceCheckRow>,
+    ) -> StorageResult<()>;
+
+    /// Query service checks within a time range
+    ///
+    /// Returns service check history for a specific service
+    /// between start and end times.
+    async fn query_service_checks_range(
+        &self,
+        service_name: &str,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> StorageResult<Vec<crate::storage::schema::ServiceCheckRow>>;
+
+    /// Get the N most recent service checks
+    ///
+    /// Useful for displaying recent service health in dashboards.
+    async fn query_latest_service_checks(
+        &self,
+        service_name: &str,
+        limit: usize,
+    ) -> StorageResult<Vec<crate::storage::schema::ServiceCheckRow>>;
+
+    /// Calculate uptime statistics for a service
+    ///
+    /// Computes uptime percentage and related metrics for a service
+    /// within the specified time range.
+    ///
+    /// ## Calculation
+    ///
+    /// Uptime % = (successful checks / total checks) × 100
+    /// Where successful = status == ServiceStatus::Up
+    async fn calculate_uptime(
+        &self,
+        service_name: &str,
+        since: DateTime<Utc>,
+    ) -> StorageResult<crate::storage::schema::UptimeStats>;
+
+    /// Delete service checks older than the specified timestamp
+    ///
+    /// Used for retention policy enforcement on service check data.
+    /// Returns the number of checks deleted.
+    async fn cleanup_old_service_checks(&self, before: DateTime<Utc>) -> StorageResult<usize>;
+
     /// Close the backend and release resources
     ///
     /// Gracefully shuts down the backend, closing connections

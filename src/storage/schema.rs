@@ -31,6 +31,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::ServerMetrics;
+use crate::actors::messages::{ServiceCheckEvent, ServiceStatus};
 
 /// A single metric row stored in the database
 ///
@@ -120,6 +121,78 @@ impl MetricRow {
             metadata: metrics.clone(), // Store the complete struct directly
         }
     }
+}
+
+// ============================================================================
+// Service Check Schema (Phase 3)
+// ============================================================================
+
+/// A single service check row stored in the database
+///
+/// This represents one service health check at one point in time.
+/// All service checks are stored for uptime calculation and analysis.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServiceCheckRow {
+    /// Service name (from configuration)
+    pub service_name: String,
+
+    /// When the check was performed (always UTC)
+    pub timestamp: DateTime<Utc>,
+
+    /// URL that was checked
+    pub url: String,
+
+    /// Check result status
+    pub status: ServiceStatus,
+
+    /// Response time in milliseconds (if request succeeded)
+    pub response_time_ms: Option<u64>,
+
+    /// HTTP status code (if received)
+    pub http_status_code: Option<u16>,
+
+    /// Error message (if check failed)
+    pub error_message: Option<String>,
+}
+
+impl ServiceCheckRow {
+    /// Convert a ServiceCheckEvent into a ServiceCheckRow for storage
+    pub fn from_event(event: &ServiceCheckEvent) -> Self {
+        Self {
+            service_name: event.service_name.clone(),
+            timestamp: event.timestamp,
+            url: event.url.clone(),
+            status: event.status,
+            response_time_ms: event.response_time_ms,
+            http_status_code: event.http_status_code,
+            error_message: event.error_message.clone(),
+        }
+    }
+}
+
+/// Uptime statistics for a service
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UptimeStats {
+    /// Service name
+    pub service_name: String,
+
+    /// Start of time range
+    pub start: DateTime<Utc>,
+
+    /// End of time range
+    pub end: DateTime<Utc>,
+
+    /// Total number of checks in range
+    pub total_checks: usize,
+
+    /// Number of successful checks (status = Up)
+    pub successful_checks: usize,
+
+    /// Uptime percentage (0.0 - 100.0)
+    pub uptime_percentage: f64,
+
+    /// Average response time in milliseconds
+    pub avg_response_time_ms: Option<f64>,
 }
 
 impl std::fmt::Display for MetricType {
