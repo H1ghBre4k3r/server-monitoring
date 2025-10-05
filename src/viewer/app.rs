@@ -41,8 +41,8 @@ impl App {
         })?;
 
         Ok(Self {
+            state: AppState::new(config.time_window_seconds),
             config,
-            state: AppState::new(),
             ws_rx,
         })
     }
@@ -77,10 +77,10 @@ impl App {
     /// Fetch initial data from API
     async fn fetch_initial_data(&mut self) -> Result<()> {
         let client = reqwest::Client::new();
-        let base_url = &self.config.api_url;
+        let base_url = self.config.api_url.clone();
 
         // Build request with optional auth
-        let mut request = client.get(format!("{}/api/v1/servers", base_url));
+        let mut request = client.get(format!("{}/api/v1/servers", &base_url));
         if let Some(token) = &self.config.api_token {
             request = request.header("Authorization", format!("Bearer {}", token));
         }
@@ -94,6 +94,9 @@ impl App {
                         let servers: Vec<ServerInfo> = serde_json::from_value(serde_json::Value::Array(servers.clone()))?;
                         self.state.update_servers(servers);
                         self.state.connected = true;
+
+                        // Fetch historical metrics for each server
+                        self.fetch_historical_metrics(&client).await;
                     }
                 } else {
                     self.state.error_message = Some(format!("API error: {}", response.status()));
@@ -105,7 +108,7 @@ impl App {
         }
 
         // Fetch services
-        let mut request = client.get(format!("{}/api/v1/services", base_url));
+        let mut request = client.get(format!("{}/api/v1/services", &base_url));
         if let Some(token) = &self.config.api_token {
             request = request.header("Authorization", format!("Bearer {}", token));
         }
@@ -126,6 +129,52 @@ impl App {
         }
 
         Ok(())
+    }
+
+    /// Fetch historical metrics for all servers
+    async fn fetch_historical_metrics(&mut self, client: &reqwest::Client) {
+        // Calculate how many metrics to fetch based on time window
+        // Assume metrics arrive every ~10 seconds, so fetch time_window / 10 points
+        let limit = (self.state.time_window_seconds / 10).max(10);
+
+        let base_url = self.config.api_url.clone();
+        let api_token = self.config.api_token.clone();
+        let servers = self.state.servers.clone(); // Clone to avoid borrow issues
+
+        for server in servers {
+            let mut request = client.get(format!(
+                "{}/api/v1/servers/{}/metrics?limit={}",
+                base_url, server.server_id, limit
+            ));
+
+            if let Some(token) = &api_token {
+                request = request.header("Authorization", format!("Bearer {}", token));
+            }
+
+            match request.send().await {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        if let Ok(json) = response.json::<serde_json::Value>().await {
+                            if let Some(metrics) = json["metrics"].as_array() {
+                                // Parse and add each metric to history
+                                for metric_value in metrics {
+                                    if let Ok(metric_row) = serde_json::from_value::<crate::storage::schema::MetricRow>(metric_value.clone()) {
+                                        self.state.add_metric(
+                                            metric_row.server_id,
+                                            metric_row.metadata,
+                                            metric_row.timestamp,
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(_) => {
+                    // Silently ignore errors for historical data
+                }
+            }
+        }
     }
 
     /// Main event loop

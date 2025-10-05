@@ -108,14 +108,30 @@ The hub now uses an actor-based architecture for better scalability and maintain
 - ✅ Ratatui-based terminal UI (`guardia-viewer` binary)
 - ✅ WebSocket client for real-time metric/service check streaming
 - ✅ Three-tab interface: Servers, Services, Alerts
-- ✅ Real-time CPU and temperature charts (line graphs with Braille markers)
+- ✅ **Time-based charts with sliding window** (X-axis shows actual timestamps in HH:MM:SS format)
+  - CPU usage chart with time-based X-axis and configurable window (default: 5 minutes)
+  - Temperature chart with time-based X-axis
+  - Historical data loading on startup (queries `/api/v1/servers/:id/metrics/latest`)
+  - Automatic cleanup of metrics older than 2x time window
+- ✅ **Enhanced memory visualization**
+  - Color-coded memory gauge (green <70%, yellow <85%, red ≥85%)
+  - Progress bars for RAM and Swap usage
+  - Absolute values (GB) + percentages
+- ✅ **Enhanced system information panel**
+  - Hostname, OS, architecture
+  - Quick metrics summary (CPU, temperature, memory)
+- ✅ **Shared type architecture** (`src/api/types.rs`)
+  - ServerInfo and ServiceInfo shared between API and viewer
+  - Prevents serialization mismatches and type drift
 - ✅ Server health status display (up/stale/unknown)
 - ✅ Service health monitoring (up/down/degraded/stale/unknown)
-- ✅ Alert timeline with severity indicators
+- ✅ Alert timeline with severity indicators (Critical/Warning/Info)
 - ✅ Keybindings: Tab navigation, arrow keys, space to pause, R to refresh, Q to quit
 - ✅ TOML configuration support (`~/.config/guardia/viewer.toml`)
+  - `api_url`, `api_token`, `refresh_interval`, `max_metrics`
+  - `time_window_seconds` (default: 300 = 5 minutes)
 - ✅ Automatic reconnection on WebSocket disconnect
-- ✅ Ring buffer for metrics (configurable max_metrics, default 100)
+- ✅ Time-based metric cleanup (removes metrics older than 2x window)
 - ✅ Feature flag: `dashboard` (enabled by default)
 - See "TUI Dashboard Architecture" section below for implementation details
 
@@ -246,10 +262,22 @@ A beautiful terminal dashboard for monitoring servers and services in real-time.
 
 **Implementation (`src/viewer/`):**
 - `app.rs` - Main application loop, event handling, WebSocket integration
+  - Historical metrics loading on startup
+  - Periodic API refresh
+  - WebSocket event handling
 - `config.rs` - TOML configuration loading from `~/.config/guardia/viewer.toml`
-- `state.rs` - Application state management with ring buffers for metrics
+- `state.rs` - Application state management
+  - Time-based metric ring buffers with automatic cleanup
+  - Tab navigation and selection state
+  - Server/service/alert lists
 - `websocket.rs` - WebSocket client with automatic reconnection
 - `ui/` - Ratatui-based UI modules
+
+**Shared Types (`src/api/types.rs`):**
+- `ServerInfo` - Shared server response type (used by API and viewer)
+- `ServiceInfo` - Shared service response type (used by API and viewer)
+- **Purpose**: Prevents serialization mismatches and type drift between API and viewer
+- **Benefit**: Single source of truth for API response structures
 
 **Architecture:**
 - Connects to API server (local or remote) via HTTP + WebSocket
@@ -266,10 +294,17 @@ A beautiful terminal dashboard for monitoring servers and services in real-time.
   - Shows display name and status badge
   - Arrow keys to select servers
 - **Right panel**: Selected server details
-  - Server info box: ID, status, last seen, current CPU/temp/memory
-  - Real-time CPU usage chart (line graph with Braille markers)
-  - Real-time temperature chart (line graph with Braille markers)
+  - **Enhanced server info panel**: hostname, OS, architecture, quick metrics summary
+  - **Color-coded memory gauge**: RAM and Swap with progress bars (█/░), color-coded by usage
+  - **Time-based CPU chart** (line graph with Braille markers)
+    - X-axis shows actual timestamps (HH:MM:SS format)
+    - Sliding window (default 5 minutes, configurable)
+    - Displays only metrics within time window
+  - **Time-based temperature chart** (line graph with Braille markers)
+    - X-axis shows actual timestamps (HH:MM:SS format)
+    - Same sliding window behavior as CPU chart
   - Charts auto-update as WebSocket events arrive
+  - **Historical data loading**: queries past metrics on startup for immediate visualization
 
 **Tab 2: Services** - Service health monitoring
 - **Table view**: Service list with columns
@@ -287,10 +322,13 @@ A beautiful terminal dashboard for monitoring servers and services in real-time.
 
 **Implemented Widgets (`src/viewer/ui/`):**
 - `layout.rs` - Main dashboard layout with header (tabs), content area, footer (keybindings/status)
-- `servers.rs` - Server list + metrics display (info panel + CPU/temp charts)
+- `servers.rs` - Server list + enhanced metrics display (system info + memory gauge + time-based charts)
 - `services.rs` - Service table + detail panel
 - `alerts.rs` - Alert timeline with severity indicators
-- `widgets.rs` - Reusable chart widgets (`render_cpu_chart`, `render_temp_chart`)
+- `widgets.rs` - Reusable chart widgets
+  - `render_cpu_chart` - Time-based CPU chart with sliding window and HH:MM:SS labels
+  - `render_temp_chart` - Time-based temperature chart with sliding window
+  - `render_memory_gauge` - Color-coded memory/swap gauge with progress bars
 
 **Keybindings:**
 - `Tab` / `→` - Next tab
@@ -305,12 +343,19 @@ A beautiful terminal dashboard for monitoring servers and services in real-time.
 **Data Flow:**
 1. Viewer connects to API server on startup
 2. Fetches initial state via REST endpoints (`/api/v1/servers`, `/api/v1/services`)
-3. Opens WebSocket to `/api/v1/stream` (automatic reconnection on disconnect)
-4. Receives `MetricEvent` and `ServiceCheckEvent` messages from WebSocket
-5. Updates in-memory ring buffers (configurable max, default 100 metrics per server, 500 alerts)
-6. Renders UI on state changes or keyboard events (event-driven, ~10 FPS polling)
-7. Periodic refresh (default 5s) re-fetches server/service lists from API
-8. Paused mode freezes updates but maintains WebSocket connection
+3. **Loads historical metrics** for each server (`/api/v1/servers/:id/metrics/latest?limit=N`)
+   - N calculated based on `time_window_seconds` (e.g., 5 min window = ~30 points at 10s intervals)
+   - Populates charts immediately with historical data
+4. Opens WebSocket to `/api/v1/stream` (automatic reconnection on disconnect)
+5. Receives `MetricEvent` and `ServiceCheckEvent` messages from WebSocket
+6. Updates in-memory ring buffers with **time-based cleanup**
+   - Metrics older than 2x `time_window_seconds` are automatically removed
+   - Safety limit: max 1000 metrics per server, 500 alerts total
+7. Renders UI on state changes or keyboard events (event-driven, ~10 FPS polling)
+   - Charts filter to only show metrics within `time_window_seconds` window
+   - X-axis displays actual timestamps (HH:MM:SS format)
+8. Periodic refresh (default 5s) re-fetches server/service lists from API
+9. Paused mode freezes updates but maintains WebSocket connection
 
 **Configuration (`~/.config/guardia/viewer.toml`):**
 ```toml
@@ -325,6 +370,11 @@ refresh_interval = 5
 
 # Maximum metrics to keep in memory per server (default: 100)
 max_metrics = 100
+
+# Chart time window in seconds (default: 300 = 5 minutes)
+# Determines how much historical data to display in charts
+# Metrics older than 2x this value are automatically cleaned up
+time_window_seconds = 300
 
 # Enable debug mode (default: false)
 debug = false

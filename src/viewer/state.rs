@@ -111,10 +111,13 @@ pub struct AppState {
 
     /// Error message (if any)
     pub error_message: Option<String>,
+
+    /// Chart time window in seconds (for sliding window display)
+    pub time_window_seconds: u64,
 }
 
 impl AppState {
-    pub fn new() -> Self {
+    pub fn new(time_window_seconds: u64) -> Self {
         Self {
             current_tab: Tab::Servers,
             servers: Vec::new(),
@@ -128,6 +131,7 @@ impl AppState {
             last_update: None,
             connected: false,
             error_message: None,
+            time_window_seconds,
         }
     }
 
@@ -137,7 +141,17 @@ impl AppState {
 
         history.push_back(MetricPoint { timestamp, metrics });
 
-        // Trim to max buffer size
+        // Time-based cleanup: remove metrics older than 2x time window
+        let cutoff = Utc::now() - chrono::Duration::seconds((self.time_window_seconds * 2) as i64);
+        while let Some(front) = history.front() {
+            if front.timestamp < cutoff {
+                history.pop_front();
+            } else {
+                break;
+            }
+        }
+
+        // Safety: also trim to max buffer size if needed
         if history.len() > MAX_METRICS_BUFFER {
             history.pop_front();
         }
@@ -252,6 +266,6 @@ impl AppState {
 
 impl Default for AppState {
     fn default() -> Self {
-        Self::new()
+        Self::new(300) // Default 5 minute window
     }
 }

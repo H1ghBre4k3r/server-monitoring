@@ -14,7 +14,8 @@
 - **💾 Time-Series Storage**: SQLite backend with configurable retention and automatic cleanup
 - **🎯 Actor-Based Architecture**: Scalable, maintainable, and testable design using Tokio actors
 - **🔌 REST + WebSocket API**: Remote access with real-time streaming capabilities
-- **📺 TUI Dashboard**: Beautiful terminal UI for monitoring (coming soon in Phase 4.2)
+- **📺 TUI Dashboard**: Beautiful terminal UI with time-based charts, memory gauges, and sliding windows
+- **📈 Advanced Visualization**: Time-based charts with HH:MM:SS labels, color-coded memory gauges, historical data loading
 - **🔐 Security**: Token-based authentication for agents and API access
 - **⚙️ Configurable**: JSON-based configuration with extensive customization options
 
@@ -168,6 +169,7 @@ api_url = "http://localhost:8080"
 api_token = "api-secret-token"
 refresh_interval = 5
 max_metrics = 100
+time_window_seconds = 300  # 5 minute sliding window for charts
 EOF
 
 # Run the viewer
@@ -176,6 +178,18 @@ guardia-viewer
 # Or with CLI args
 guardia-viewer --url http://localhost:8080 --token api-secret-token
 ```
+
+**TUI Dashboard Features:**
+- **Time-based Charts**: CPU and temperature charts with actual timestamps (HH:MM:SS format)
+  - Configurable sliding window (default: 5 minutes)
+  - Automatic historical data loading on startup
+  - Real-time updates via WebSocket
+- **Enhanced Memory Visualization**: Color-coded gauges for RAM and Swap
+  - Green (<70%), Yellow (<85%), Red (≥85%)
+  - Progress bars with absolute values (GB) and percentages
+- **Server Details**: Hostname, OS, architecture, quick metrics summary
+- **Three-Tab Interface**: Servers, Services, Alerts
+- **Health Status Indicators**: Color-coded status for all monitored resources
 
 **Keybindings:**
 - `Tab` / `←` `→` - Navigate between tabs (Servers, Services, Alerts)

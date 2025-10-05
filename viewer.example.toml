@@ -21,6 +21,11 @@ refresh_interval = 5
 # Older metrics are discarded to prevent memory growth
 max_metrics = 100
 
+# Chart time window in seconds (default: 300 = 5 minutes)
+# Determines how much historical data to display in charts
+# Metrics older than 2x this value are automatically cleaned up
+time_window_seconds = 300
+
 # Enable debug mode (default: false)
 # Shows additional debug information in the UI
 debug = false

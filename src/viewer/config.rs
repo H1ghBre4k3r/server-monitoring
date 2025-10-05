@@ -21,6 +21,10 @@ pub struct Config {
     #[serde(default = "default_max_metrics")]
     pub max_metrics: usize,
 
+    /// Chart time window in seconds (default: 300 = 5 minutes)
+    #[serde(default = "default_time_window")]
+    pub time_window_seconds: u64,
+
     /// Enable debug mode (default: false)
     #[serde(default)]
     pub debug: bool,
@@ -32,6 +36,10 @@ fn default_refresh_interval() -> u64 {
 
 fn default_max_metrics() -> usize {
     100
+}
+
+fn default_time_window() -> u64 {
+    300 // 5 minutes
 }
 
 impl Config {
@@ -68,6 +76,7 @@ impl Default for Config {
             api_token: None,
             refresh_interval: default_refresh_interval(),
             max_metrics: default_max_metrics(),
+            time_window_seconds: default_time_window(),
             debug: false,
         }
     }

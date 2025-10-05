@@ -18,12 +18,26 @@ pub fn render_cpu_chart(frame: &mut Frame, area: Rect, server_id: &str, state: &
             return;
         }
 
-        // Extract CPU data points
+        use chrono::Utc;
+
+        // Calculate time window bounds
+        let now = Utc::now();
+        let window_start = now - chrono::Duration::seconds(state.time_window_seconds as i64);
+
+        // Filter and extract CPU data points within time window
         let data: Vec<(f64, f64)> = history
             .iter()
-            .enumerate()
-            .map(|(i, point)| (i as f64, point.metrics.cpus.average_usage as f64))
+            .filter(|point| point.timestamp >= window_start)
+            .map(|point| {
+                let timestamp = point.timestamp.timestamp() as f64;
+                let cpu_usage = point.metrics.cpus.average_usage as f64;
+                (timestamp, cpu_usage)
+            })
             .collect();
+
+        if data.is_empty() {
+            return;
+        }
 
         // Calculate bounds
         let max_cpu = data
@@ -32,14 +46,29 @@ pub fn render_cpu_chart(frame: &mut Frame, area: Rect, server_id: &str, state: &
             .fold(0.0, f64::max)
             .max(100.0);
 
+        let x_min = data.first().map(|(t, _)| *t).unwrap_or(0.0);
+        let x_max = data.last().map(|(t, _)| *t).unwrap_or(x_min + 60.0);
+
+        // Create time labels (HH:MM:SS format)
+        let start_time = chrono::DateTime::from_timestamp(x_min as i64, 0)
+            .unwrap_or_default()
+            .format("%H:%M:%S")
+            .to_string();
+        let mid_time = chrono::DateTime::from_timestamp(((x_min + x_max) / 2.0) as i64, 0)
+            .unwrap_or_default()
+            .format("%H:%M:%S")
+            .to_string();
+        let end_time = chrono::DateTime::from_timestamp(x_max as i64, 0)
+            .unwrap_or_default()
+            .format("%H:%M:%S")
+            .to_string();
+
         let datasets = vec![Dataset::default()
             .name("CPU %")
             .marker(symbols::Marker::Braille)
             .graph_type(GraphType::Line)
             .style(Style::default().fg(Color::Cyan))
             .data(&data)];
-
-        let x_max = data.len().max(10) as f64;
 
         let chart = Chart::new(datasets)
             .block(
@@ -50,7 +79,8 @@ pub fn render_cpu_chart(frame: &mut Frame, area: Rect, server_id: &str, state: &
             .x_axis(
                 Axis::default()
                     .style(Style::default().fg(Color::Gray))
-                    .bounds([0.0, x_max]),
+                    .labels(vec![start_time, mid_time, end_time])
+                    .bounds([x_min, x_max]),
             )
             .y_axis(
                 Axis::default()
@@ -74,16 +104,25 @@ pub fn render_temp_chart(frame: &mut Frame, area: Rect, server_id: &str, state: 
             return;
         }
 
-        // Extract temperature data points
+        use chrono::Utc;
+
+        // Calculate time window bounds
+        let now = Utc::now();
+        let window_start = now - chrono::Duration::seconds(state.time_window_seconds as i64);
+
+        // Filter and extract temperature data points within time window
         let data: Vec<(f64, f64)> = history
             .iter()
-            .enumerate()
-            .filter_map(|(i, point)| {
+            .filter(|point| point.timestamp >= window_start)
+            .filter_map(|point| {
                 point
                     .metrics
                     .components
                     .average_temperature
-                    .map(|temp| (i as f64, temp as f64))
+                    .map(|temp| {
+                        let timestamp = point.timestamp.timestamp() as f64;
+                        (timestamp, temp as f64)
+                    })
             })
             .collect();
 
@@ -98,14 +137,29 @@ pub fn render_temp_chart(frame: &mut Frame, area: Rect, server_id: &str, state: 
             .fold(0.0, f64::max)
             .max(100.0);
 
+        let x_min = data.first().map(|(t, _)| *t).unwrap_or(0.0);
+        let x_max = data.last().map(|(t, _)| *t).unwrap_or(x_min + 60.0);
+
+        // Create time labels (HH:MM:SS format)
+        let start_time = chrono::DateTime::from_timestamp(x_min as i64, 0)
+            .unwrap_or_default()
+            .format("%H:%M:%S")
+            .to_string();
+        let mid_time = chrono::DateTime::from_timestamp(((x_min + x_max) / 2.0) as i64, 0)
+            .unwrap_or_default()
+            .format("%H:%M:%S")
+            .to_string();
+        let end_time = chrono::DateTime::from_timestamp(x_max as i64, 0)
+            .unwrap_or_default()
+            .format("%H:%M:%S")
+            .to_string();
+
         let datasets = vec![Dataset::default()
             .name("Temp °C")
             .marker(symbols::Marker::Braille)
             .graph_type(GraphType::Line)
             .style(Style::default().fg(Color::Red))
             .data(&data)];
-
-        let x_max = data.len().max(10) as f64;
 
         let chart = Chart::new(datasets)
             .block(
@@ -116,7 +170,8 @@ pub fn render_temp_chart(frame: &mut Frame, area: Rect, server_id: &str, state: 
             .x_axis(
                 Axis::default()
                     .style(Style::default().fg(Color::Gray))
-                    .bounds([0.0, x_max]),
+                    .labels(vec![start_time, mid_time, end_time])
+                    .bounds([x_min, x_max]),
             )
             .y_axis(
                 Axis::default()
