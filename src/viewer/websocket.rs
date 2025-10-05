@@ -123,7 +123,11 @@ impl WebSocketClient {
                             }
                         }
                         Err(e) => {
-                            tracing::warn!("Failed to parse WebSocket event: {}", e);
+                            tracing::error!(
+                                "Failed to parse WebSocket event: {}\nRaw JSON: {}",
+                                e,
+                                text
+                            );
                         }
                     }
                 }

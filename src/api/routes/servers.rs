@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::{
-    api::{error::ApiResult, state::ApiState},
+    api::{error::ApiResult, state::ApiState, types::ServerInfo},
     storage::backend::QueryRange,
 };
 
@@ -24,17 +24,6 @@ pub struct MetricQuery {
 
     /// Max results (default: 1000)
     limit: Option<usize>,
-}
-
-/// Server info response
-#[derive(Debug, Serialize)]
-struct ServerInfo {
-    server_id: String,
-    display_name: String,
-    monitoring_status: &'static str,
-    health_status: &'static str,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    last_seen: Option<String>,
 }
 
 /// GET /api/v1/servers
@@ -67,8 +56,8 @@ pub async fn list_servers(State(state): State<ApiState>) -> ApiResult<Json<Value
         servers.push(ServerInfo {
             server_id,
             display_name,
-            monitoring_status: "active",
-            health_status,
+            monitoring_status: "active".to_string(),
+            health_status: health_status.to_string(),
             last_seen,
         });
     }

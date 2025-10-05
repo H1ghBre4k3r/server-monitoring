@@ -15,10 +15,12 @@ use tokio::sync::mpsc;
 
 use super::{
     config::Config,
-    state::{AlertEntry, AlertSeverity, AppState, ServerInfo, ServiceInfo},
+    state::{AlertEntry, AlertSeverity, AppState},
     ui,
     websocket::{WebSocketClient, WsEvent},
 };
+
+use crate::api::{ServerInfo, ServiceInfo};
 
 /// Main TUI application
 pub struct App {

@@ -6,6 +6,9 @@ use std::collections::{HashMap, VecDeque};
 
 use crate::ServerMetrics;
 
+#[cfg(feature = "api")]
+use crate::api::{ServerInfo, ServiceInfo};
+
 /// Maximum number of metrics to keep in memory per server
 const MAX_METRICS_BUFFER: usize = 1000;
 
@@ -44,27 +47,6 @@ impl Tab {
             Tab::Alerts => "Alerts",
         }
     }
-}
-
-/// Server information with health status
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ServerInfo {
-    pub server_id: String,
-    pub display_name: String,
-    pub monitoring_status: String,
-    pub health_status: String,
-    pub last_seen: Option<String>,
-}
-
-/// Service information with health status
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ServiceInfo {
-    pub name: String,
-    pub url: String,
-    pub monitoring_status: String,
-    pub health_status: String,
-    pub last_check: Option<String>,
-    pub last_status: Option<String>,
 }
 
 /// Alert entry for the alerts timeline

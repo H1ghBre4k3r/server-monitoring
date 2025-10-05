@@ -8,20 +8,7 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::api::{error::ApiResult, state::ApiState};
-
-/// Service info response
-#[derive(Debug, Serialize)]
-struct ServiceInfo {
-    name: String,
-    url: String,
-    monitoring_status: &'static str,
-    health_status: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    last_check: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    last_status: Option<String>,
-}
+use crate::api::{error::ApiResult, state::ApiState, types::ServiceInfo};
 
 /// GET /api/v1/services
 ///
@@ -66,7 +53,7 @@ pub async fn list_services(State(state): State<ApiState>) -> ApiResult<Json<Valu
         services.push(ServiceInfo {
             name: service_name,
             url,
-            monitoring_status: "active",
+            monitoring_status: "active".to_string(),
             health_status,
             last_check,
             last_status,

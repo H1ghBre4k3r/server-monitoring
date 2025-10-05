@@ -34,10 +34,11 @@ async fn handle_websocket(socket: WebSocket, state: ApiState) {
         loop {
             tokio::select! {
                 // Forward metric events
-                Ok(MetricEvent { server_id, metrics, timestamp, .. }) = metric_rx.recv() => {
+                Ok(MetricEvent { server_id, metrics, timestamp, display_name }) = metric_rx.recv() => {
                     let json = serde_json::json!({
                         "type": "metric",
                         "server_id": server_id,
+                        "display_name": display_name,
                         "timestamp": timestamp.to_rfc3339(),
                         "metrics": metrics,
                     });
@@ -56,7 +57,7 @@ async fn handle_websocket(socket: WebSocket, state: ApiState) {
                         "service_name": event.service_name,
                         "url": event.url,
                         "timestamp": event.timestamp.to_rfc3339(),
-                        "status": format!("{:?}", event.status),
+                        "status": event.status,
                         "response_time_ms": event.response_time_ms,
                         "http_status_code": event.http_status_code,
                         "error_message": event.error_message,
