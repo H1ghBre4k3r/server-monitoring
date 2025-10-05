@@ -56,6 +56,22 @@ impl App {
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
 
+        // Calculate data limit based on terminal width
+        let terminal_size = terminal.size()?;
+        let chart_width = (terminal_size.width as f64 * 0.7) as usize; // 70% is chart area
+        let data_limit = (chart_width * 2).clamp(20, 500); // 2 points per char, min 20, max 500
+
+        tracing::debug!(
+            "Terminal size: {}x{}, chart width: {}, data limit: {}",
+            terminal_size.width,
+            terminal_size.height,
+            chart_width,
+            data_limit
+        );
+
+        // Update state with calculated data limit
+        self.state.data_limit = data_limit;
+
         // Initial data fetch
         self.fetch_initial_data().await?;
 
@@ -133,9 +149,8 @@ impl App {
 
     /// Fetch historical metrics for all servers
     async fn fetch_historical_metrics(&mut self, client: &reqwest::Client) {
-        // Calculate how many metrics to fetch based on time window
-        // Assume metrics arrive every ~10 seconds, so fetch time_window / 10 points
-        let limit = (self.state.time_window_seconds / 10).max(10);
+        // Use terminal-width-aware data limit for optimal visualization
+        let limit = self.state.data_limit;
 
         let base_url = self.config.api_url.clone();
         let api_token = self.config.api_token.clone();
@@ -143,7 +158,7 @@ impl App {
 
         for server in servers {
             let mut request = client.get(format!(
-                "{}/api/v1/servers/{}/metrics?limit={}",
+                "{}/api/v1/servers/{}/metrics/latest?limit={}",
                 base_url, server.server_id, limit
             ));
 
@@ -153,25 +168,53 @@ impl App {
 
             match request.send().await {
                 Ok(response) => {
-                    if response.status().is_success() {
-                        if let Ok(json) = response.json::<serde_json::Value>().await {
-                            if let Some(metrics) = json["metrics"].as_array() {
-                                // Parse and add each metric to history
-                                for metric_value in metrics {
-                                    if let Ok(metric_row) = serde_json::from_value::<crate::storage::schema::MetricRow>(metric_value.clone()) {
+                    let status = response.status();
+                    if status.is_success() {
+                        match response.json::<serde_json::Value>().await {
+                            Ok(json) => {
+                                if let Some(metrics) = json["metrics"].as_array() {
+                                    let mut loaded_count = 0;
+                                    // Parse metrics into a Vec first
+                                    let mut parsed_metrics: Vec<crate::storage::schema::MetricRow> = Vec::new();
+                                    for metric_value in metrics {
+                                        match serde_json::from_value::<crate::storage::schema::MetricRow>(metric_value.clone()) {
+                                            Ok(metric_row) => {
+                                                parsed_metrics.push(metric_row);
+                                            }
+                                            Err(e) => {
+                                                tracing::warn!("Failed to deserialize metric for {}: {}", server.server_id, e);
+                                            }
+                                        }
+                                    }
+
+                                    // Reverse so oldest metrics are first (API returns newest first)
+                                    parsed_metrics.reverse();
+
+                                    // Add to history in chronological order
+                                    for metric_row in parsed_metrics {
                                         self.state.add_metric(
-                                            metric_row.server_id,
+                                            metric_row.server_id.clone(),
                                             metric_row.metadata,
                                             metric_row.timestamp,
                                         );
+                                        loaded_count += 1;
                                     }
+
+                                    tracing::debug!("Loaded {} historical metrics for {}", loaded_count, server.server_id);
+                                } else {
+                                    tracing::warn!("No 'metrics' array in response for {}", server.server_id);
                                 }
                             }
+                            Err(e) => {
+                                tracing::error!("Failed to parse JSON response for {}: {}", server.server_id, e);
+                            }
                         }
+                    } else {
+                        tracing::error!("HTTP error fetching historical metrics for {}: {}", server.server_id, status);
                     }
                 }
-                Err(_) => {
-                    // Silently ignore errors for historical data
+                Err(e) => {
+                    tracing::error!("Failed to fetch historical metrics for {}: {}", server.server_id, e);
                 }
             }
         }

@@ -25,7 +25,7 @@ pub fn render_cpu_chart(frame: &mut Frame, area: Rect, server_id: &str, state: &
         let window_start = now - chrono::Duration::seconds(state.time_window_seconds as i64);
 
         // Filter and extract CPU data points within time window
-        let data: Vec<(f64, f64)> = history
+        let mut data: Vec<(f64, f64)> = history
             .iter()
             .filter(|point| point.timestamp >= window_start)
             .map(|point| {
@@ -39,6 +39,9 @@ pub fn render_cpu_chart(frame: &mut Frame, area: Rect, server_id: &str, state: &
             return;
         }
 
+        // Sort by timestamp to ensure chronological order (prevents vertical lines)
+        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+
         // Calculate bounds
         let max_cpu = data
             .iter()
@@ -46,22 +49,16 @@ pub fn render_cpu_chart(frame: &mut Frame, area: Rect, server_id: &str, state: &
             .fold(0.0, f64::max)
             .max(100.0);
 
-        let x_min = data.first().map(|(t, _)| *t).unwrap_or(0.0);
-        let x_max = data.last().map(|(t, _)| *t).unwrap_or(x_min + 60.0);
+        // Fixed X-axis bounds: [now - time_window, now]
+        let x_min = window_start.timestamp() as f64;
+        let x_max = now.timestamp() as f64;
 
-        // Create time labels (HH:MM:SS format)
-        let start_time = chrono::DateTime::from_timestamp(x_min as i64, 0)
-            .unwrap_or_default()
+        // Create time labels based on fixed window (not data range)
+        let start_time = window_start.format("%H:%M:%S").to_string();
+        let mid_time = (window_start + chrono::Duration::seconds(state.time_window_seconds as i64 / 2))
             .format("%H:%M:%S")
             .to_string();
-        let mid_time = chrono::DateTime::from_timestamp(((x_min + x_max) / 2.0) as i64, 0)
-            .unwrap_or_default()
-            .format("%H:%M:%S")
-            .to_string();
-        let end_time = chrono::DateTime::from_timestamp(x_max as i64, 0)
-            .unwrap_or_default()
-            .format("%H:%M:%S")
-            .to_string();
+        let end_time = now.format("%H:%M:%S").to_string();
 
         let datasets = vec![Dataset::default()
             .name("CPU %")
@@ -111,7 +108,7 @@ pub fn render_temp_chart(frame: &mut Frame, area: Rect, server_id: &str, state: 
         let window_start = now - chrono::Duration::seconds(state.time_window_seconds as i64);
 
         // Filter and extract temperature data points within time window
-        let data: Vec<(f64, f64)> = history
+        let mut data: Vec<(f64, f64)> = history
             .iter()
             .filter(|point| point.timestamp >= window_start)
             .filter_map(|point| {
@@ -130,6 +127,9 @@ pub fn render_temp_chart(frame: &mut Frame, area: Rect, server_id: &str, state: 
             return;
         }
 
+        // Sort by timestamp to ensure chronological order (prevents vertical lines)
+        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+
         // Calculate bounds
         let max_temp = data
             .iter()
@@ -137,22 +137,16 @@ pub fn render_temp_chart(frame: &mut Frame, area: Rect, server_id: &str, state: 
             .fold(0.0, f64::max)
             .max(100.0);
 
-        let x_min = data.first().map(|(t, _)| *t).unwrap_or(0.0);
-        let x_max = data.last().map(|(t, _)| *t).unwrap_or(x_min + 60.0);
+        // Fixed X-axis bounds: [now - time_window, now]
+        let x_min = window_start.timestamp() as f64;
+        let x_max = now.timestamp() as f64;
 
-        // Create time labels (HH:MM:SS format)
-        let start_time = chrono::DateTime::from_timestamp(x_min as i64, 0)
-            .unwrap_or_default()
+        // Create time labels based on fixed window (not data range)
+        let start_time = window_start.format("%H:%M:%S").to_string();
+        let mid_time = (window_start + chrono::Duration::seconds(state.time_window_seconds as i64 / 2))
             .format("%H:%M:%S")
             .to_string();
-        let mid_time = chrono::DateTime::from_timestamp(((x_min + x_max) / 2.0) as i64, 0)
-            .unwrap_or_default()
-            .format("%H:%M:%S")
-            .to_string();
-        let end_time = chrono::DateTime::from_timestamp(x_max as i64, 0)
-            .unwrap_or_default()
-            .format("%H:%M:%S")
-            .to_string();
+        let end_time = now.format("%H:%M:%S").to_string();
 
         let datasets = vec![Dataset::default()
             .name("Temp °C")

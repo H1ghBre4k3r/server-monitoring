@@ -114,6 +114,9 @@ pub struct AppState {
 
     /// Chart time window in seconds (for sliding window display)
     pub time_window_seconds: u64,
+
+    /// Number of data points to load (calculated from terminal width)
+    pub data_limit: usize,
 }
 
 impl AppState {
@@ -132,6 +135,7 @@ impl AppState {
             connected: false,
             error_message: None,
             time_window_seconds,
+            data_limit: 100, // Default, will be updated based on terminal size
         }
     }
 
