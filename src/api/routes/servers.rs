@@ -16,6 +16,21 @@ use crate::{
     storage::backend::QueryRange,
 };
 
+/// Maximum age in seconds before a metric is considered stale
+const STALE_THRESHOLD_SECS: i64 = 300; // 5 minutes
+
+/// Default limit for metrics query
+const DEFAULT_METRICS_LIMIT: usize = 1000;
+
+/// Maximum limit for metrics query
+const MAX_METRICS_LIMIT: usize = 10000;
+
+/// Default limit for latest metrics query
+const DEFAULT_LATEST_LIMIT: usize = 100;
+
+/// Maximum limit for latest metrics query
+const MAX_LATEST_LIMIT: usize = 1000;
+
 /// Query parameters for metric time range
 #[derive(Debug, Deserialize)]
 pub struct MetricQuery {
@@ -27,6 +42,21 @@ pub struct MetricQuery {
 
     /// Max results (default: 1000)
     limit: Option<usize>,
+}
+
+/// Query parameters for latest metrics
+#[derive(Debug, Deserialize)]
+pub struct LatestQuery {
+    limit: Option<usize>,
+}
+
+/// Determine health status based on metric age
+fn determine_health_status(metric_age_secs: i64) -> &'static str {
+    if metric_age_secs > STALE_THRESHOLD_SECS {
+        "stale"
+    } else {
+        "up"
+    }
 }
 
 /// GET /api/v1/servers
@@ -44,14 +74,10 @@ pub async fn list_servers(State(state): State<ApiState>) -> ApiResult<Json<Serve
             match state.storage.query_latest(server_id.clone(), 1).await {
                 Ok(metrics) if !metrics.is_empty() => {
                     let metric = &metrics[0];
-                    let age = Utc::now() - metric.timestamp;
-
-                    // Consider stale if older than 5 minutes
-                    if age.num_seconds() > 300 {
-                        ("stale", Some(metric.timestamp.to_rfc3339()))
-                    } else {
-                        ("up", Some(metric.timestamp.to_rfc3339()))
-                    }
+                    let age_secs = (Utc::now() - metric.timestamp).num_seconds();
+                    let status = determine_health_status(age_secs);
+                    let timestamp = metric.timestamp.to_rfc3339();
+                    (status, Some(timestamp))
                 }
                 _ => ("unknown", None),
             };
@@ -79,7 +105,10 @@ pub async fn get_server_metrics(
 ) -> ApiResult<Json<MetricsResponse>> {
     let end = query.end.unwrap_or_else(Utc::now);
     let start = query.start.unwrap_or_else(|| end - Duration::hours(1));
-    let limit = query.limit.unwrap_or(1000).min(10000);
+    let limit = query
+        .limit
+        .unwrap_or(DEFAULT_METRICS_LIMIT)
+        .min(MAX_METRICS_LIMIT);
 
     let query_range = QueryRange {
         server_id: server_id.clone(),
@@ -89,12 +118,13 @@ pub async fn get_server_metrics(
     };
 
     let metrics = state.storage.query_range(query_range).await?;
+    let count = metrics.len();
 
     Ok(Json(MetricsResponse {
         server_id,
         start: start.to_rfc3339(),
         end: end.to_rfc3339(),
-        count: metrics.len(),
+        count,
         metrics,
     }))
 }
@@ -107,18 +137,17 @@ pub async fn get_latest_metrics(
     Path(server_id): Path<String>,
     Query(query): Query<LatestQuery>,
 ) -> ApiResult<Json<LatestMetricsResponse>> {
-    let limit = query.limit.unwrap_or(100).min(1000);
+    let limit = query
+        .limit
+        .unwrap_or(DEFAULT_LATEST_LIMIT)
+        .min(MAX_LATEST_LIMIT);
 
     let metrics = state.storage.query_latest(server_id.clone(), limit).await?;
+    let count = metrics.len();
 
     Ok(Json(LatestMetricsResponse {
         server_id,
-        count: metrics.len(),
+        count,
         metrics,
     }))
-}
-
-#[derive(Debug, Deserialize)]
-pub struct LatestQuery {
-    limit: Option<usize>,
 }

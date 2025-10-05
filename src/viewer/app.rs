@@ -52,6 +52,18 @@ impl App {
         })
     }
 
+    /// Build an authenticated GET request to the API
+    fn build_authenticated_request(&self, path: &str) -> reqwest::RequestBuilder {
+        let url = format!("{}{}", self.config.api_url, path);
+        let mut request = self.http_client.get(url);
+
+        if let Some(token) = &self.config.api_token {
+            request = request.header("Authorization", format!("Bearer {}", token));
+        }
+
+        request
+    }
+
     /// Run the application
     pub async fn run(&mut self) -> Result<()> {
         // Setup terminal
@@ -101,31 +113,26 @@ impl App {
     /// Loads server/service lists and historical metrics for immediate visualization.
     /// After this, the WebSocket provides real-time updates.
     async fn fetch_initial_data(&mut self) -> Result<()> {
-        // Build request with optional auth
-        let mut request = self
-            .http_client
-            .get(format!("{}/api/v1/servers", &self.config.api_url));
-        if let Some(token) = &self.config.api_token {
-            request = request.header("Authorization", format!("Bearer {}", token));
-        }
-
         // Fetch servers
+        let request = self.build_authenticated_request("/api/v1/servers");
+
         match request.send().await {
-            Ok(response) => {
-                if response.status().is_success() {
-                    let json: serde_json::Value = response.json().await?;
-                    if let Some(servers) = json["servers"].as_array() {
-                        let servers: Vec<ServerInfo> =
-                            serde_json::from_value(serde_json::Value::Array(servers.clone()))?;
-                        self.state.update_servers(servers);
+            Ok(response) if response.status().is_success() => {
+                match response.json::<crate::api::ServersResponse>().await {
+                    Ok(servers_response) => {
+                        self.state.update_servers(servers_response.servers);
                         self.state.connected = true;
 
                         // Fetch historical metrics for each server
                         self.fetch_historical_metrics().await;
                     }
-                } else {
-                    self.state.error_message = Some(format!("API error: {}", response.status()));
+                    Err(e) => {
+                        self.state.error_message = Some(format!("Failed to parse servers: {}", e));
+                    }
                 }
+            }
+            Ok(response) => {
+                self.state.error_message = Some(format!("API error: {}", response.status()));
             }
             Err(e) => {
                 self.state.error_message = Some(format!("Connection failed: {}", e));
@@ -133,26 +140,14 @@ impl App {
         }
 
         // Fetch services
-        let mut request = self
-            .http_client
-            .get(format!("{}/api/v1/services", &self.config.api_url));
-        if let Some(token) = &self.config.api_token {
-            request = request.header("Authorization", format!("Bearer {}", token));
-        }
+        let request = self.build_authenticated_request("/api/v1/services");
 
-        match request.send().await {
-            Ok(response) => {
-                if response.status().is_success() {
-                    let json: serde_json::Value = response.json().await?;
-                    if let Some(services) = json["services"].as_array() {
-                        let services: Vec<ServiceInfo> =
-                            serde_json::from_value(serde_json::Value::Array(services.clone()))?;
-                        self.state.update_services(services);
-                    }
+        if let Ok(response) = request.send().await {
+            if response.status().is_success() {
+                if let Ok(services_response) = response.json::<crate::api::ServicesResponse>().await
+                {
+                    self.state.update_services(services_response.services);
                 }
-            }
-            Err(_) => {
-                // Ignore service fetch errors
             }
         }
 
@@ -269,12 +264,7 @@ impl App {
     /// Metric data comes from WebSocket, so we don't need to refetch it periodically.
     async fn refresh_server_list(&mut self) -> Result<()> {
         // Fetch servers
-        let mut request = self
-            .http_client
-            .get(format!("{}/api/v1/servers", &self.config.api_url));
-        if let Some(token) = &self.config.api_token {
-            request = request.header("Authorization", format!("Bearer {}", token));
-        }
+        let request = self.build_authenticated_request("/api/v1/servers");
 
         if let Ok(response) = request.send().await {
             if response.status().is_success() {
@@ -285,12 +275,7 @@ impl App {
         }
 
         // Fetch services
-        let mut request = self
-            .http_client
-            .get(format!("{}/api/v1/services", &self.config.api_url));
-        if let Some(token) = &self.config.api_token {
-            request = request.header("Authorization", format!("Bearer {}", token));
-        }
+        let request = self.build_authenticated_request("/api/v1/services");
 
         if let Ok(response) = request.send().await {
             if response.status().is_success() {

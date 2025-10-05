@@ -13,6 +13,40 @@ use crate::api::{
     types::{ServiceChecksResponse, ServiceInfo, ServicesResponse, UptimeResponse},
 };
 
+/// Maximum age in seconds before a service check is considered stale
+const STALE_THRESHOLD_SECS: i64 = 300; // 5 minutes
+
+/// Default lookback period for service checks (24 hours)
+const DEFAULT_LOOKBACK_HOURS: i64 = 24;
+
+/// Query parameters for service check history
+#[derive(Debug, Deserialize)]
+pub struct ServiceCheckQuery {
+    start: Option<DateTime<Utc>>,
+    end: Option<DateTime<Utc>>,
+}
+
+/// Query parameters for uptime statistics
+#[derive(Debug, Deserialize)]
+pub struct UptimeQuery {
+    since: Option<DateTime<Utc>>,
+}
+
+/// Determine service health status and metadata from latest check
+fn determine_service_health(
+    check: &crate::storage::schema::ServiceCheckRow,
+) -> (String, String, String) {
+    let age_secs = (Utc::now() - check.timestamp).num_seconds();
+    let status_str = check.status.as_str().to_string();
+    let timestamp = check.timestamp.to_rfc3339();
+
+    if age_secs > STALE_THRESHOLD_SECS {
+        ("stale".to_string(), timestamp, status_str)
+    } else {
+        (status_str.clone(), timestamp, status_str)
+    }
+}
+
 /// GET /api/v1/services
 ///
 /// List all monitored services with health status
@@ -31,24 +65,8 @@ pub async fn list_services(State(state): State<ApiState>) -> ApiResult<Json<Serv
         {
             Ok(checks) if !checks.is_empty() => {
                 let check = &checks[0];
-                let age = Utc::now() - check.timestamp;
-
-                // Consider stale if older than 5 minutes
-                if age.num_seconds() > 300 {
-                    (
-                        "stale".to_string(),
-                        Some(check.timestamp.to_rfc3339()),
-                        Some(check.status.as_str().to_string()),
-                    )
-                } else {
-                    // Use the actual check status
-                    let status = check.status.as_str().to_string();
-                    (
-                        status.clone(),
-                        Some(check.timestamp.to_rfc3339()),
-                        Some(status),
-                    )
-                }
+                let (health, timestamp, status) = determine_service_health(check);
+                (health, Some(timestamp), Some(status))
             }
             _ => ("unknown".to_string(), None, None),
         };
@@ -76,18 +94,22 @@ pub async fn get_service_checks(
     Query(query): Query<ServiceCheckQuery>,
 ) -> ApiResult<Json<ServiceChecksResponse>> {
     let end = query.end.unwrap_or_else(Utc::now);
-    let start = query.start.unwrap_or_else(|| end - Duration::hours(24));
+    let start = query
+        .start
+        .unwrap_or_else(|| end - Duration::hours(DEFAULT_LOOKBACK_HOURS));
 
     let checks = state
         .storage
         .query_service_checks_range(service_name.clone(), start, end)
         .await?;
 
+    let count = checks.len();
+
     Ok(Json(ServiceChecksResponse {
         service_name,
         start: start.to_rfc3339(),
         end: end.to_rfc3339(),
-        count: checks.len(),
+        count,
         checks,
     }))
 }
@@ -102,7 +124,7 @@ pub async fn get_uptime(
 ) -> ApiResult<Json<UptimeResponse>> {
     let since = query
         .since
-        .unwrap_or_else(|| Utc::now() - Duration::hours(24));
+        .unwrap_or_else(|| Utc::now() - Duration::hours(DEFAULT_LOOKBACK_HOURS));
 
     let uptime_stats = state
         .storage
@@ -119,15 +141,4 @@ pub async fn get_uptime(
         successful_checks: uptime_stats.successful_checks,
         avg_response_time_ms: uptime_stats.avg_response_time_ms,
     }))
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ServiceCheckQuery {
-    start: Option<DateTime<Utc>>,
-    end: Option<DateTime<Utc>>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct UptimeQuery {
-    since: Option<DateTime<Utc>>,
 }
