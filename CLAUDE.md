@@ -74,9 +74,9 @@ The hub now uses an actor-based architecture for better scalability and maintain
   - `query_latest_service_checks()` - latest N checks
   - `calculate_uptime()` - uptime statistics
 - ✅ Integration tests (persistence, uptime, range queries)
-- ✅ All tests passing (75/75: 29 unit + 34 integration + 9 property + 3 doc)
+- ✅ All tests passing (84/84: 29 unit + 43 integration + 9 property + 3 doc)
 
-**Phase 4 Status:**
+**Phase 4 Status (✅ COMPLETE):**
 
 **✅ Phase 4.0: Retention & Cleanup COMPLETE**
 - ✅ Startup cleanup (runs once on hub start)
@@ -84,6 +84,7 @@ The hub now uses an actor-based architecture for better scalability and maintain
 - ✅ Cleanup statistics tracking (`last_cleanup_time`, `total_metrics_deleted`, `total_service_checks_deleted`)
 - ✅ Configuration validation (retention_days: 1-3650, cleanup_interval_hours: 1-720)
 - ✅ Exposed in `StorageStats` via `GetStats` command
+- ✅ Background task in StorageActor
 
 **✅ Phase 4.1: API Server COMPLETE**
 - ✅ REST API with Axum framework
@@ -102,7 +103,7 @@ The hub now uses an actor-based architecture for better scalability and maintain
 - ✅ WebSocket streaming with broadcast channel integration
 - ✅ API configuration via JSON config file
 - ✅ Feature flag: `api` (enabled by default)
-- ✅ All tests passing (75/75)
+- ✅ All tests passing (84/84)
 
 **✅ Phase 4.2: TUI Dashboard COMPLETE**
 - ✅ Ratatui-based terminal UI (`guardia-viewer` binary)
