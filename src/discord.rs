@@ -3,6 +3,7 @@ use reqwest::Client;
 use serde::Serialize;
 use tracing::{error, info, instrument};
 
+use crate::actors::messages::ServiceStatus;
 use crate::config::{Discord, ServerConfig};
 use crate::monitors::resources::ResourceEvaluation;
 
@@ -200,6 +201,81 @@ impl DiscordManager {
             ],
             footer: Some(EmbedFooter {
                 text: format!("Server: {} | {}", server, self.server_config.ip),
+            }),
+            timestamp: Some(Utc::now().to_rfc3339()),
+        }
+    }
+
+    /// Build Discord embed for service health alert (Phase 3)
+    pub fn build_service_embed(
+        &self,
+        service_name: &str,
+        url: &str,
+        current_status: ServiceStatus,
+        error_message: Option<&str>,
+    ) -> Embed {
+        let (title, description, color) = match current_status {
+            ServiceStatus::Down | ServiceStatus::Degraded => {
+                let status_text = if current_status == ServiceStatus::Down {
+                    "DOWN"
+                } else {
+                    "DEGRADED"
+                };
+                let desc = if let Some(err) = error_message {
+                    format!("Service **{}** is **{}**", service_name, status_text)
+                } else {
+                    format!("Service **{}** is **{}**", service_name, status_text)
+                };
+                (
+                    format!("🔴 Service {} Alert", status_text),
+                    desc,
+                    0xFF0000, // Red
+                )
+            }
+            ServiceStatus::Up => (
+                "✅ Service Recovered".to_string(),
+                format!("Service **{}** is back **UP**", service_name),
+                0x00FF00, // Green
+            ),
+        };
+
+        let mut fields = vec![
+            EmbedField {
+                name: "Service".to_string(),
+                value: service_name.to_string(),
+                inline: true,
+            },
+            EmbedField {
+                name: "URL".to_string(),
+                value: url.to_string(),
+                inline: false,
+            },
+            EmbedField {
+                name: "Status".to_string(),
+                value: match current_status {
+                    ServiceStatus::Up => "🟢 UP".to_string(),
+                    ServiceStatus::Down => "🔴 DOWN".to_string(),
+                    ServiceStatus::Degraded => "🟡 DEGRADED".to_string(),
+                },
+                inline: true,
+            },
+        ];
+
+        if let Some(err) = error_message {
+            fields.push(EmbedField {
+                name: "Error".to_string(),
+                value: format!("`{}`", err),
+                inline: false,
+            });
+        }
+
+        Embed {
+            title: Some(title),
+            description: Some(description),
+            color: Some(color),
+            fields,
+            footer: Some(EmbedFooter {
+                text: "Service Monitoring".to_string(),
             }),
             timestamp: Some(Utc::now().to_rfc3339()),
         }

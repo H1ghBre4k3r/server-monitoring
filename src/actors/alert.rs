@@ -393,13 +393,11 @@ impl AlertActor {
         };
 
         let grace = state.config.grace.unwrap_or(1);
+        let previous_status = state.last_status;
 
         trace!(
             "service check: {} status={:?}, consecutive_down={}/{}",
-            event.service_name,
-            event.status,
-            state.consecutive_down,
-            grace
+            event.service_name, event.status, state.consecutive_down, grace
         );
 
         match event.status {
@@ -413,9 +411,21 @@ impl AlertActor {
                         event.service_name, state.consecutive_down, grace
                     );
 
-                    // TODO: Add send_service_down_alert method to AlertManager
-                    // For now, we'll use a generic approach
-                    trace!("service down alert would be sent here");
+                    // Send alert if configured
+                    if let Some(alert_config) = &state.config.alert {
+                        // TODO: in the end, this should probably be a standalone alert manager
+                        state
+                            .alert_manager
+                            .send_service_alert(
+                                alert_config,
+                                &event.service_name,
+                                &event.url,
+                                previous_status,
+                                event.status,
+                                event.error_message.as_deref(),
+                            )
+                            .await;
+                    }
                 }
 
                 state.last_status = Some(event.status);
@@ -429,8 +439,21 @@ impl AlertActor {
                         event.service_name, state.consecutive_down
                     );
 
-                    // TODO: Add send_service_recovered_alert method to AlertManager
-                    trace!("service recovered alert would be sent here");
+                    // Send recovery alert if configured
+                    if let Some(alert_config) = &state.config.alert {
+                        // TODO: in the end, this should probably be a standalone alert manager
+                        state
+                            .alert_manager
+                            .send_service_alert(
+                                alert_config,
+                                &event.service_name,
+                                &event.url,
+                                previous_status,
+                                ServiceStatus::Up,
+                                None,
+                            )
+                            .await;
+                    }
                 }
 
                 // Reset counter

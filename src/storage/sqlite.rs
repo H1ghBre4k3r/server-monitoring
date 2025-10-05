@@ -509,8 +509,12 @@ impl StorageBackend for SqliteBackend {
                     timestamp,
                     url: row.get("url"),
                     status,
-                    response_time_ms: row.get::<Option<i64>, _>("response_time_ms").map(|v| v as u64),
-                    http_status_code: row.get::<Option<i64>, _>("http_status_code").map(|v| v as u16),
+                    response_time_ms: row
+                        .get::<Option<i64>, _>("response_time_ms")
+                        .map(|v| v as u64),
+                    http_status_code: row
+                        .get::<Option<i64>, _>("http_status_code")
+                        .map(|v| v as u16),
                     error_message: row.get("error_message"),
                 })
             })
@@ -525,7 +529,10 @@ impl StorageBackend for SqliteBackend {
         service_name: &str,
         limit: usize,
     ) -> StorageResult<Vec<ServiceCheckRow>> {
-        debug!("querying latest {} service checks for {}", limit, service_name);
+        debug!(
+            "querying latest {} service checks for {}",
+            limit, service_name
+        );
 
         let rows = sqlx::query(
             r#"
@@ -559,8 +566,12 @@ impl StorageBackend for SqliteBackend {
                     timestamp,
                     url: row.get("url"),
                     status,
-                    response_time_ms: row.get::<Option<i64>, _>("response_time_ms").map(|v| v as u64),
-                    http_status_code: row.get::<Option<i64>, _>("http_status_code").map(|v| v as u16),
+                    response_time_ms: row
+                        .get::<Option<i64>, _>("response_time_ms")
+                        .map(|v| v as u64),
+                    http_status_code: row
+                        .get::<Option<i64>, _>("http_status_code")
+                        .map(|v| v as u16),
                     error_message: row.get("error_message"),
                 })
             })

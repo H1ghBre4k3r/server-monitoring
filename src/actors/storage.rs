@@ -33,7 +33,11 @@ use tracing::{debug, error, info, instrument, trace, warn};
 use super::messages::{MetricEvent, ServiceCheckEvent, StorageCommand, StorageStats};
 
 #[cfg(feature = "storage-sqlite")]
-use crate::storage::{backend::QueryRange, schema::{MetricRow, ServiceCheckRow}, StorageBackend};
+use crate::storage::{
+    StorageBackend,
+    backend::QueryRange,
+    schema::{MetricRow, ServiceCheckRow},
+};
 
 /// Maximum metrics to keep in in-memory buffer (ring buffer)
 const MAX_BUFFER_SIZE: usize = 1000;
@@ -559,7 +563,6 @@ impl StorageActor {
             // ====================================================================
             // Service Check Query Commands (Phase 3)
             // ====================================================================
-
             #[cfg(feature = "storage-sqlite")]
             StorageCommand::QueryServiceChecksRange {
                 service_name,
@@ -765,6 +768,69 @@ impl StorageHandle {
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.sender
             .send(StorageCommand::HealthCheck { respond_to: tx })
+            .await?;
+
+        rx.await?
+    }
+
+    // ========================================================================
+    // Service Check Query Methods (Phase 3)
+    // ========================================================================
+
+    /// Query service checks within a time range (requires persistent backend)
+    #[cfg(feature = "storage-sqlite")]
+    pub async fn query_service_checks_range(
+        &self,
+        service_name: String,
+        start: chrono::DateTime<chrono::Utc>,
+        end: chrono::DateTime<chrono::Utc>,
+    ) -> anyhow::Result<Vec<crate::storage::schema::ServiceCheckRow>> {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        self.sender
+            .send(StorageCommand::QueryServiceChecksRange {
+                service_name,
+                start,
+                end,
+                respond_to: tx,
+            })
+            .await?;
+
+        rx.await?
+    }
+
+    /// Query the latest N service checks for a service (requires persistent backend)
+    #[cfg(feature = "storage-sqlite")]
+    pub async fn query_latest_service_checks(
+        &self,
+        service_name: String,
+        limit: usize,
+    ) -> anyhow::Result<Vec<crate::storage::schema::ServiceCheckRow>> {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        self.sender
+            .send(StorageCommand::QueryLatestServiceChecks {
+                service_name,
+                limit,
+                respond_to: tx,
+            })
+            .await?;
+
+        rx.await?
+    }
+
+    /// Calculate uptime statistics for a service (requires persistent backend)
+    #[cfg(feature = "storage-sqlite")]
+    pub async fn calculate_uptime(
+        &self,
+        service_name: String,
+        since: chrono::DateTime<chrono::Utc>,
+    ) -> anyhow::Result<crate::storage::schema::UptimeStats> {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        self.sender
+            .send(StorageCommand::CalculateUptime {
+                service_name,
+                since,
+                respond_to: tx,
+            })
             .await?;
 
         rx.await?

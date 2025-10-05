@@ -235,7 +235,12 @@ async fn test_grace_period_race_condition() {
 
     let (metric_tx, _metric_rx) = broadcast::channel(256);
     let (_service_tx, service_rx) = broadcast::channel(256);
-    let alert_handle = AlertHandle::spawn(vec![config.clone()], vec![], metric_tx.subscribe(), service_rx);
+    let alert_handle = AlertHandle::spawn(
+        vec![config.clone()],
+        vec![],
+        metric_tx.subscribe(),
+        service_rx,
+    );
     let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
 
     // Wait for initialization and get initial counter (may have auto-polled)
@@ -292,7 +297,12 @@ async fn test_multiple_subscribers_all_receive_metrics() {
     // Create multiple subscribers
     let storage_handle1 = StorageHandle::spawn(metric_tx.subscribe(), service_rx.resubscribe());
     let storage_handle2 = StorageHandle::spawn(metric_tx.subscribe(), service_rx.resubscribe());
-    let alert_handle = AlertHandle::spawn(vec![config.clone()], vec![], metric_tx.subscribe(), service_rx);
+    let alert_handle = AlertHandle::spawn(
+        vec![config.clone()],
+        vec![],
+        metric_tx.subscribe(),
+        service_rx,
+    );
 
     let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
 

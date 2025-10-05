@@ -136,10 +136,15 @@ impl StorageBackend for MemoryBackend {
     // Service Check Operations
     // ========================================================================
 
-    async fn insert_service_checks_batch(&self, _checks: Vec<ServiceCheckRow>) -> StorageResult<()> {
+    async fn insert_service_checks_batch(
+        &self,
+        _checks: Vec<ServiceCheckRow>,
+    ) -> StorageResult<()> {
         // MemoryBackend needs interior mutability
         // For now, this is a placeholder - we'll use RwLock in the actor
-        debug!("in-memory backend: insert_service_checks_batch called (requires interior mutability)");
+        debug!(
+            "in-memory backend: insert_service_checks_batch called (requires interior mutability)"
+        );
         Ok(())
     }
 
@@ -171,7 +176,10 @@ impl StorageBackend for MemoryBackend {
         service_name: &str,
         limit: usize,
     ) -> StorageResult<Vec<ServiceCheckRow>> {
-        debug!("querying latest {} service checks for {}", limit, service_name);
+        debug!(
+            "querying latest {} service checks for {}",
+            limit, service_name
+        );
 
         let checks = self
             .service_checks
@@ -203,7 +211,10 @@ impl StorageBackend for MemoryBackend {
             .unwrap_or_default();
 
         let total_checks = checks.len();
-        let successful_checks = checks.iter().filter(|c| c.status == ServiceStatus::Up).count();
+        let successful_checks = checks
+            .iter()
+            .filter(|c| c.status == ServiceStatus::Up)
+            .count();
 
         let uptime_percentage = if total_checks > 0 {
             (successful_checks as f64 / total_checks as f64) * 100.0
@@ -213,7 +224,10 @@ impl StorageBackend for MemoryBackend {
 
         let avg_response_time_ms = if !checks.is_empty() {
             let sum: u64 = checks.iter().filter_map(|c| c.response_time_ms).sum();
-            let count = checks.iter().filter(|c| c.response_time_ms.is_some()).count();
+            let count = checks
+                .iter()
+                .filter(|c| c.response_time_ms.is_some())
+                .count();
             if count > 0 {
                 Some(sum as f64 / count as f64)
             } else {

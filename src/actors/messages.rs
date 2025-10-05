@@ -139,7 +139,6 @@ pub enum StorageCommand {
     // ========================================================================
     // Service Check Commands (Phase 3)
     // ========================================================================
-
     /// Query service checks within a time range (Phase 3 - with persistent backend)
     #[cfg(feature = "storage-sqlite")]
     QueryServiceChecksRange {

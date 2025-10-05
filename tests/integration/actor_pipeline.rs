@@ -41,7 +41,12 @@ async fn test_metric_flows_from_collector_to_alert() {
     let (metric_tx, _metric_rx) = broadcast::channel(256);
     let (_service_tx, service_rx) = broadcast::channel(256);
 
-    let alert_handle = AlertHandle::spawn(vec![config.clone()], vec![], metric_tx.subscribe(), service_rx);
+    let alert_handle = AlertHandle::spawn(
+        vec![config.clone()],
+        vec![],
+        metric_tx.subscribe(),
+        service_rx,
+    );
     let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
 
     // Wait a moment for actor startup
@@ -219,7 +224,12 @@ async fn test_graceful_shutdown_all_actors() {
     let (_service_tx, service_rx) = broadcast::channel(256);
 
     let storage_handle = StorageHandle::spawn(metric_tx.subscribe(), service_rx.resubscribe());
-    let alert_handle = AlertHandle::spawn(vec![config.clone()], vec![], metric_tx.subscribe(), service_rx);
+    let alert_handle = AlertHandle::spawn(
+        vec![config.clone()],
+        vec![],
+        metric_tx.subscribe(),
+        service_rx,
+    );
     let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
 
     // Let them run briefly
@@ -269,7 +279,12 @@ async fn test_alert_triggered_after_exact_grace_period() {
     let (metric_tx, _metric_rx) = broadcast::channel(256);
     let (_service_tx, service_rx) = broadcast::channel(256);
 
-    let alert_handle = AlertHandle::spawn(vec![config.clone()], vec![], metric_tx.subscribe(), service_rx);
+    let alert_handle = AlertHandle::spawn(
+        vec![config.clone()],
+        vec![],
+        metric_tx.subscribe(),
+        service_rx,
+    );
     let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
 
     // Wait for actors to initialize and any initial auto-polling to complete
@@ -338,7 +353,12 @@ async fn test_recovery_alert_when_back_to_ok() {
     let (metric_tx, _metric_rx) = broadcast::channel(256);
     let (_service_tx, service_rx) = broadcast::channel(256);
 
-    let alert_handle = AlertHandle::spawn(vec![config.clone()], vec![], metric_tx.subscribe(), service_rx);
+    let alert_handle = AlertHandle::spawn(
+        vec![config.clone()],
+        vec![],
+        metric_tx.subscribe(),
+        service_rx,
+    );
     let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
 
     // Wait for initial auto-poll to complete

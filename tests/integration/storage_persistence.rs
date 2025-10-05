@@ -292,3 +292,302 @@ async fn test_query_range() {
     // Cleanup backend
     backend.close().await.unwrap();
 }
+
+// ============================================================================
+// Service Check Persistence Tests (Phase 3)
+// ============================================================================
+
+#[cfg(feature = "storage-sqlite")]
+#[tokio::test]
+async fn test_service_check_persistence() {
+    use server_monitoring::actors::messages::{ServiceCheckEvent, ServiceStatus};
+
+    // Create temp database
+    let temp_dir = tempdir().unwrap();
+    let db_path = temp_dir.path().join("test_service_checks.db");
+
+    // Initialize backend
+    let backend = SqliteBackend::new(&db_path).await.unwrap();
+
+    // Create broadcast channels
+    let (metric_tx, _) = broadcast::channel(256);
+    let (service_tx, _) = broadcast::channel(256);
+
+    // Spawn storage actor with backend
+    let storage_handle = StorageHandle::spawn_with_backend(
+        metric_tx.subscribe(),
+        service_tx.subscribe(),
+        Some(Box::new(backend) as Box<dyn StorageBackend>),
+        Some(30),
+    );
+
+    // Give actor time to initialize
+    tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+
+    // Create test service check events
+    let service_name = "test-api".to_string();
+    let url = "https://api.example.com/health".to_string();
+
+    let check1 = ServiceCheckEvent {
+        service_name: service_name.clone(),
+        url: url.clone(),
+        timestamp: Utc::now(),
+        status: ServiceStatus::Up,
+        response_time_ms: Some(125),
+        http_status_code: Some(200),
+        ssl_expiry_days: None,
+        error_message: None,
+    };
+
+    let check2 = ServiceCheckEvent {
+        service_name: service_name.clone(),
+        url: url.clone(),
+        timestamp: Utc::now() + Duration::seconds(60),
+        status: ServiceStatus::Down,
+        response_time_ms: None,
+        http_status_code: None,
+        ssl_expiry_days: None,
+        error_message: Some("Connection timeout".to_string()),
+    };
+
+    let check3 = ServiceCheckEvent {
+        service_name: service_name.clone(),
+        url: url.clone(),
+        timestamp: Utc::now() + Duration::seconds(120),
+        status: ServiceStatus::Up,
+        response_time_ms: Some(98),
+        http_status_code: Some(200),
+        ssl_expiry_days: None,
+        error_message: None,
+    };
+
+    // Send service checks via broadcast
+    service_tx.send(check1).unwrap();
+    service_tx.send(check2).unwrap();
+    service_tx.send(check3).unwrap();
+
+    // Give time for actor to process checks
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+    // Manual flush to persist immediately
+    storage_handle.flush().await.unwrap();
+
+    // Give time for flush to complete
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+
+    // Query latest service checks
+    let latest_checks = storage_handle
+        .query_latest_service_checks(service_name.clone(), 10)
+        .await
+        .unwrap();
+
+    // Should get all 3 checks
+    assert_eq!(
+        latest_checks.len(),
+        3,
+        "Should have 3 service checks persisted"
+    );
+
+    // Verify check data
+    assert_eq!(latest_checks[2].status, ServiceStatus::Up);
+    assert_eq!(latest_checks[2].response_time_ms, Some(125));
+    assert_eq!(latest_checks[1].status, ServiceStatus::Down);
+    assert_eq!(
+        latest_checks[1].error_message,
+        Some("Connection timeout".to_string())
+    );
+
+    // Cleanup
+    storage_handle.shutdown().await;
+    tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+}
+
+#[cfg(feature = "storage-sqlite")]
+#[tokio::test]
+async fn test_service_uptime_calculation() {
+    use server_monitoring::actors::messages::{ServiceCheckEvent, ServiceStatus};
+
+    // Create temp database
+    let temp_dir = tempdir().unwrap();
+    let db_path = temp_dir.path().join("test_uptime.db");
+
+    // Initialize backend
+    let backend = SqliteBackend::new(&db_path).await.unwrap();
+
+    // Create broadcast channels
+    let (metric_tx, _) = broadcast::channel(256);
+    let (service_tx, _) = broadcast::channel(256);
+
+    // Spawn storage actor with backend
+    let storage_handle = StorageHandle::spawn_with_backend(
+        metric_tx.subscribe(),
+        service_tx.subscribe(),
+        Some(Box::new(backend) as Box<dyn StorageBackend>),
+        Some(30),
+    );
+
+    // Give actor time to initialize
+    tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+
+    let service_name = "test-service".to_string();
+    let url = "https://example.com/api".to_string();
+    let base_time = Utc::now();
+
+    // Create 10 checks: 8 up, 2 down (80% uptime)
+    let mut checks = Vec::new();
+    for i in 0..10 {
+        let status = if i == 3 || i == 7 {
+            ServiceStatus::Down
+        } else {
+            ServiceStatus::Up
+        };
+
+        checks.push(ServiceCheckEvent {
+            service_name: service_name.clone(),
+            url: url.clone(),
+            timestamp: base_time + Duration::seconds(i * 10),
+            status,
+            response_time_ms: if status == ServiceStatus::Up {
+                Some(100 + (i as u64) * 5)
+            } else {
+                None
+            },
+            http_status_code: if status == ServiceStatus::Up {
+                Some(200)
+            } else {
+                None
+            },
+            ssl_expiry_days: None,
+            error_message: if status == ServiceStatus::Down {
+                Some("Service unavailable".to_string())
+            } else {
+                None
+            },
+        });
+    }
+
+    // Send all checks
+    for check in checks {
+        service_tx.send(check).unwrap();
+    }
+
+    // Give time to process and flush
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    storage_handle.flush().await.unwrap();
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+
+    // Calculate uptime
+    let uptime_stats = storage_handle
+        .calculate_uptime(service_name.clone(), base_time - Duration::seconds(10))
+        .await
+        .unwrap();
+
+    // Verify uptime statistics
+    assert_eq!(uptime_stats.total_checks, 10, "Should have 10 total checks");
+    assert_eq!(
+        uptime_stats.successful_checks, 8,
+        "Should have 8 successful checks"
+    );
+    assert!(
+        (uptime_stats.uptime_percentage - 80.0).abs() < 0.01,
+        "Uptime should be 80%, got {}",
+        uptime_stats.uptime_percentage
+    );
+    assert!(
+        uptime_stats.avg_response_time_ms.is_some(),
+        "Should have average response time"
+    );
+
+    // Average response time should be around 100 + (0+1+2+4+5+6+8+9)*5/8 = ~125ms
+    let avg_rt = uptime_stats.avg_response_time_ms.unwrap();
+    assert!(
+        avg_rt > 100.0 && avg_rt < 150.0,
+        "Average response time should be between 100-150ms, got {}",
+        avg_rt
+    );
+
+    // Cleanup
+    storage_handle.shutdown().await;
+    tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+}
+
+#[cfg(feature = "storage-sqlite")]
+#[tokio::test]
+async fn test_service_check_query_range() {
+    use server_monitoring::actors::messages::{ServiceCheckEvent, ServiceStatus};
+
+    // Create temp database
+    let temp_dir = tempdir().unwrap();
+    let db_path = temp_dir.path().join("test_service_range.db");
+
+    // Initialize backend
+    let backend = SqliteBackend::new(&db_path).await.unwrap();
+
+    // Create broadcast channels
+    let (metric_tx, _) = broadcast::channel(256);
+    let (service_tx, _) = broadcast::channel(256);
+
+    // Spawn storage actor
+    let storage_handle = StorageHandle::spawn_with_backend(
+        metric_tx.subscribe(),
+        service_tx.subscribe(),
+        Some(Box::new(backend) as Box<dyn StorageBackend>),
+        Some(30),
+    );
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+
+    let service_name = "range-test-service".to_string();
+    let url = "https://test.com".to_string();
+    let base_time = Utc::now();
+
+    // Create 5 checks spanning 1 hour
+    for i in 0..5 {
+        let check = ServiceCheckEvent {
+            service_name: service_name.clone(),
+            url: url.clone(),
+            timestamp: base_time + Duration::minutes(i * 15), // 0, 15, 30, 45, 60 mins
+            status: ServiceStatus::Up,
+            response_time_ms: Some(100),
+            http_status_code: Some(200),
+            ssl_expiry_days: None,
+            error_message: None,
+        };
+        service_tx.send(check).unwrap();
+    }
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    storage_handle.flush().await.unwrap();
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+
+    // Query middle 3 checks (15-45 minutes)
+    let start = base_time + Duration::minutes(15);
+    let end = base_time + Duration::minutes(45);
+
+    let range_checks = storage_handle
+        .query_service_checks_range(service_name, start, end)
+        .await
+        .unwrap();
+
+    // Should get 3 checks (at 15, 30, 45 minutes)
+    assert_eq!(
+        range_checks.len(),
+        3,
+        "Should return 3 checks in the specified range"
+    );
+
+    // Verify all are within range (with tolerance for SQLite millisecond precision)
+    for check in &range_checks {
+        let within_range = check.timestamp >= start - Duration::seconds(1)
+            && check.timestamp <= end + Duration::seconds(1);
+        assert!(
+            within_range,
+            "Check timestamp {:?} should be within range [{:?}, {:?}]",
+            check.timestamp, start, end
+        );
+    }
+
+    // Cleanup
+    storage_handle.shutdown().await;
+    tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+}
