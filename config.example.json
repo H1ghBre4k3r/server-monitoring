@@ -102,6 +102,16 @@
       }
     }
   ],
+  "_api_comment": "API server configuration (optional - Phase 4.1)",
+  "api": {
+    "bind": "127.0.0.1",
+    "port": 8080,
+    "auth_token": "your-secret-api-token",
+    "enable_cors": true,
+    "_bind_note": "Use 0.0.0.0 to listen on all interfaces",
+    "_auth_note": "auth_token is optional - if omitted, API will be unauthenticated",
+    "_cors_note": "enable_cors allows web dashboards to access the API"
+  },
   "_services_comment": "Service monitoring configuration (HTTP/HTTPS endpoints) - Phase 3",
   "services": [
     {

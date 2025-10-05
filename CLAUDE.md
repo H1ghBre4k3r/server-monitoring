@@ -76,14 +76,36 @@ The hub now uses an actor-based architecture for better scalability and maintain
 - ✅ Integration tests (persistence, uptime, range queries)
 - ✅ All tests passing (75/75: 29 unit + 34 integration + 9 property + 3 doc)
 
-**Phase 4 Status (✅ Retention & Cleanup COMPLETE):**
+**Phase 4 Status:**
+
+**✅ Phase 4.0: Retention & Cleanup COMPLETE**
 - ✅ Startup cleanup (runs once on hub start)
 - ✅ Configurable cleanup interval (default: 24 hours, range: 1-720 hours)
 - ✅ Cleanup statistics tracking (`last_cleanup_time`, `total_metrics_deleted`, `total_service_checks_deleted`)
 - ✅ Configuration validation (retention_days: 1-3650, cleanup_interval_hours: 1-720)
 - ✅ Exposed in `StorageStats` via `GetStats` command
+
+**✅ Phase 4.1: API Server COMPLETE**
+- ✅ REST API with Axum framework
+- ✅ All core endpoints implemented:
+  - `GET /api/v1/health` - Health check with timestamp
+  - `GET /api/v1/stats` - System statistics (storage, actors)
+  - `GET /api/v1/servers` - List servers with **real health status** (up/stale/unknown)
+  - `GET /api/v1/servers/:id/metrics` - Query metrics with time range
+  - `GET /api/v1/servers/:id/metrics/latest` - Latest N metrics
+  - `GET /api/v1/services` - List services with **real health status** (up/down/degraded/stale/unknown)
+  - `GET /api/v1/services/:name/checks` - Service check history
+  - `GET /api/v1/services/:name/uptime` - Uptime statistics
+  - `WS /api/v1/stream` - Real-time metric/service check streaming
+- ✅ Bearer token authentication middleware
+- ✅ CORS support for web dashboards
+- ✅ WebSocket streaming with broadcast channel integration
+- ✅ API configuration via JSON config file
+- ✅ Feature flag: `api` (enabled by default)
 - ✅ All tests passing (75/75)
-- 📋 NEXT: Phase 4.1 - API endpoints and dashboard
+
+**📋 Phase 4.2: TUI Dashboard (NEXT)**
+- See "TUI Dashboard Architecture" section below for detailed plans
 
 **Legacy Code:**
 - Old `monitors/server.rs` and `monitors/resources.rs` are kept for reference
@@ -157,7 +179,185 @@ Or use in-memory mode (no persistence):
 
 **Feature Flags:**
 - `storage-sqlite`: Enables SQLite backend (requires sqlx dependency)
-- Build without persistence: `cargo build --no-default-features`
+- `api`: Enables REST API and WebSocket server (requires axum, tower, tower-http)
+- `dashboard`: Enables TUI dashboard viewer (requires ratatui, crossterm)
+- Build minimal hub: `cargo build --bin hub --no-default-features`
+
+### API Server (✅ Phase 4.1 - Complete)
+
+The system includes a REST API server with WebSocket streaming for remote access and dashboards.
+
+**API Endpoints:**
+- `GET /api/v1/health` - Health check with timestamp
+- `GET /api/v1/stats` - System statistics (storage stats, actor counts)
+- `GET /api/v1/servers` - List all servers with health status (up/stale/unknown)
+- `GET /api/v1/servers/:id/metrics?start=&end=&limit=` - Query metrics within time range
+- `GET /api/v1/servers/:id/metrics/latest?limit=` - Get latest N metrics
+- `GET /api/v1/services` - List all services with health status (up/down/degraded/stale/unknown)
+- `GET /api/v1/services/:name/checks?start=&end=` - Service check history
+- `GET /api/v1/services/:name/uptime?since=` - Uptime statistics
+- `WS /api/v1/stream` - Real-time metric and service check streaming
+
+**Health Status Values:**
+- **Servers**: `"up"` (recent metrics), `"stale"` (>5min old), `"unknown"` (no metrics)
+- **Services**: `"up"`, `"down"`, `"degraded"`, `"stale"` (>5min old), `"unknown"` (no checks)
+
+**Configuration:**
+```json
+{
+  "api": {
+    "bind": "127.0.0.1",
+    "port": 8080,
+    "auth_token": "your-secret-token",
+    "enable_cors": true
+  }
+}
+```
+
+**Authentication:**
+- Bearer token authentication via `Authorization: Bearer <token>` header
+- Optional - if `auth_token` not configured, API is unauthenticated
+- Returns `401 Unauthorized` if token missing, `403 Forbidden` if invalid
+
+**Starting the API:**
+```bash
+# Add API configuration to config.json
+cargo run --bin hub -- -f config.json
+# API will start automatically: "API server started on http://127.0.0.1:8080"
+```
+
+### TUI Dashboard Architecture (📋 Phase 4.2 - Planned)
+
+A beautiful terminal dashboard for monitoring servers and services in real-time.
+
+**Binary:** `src/bin/viewer.rs` (new binary: `guardia-viewer`)
+
+**Architecture:**
+- Connects to API server (local or remote) via HTTP + WebSocket
+- Real-time updates via `/api/v1/stream` WebSocket
+- Historical data via REST endpoints on demand
+- Configuration file: `~/.config/guardia/viewer.toml`
+
+**UI Design (Ratatui + Crossterm):**
+
+**Tab 1: Overview** - All servers at a glance
+- Grid layout with server cards (3-4 per row)
+- Each card shows: server name, health badge, CPU/temp sparklines, last seen
+- Color coding: green (up), yellow (stale), red (unknown/down)
+- Auto-scrolls if more servers than fit on screen
+
+**Tab 2-N: Server Details** - Per-server graphs
+- One tab per monitored server
+- CPU usage over time (line chart with threshold)
+- Temperature over time (line chart with threshold)
+- Memory usage gauge
+- Last 10 metrics table
+- Navigation: left/right arrows to switch servers
+
+**Tab N+1: Services** - Service health status
+- Table with columns: Name, URL, Status, Last Check, Uptime %, Avg Response
+- Sortable by any column
+- Color-coded status indicators
+- Filter by status (all/up/down/degraded)
+
+**Tab N+2: Alerts** - Recent alerts timeline
+- Scrollable list of recent alerts (last 100)
+- Shows: timestamp, server/service, type (CPU/temp/service), message
+- Color-coded by severity
+- Filter by server/service/type
+
+**Custom Widgets:**
+```rust
+// src/dashboard/widgets/server_card.rs
+struct ServerCard {
+    server_id: String,
+    display_name: String,
+    health_status: HealthStatus,
+    cpu_sparkline: Vec<f32>,      // Last 60 values
+    temp_sparkline: Vec<f32>,     // Last 60 values
+    last_seen: DateTime<Utc>,
+}
+
+// src/dashboard/widgets/metric_graph.rs
+struct MetricGraph {
+    title: String,
+    data: Vec<(DateTime<Utc>, f32)>,
+    threshold: Option<f32>,       // Draws horizontal line
+    y_range: (f32, f32),
+    time_window: Duration,        // e.g., last 5 minutes
+}
+
+// src/dashboard/widgets/service_list.rs
+struct ServiceList {
+    services: Vec<ServiceRow>,
+    sort_column: Column,
+    filter_status: Option<ServiceStatus>,
+}
+
+// src/dashboard/widgets/alert_timeline.rs
+struct AlertTimeline {
+    alerts: Vec<Alert>,
+    scroll_offset: usize,
+}
+```
+
+**Keybindings:**
+- `Tab` / `Shift+Tab` - Navigate between tabs
+- `↑` `↓` - Navigate within lists/tables
+- `←` `→` - Switch server detail tabs
+- `Space` - Pause/resume real-time updates
+- `r` - Force refresh (re-query API)
+- `+` / `-` - Zoom time range (5min/15min/1hr/6hr/24hr)
+- `s` - Sort services table (cycles through columns)
+- `f` - Filter services by status
+- `q` - Quit
+- `h` - Show help overlay
+
+**Data Flow:**
+1. Viewer connects to API server on startup
+2. Fetches initial state via REST endpoints (`/api/v1/servers`, `/api/v1/services`)
+3. Opens WebSocket to `/api/v1/stream`
+4. Receives `MetricEvent` and `ServiceCheckEvent` messages
+5. Updates in-memory ring buffers (last 5 minutes of data)
+6. Renders UI at 60fps using Crossterm
+7. On user navigation to server detail, queries `/api/v1/servers/:id/metrics?start=...` for historical data
+
+**Configuration (`~/.config/guardia/viewer.toml`):**
+```toml
+[api]
+endpoint = "http://localhost:8080"
+auth_token = "your-secret-token"  # Optional
+
+[ui]
+refresh_rate = 60         # FPS (1-120)
+buffer_size = 300         # Seconds of data in memory
+theme = "dark"            # "dark" or "light"
+graph_style = "line"      # "line", "bar", "area"
+
+[timeranges]
+default = "5m"            # Default zoom: 5m, 15m, 1h, 6h, 24h
+zoom_levels = ["5m", "15m", "1h", "6h", "24h"]
+```
+
+**Running the Dashboard:**
+```bash
+# Connect to local hub (default: http://localhost:8080)
+cargo run --bin viewer
+
+# Connect to remote hub
+cargo run --bin viewer -- --endpoint http://monitoring.example.com:8080 --token <token>
+
+# Use config file
+cargo run --bin viewer -- --config ~/.config/guardia/viewer.toml
+```
+
+**Implementation Notes:**
+- Use `Ratatui` for rendering (modern, well-maintained TUI framework)
+- Use `Crossterm` as backend (cross-platform terminal control)
+- Use `tokio-tungstenite` for WebSocket client
+- Store data in `Arc<RwLock<AppState>>` for concurrent access
+- Separate thread for WebSocket to avoid blocking UI
+- Use `mpsc` channel to send events from WebSocket thread to UI thread
 
 ## Development Commands
 

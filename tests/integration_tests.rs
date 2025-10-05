@@ -18,3 +18,7 @@ mod storage_persistence;
 
 #[path = "integration/service_monitoring.rs"]
 mod service_monitoring;
+
+#[cfg(feature = "api")]
+#[path = "integration/api_endpoints.rs"]
+mod api_endpoints;
