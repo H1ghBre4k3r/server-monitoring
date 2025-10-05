@@ -5,7 +5,7 @@ use axum::{
     extract::{Path, Query, State},
 };
 use chrono::{DateTime, Duration, Utc};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::api::{error::ApiResult, state::ApiState, types::ServiceInfo};

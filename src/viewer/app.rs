@@ -234,15 +234,12 @@ impl App {
             }
 
             // Handle keyboard events (with timeout)
-            if event::poll(std::time::Duration::from_millis(100))? {
-                if let Event::Key(key) = event::read()? {
-                    if key.kind == KeyEventKind::Press {
-                        if self.handle_key_event(key.code).await? {
+            if event::poll(std::time::Duration::from_millis(100))?
+                && let Event::Key(key) = event::read()?
+                    && key.kind == KeyEventKind::Press
+                        && self.handle_key_event(key.code).await? {
                             break; // Quit
                         }
-                    }
-                }
-            }
 
             // Periodic refresh
             if last_refresh.elapsed().as_secs() >= self.config.refresh_interval {

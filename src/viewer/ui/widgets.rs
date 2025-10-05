@@ -2,7 +2,7 @@
 
 use ratatui::{
     layout::Rect,
-    style::{Color, Modifier, Style},
+    style::{Color, Style},
     symbols,
     text::{Line, Span},
     widgets::{Axis, Block, Borders, Chart, Dataset, GraphType, Paragraph},
@@ -184,8 +184,8 @@ pub fn render_temp_chart(frame: &mut Frame, area: Rect, server_id: &str, state: 
 
 /// Render memory usage gauge
 pub fn render_memory_gauge(frame: &mut Frame, area: Rect, server_id: &str, state: &AppState) {
-    if let Some(history) = state.get_metrics_history(server_id) {
-        if let Some(latest) = history.back() {
+    if let Some(history) = state.get_metrics_history(server_id)
+        && let Some(latest) = history.back() {
             let memory = &latest.metrics.memory;
 
             // Calculate percentages
@@ -249,5 +249,4 @@ pub fn render_memory_gauge(frame: &mut Frame, area: Rect, server_id: &str, state
 
             frame.render_widget(gauge, area);
         }
-    }
 }

@@ -121,8 +121,8 @@ fn render_server_info(
     ];
 
     // Add system information if available
-    if let Some(history) = state.get_metrics_history(&server.server_id) {
-        if let Some(latest) = history.back() {
+    if let Some(history) = state.get_metrics_history(&server.server_id)
+        && let Some(latest) = history.back() {
             let system = &latest.metrics.system;
 
             // Hostname and OS
@@ -160,7 +160,6 @@ fn render_server_info(
 
             lines.push(Line::from(summary));
         }
-    }
 
     if let Some(last_seen) = &server.last_seen {
         lines.push(Line::from(vec![

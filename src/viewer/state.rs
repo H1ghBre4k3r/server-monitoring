@@ -1,7 +1,6 @@
 //! Application state management
 
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 
 use crate::ServerMetrics;
@@ -141,7 +140,7 @@ impl AppState {
 
     /// Add a metric event to history
     pub fn add_metric(&mut self, server_id: String, metrics: ServerMetrics, timestamp: DateTime<Utc>) {
-        let history = self.metrics_history.entry(server_id).or_insert_with(VecDeque::new);
+        let history = self.metrics_history.entry(server_id).or_default();
 
         history.push_back(MetricPoint { timestamp, metrics });
 
