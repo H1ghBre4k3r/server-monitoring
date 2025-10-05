@@ -44,6 +44,14 @@ async fn main() -> anyhow::Result<()> {
 
     let config = read_config_file(&args.file)?;
 
+    // Validate storage configuration
+    if let Some(ref storage_config) = config.storage
+        && let Err(e) = storage_config.validate()
+    {
+        error!("Invalid storage configuration: {}", e);
+        return Err(anyhow::anyhow!("Configuration validation failed: {}", e));
+    }
+
     // Run the actor-based monitoring system
     run_monitoring(config).await?;
 
@@ -71,7 +79,8 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
 
     // Initialize storage backend based on config
     #[cfg(feature = "storage-sqlite")]
-    let (backend, retention_days) = initialize_storage_backend(&config.storage).await;
+    let (backend, retention_days, cleanup_interval_hours) =
+        initialize_storage_backend(&config.storage).await;
 
     // Spawn storage actor with optional persistent backend
     #[cfg(feature = "storage-sqlite")]
@@ -80,6 +89,7 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
         service_tx.subscribe(),
         backend,
         retention_days,
+        cleanup_interval_hours,
     );
 
     #[cfg(not(feature = "storage-sqlite"))]
@@ -163,19 +173,20 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
 }
 
 /// Initialize storage backend based on configuration
-/// Returns (backend, retention_days)
+/// Returns (backend, retention_days, cleanup_interval_hours)
 #[cfg(feature = "storage-sqlite")]
 async fn initialize_storage_backend(
     storage_config: &Option<StorageConfig>,
-) -> (Option<Box<dyn StorageBackend>>, Option<u32>) {
+) -> (Option<Box<dyn StorageBackend>>, Option<u32>, Option<u32>) {
     match storage_config {
         Some(StorageConfig::Sqlite {
             path,
             retention_days,
+            cleanup_interval_hours,
         }) => {
             info!(
-                "initializing SQLite backend at: {:?} (retention: {} days)",
-                path, retention_days
+                "initializing SQLite backend at: {:?} (retention: {} days, cleanup: every {} hours)",
+                path, retention_days, cleanup_interval_hours
             );
             match SqliteBackend::new(path).await {
                 Ok(backend) => {
@@ -183,18 +194,19 @@ async fn initialize_storage_backend(
                     (
                         Some(Box::new(backend) as Box<dyn StorageBackend>),
                         Some(*retention_days),
+                        Some(*cleanup_interval_hours),
                     )
                 }
                 Err(e) => {
                     error!("failed to initialize SQLite backend: {}", e);
                     warn!("falling back to in-memory storage");
-                    (None, None)
+                    (None, None, None)
                 }
             }
         }
         Some(StorageConfig::None) | None => {
             info!("using in-memory storage (no persistence)");
-            (None, None)
+            (None, None, None)
         }
     }
 }

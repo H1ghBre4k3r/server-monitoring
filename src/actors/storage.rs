@@ -87,6 +87,20 @@ pub struct StorageActor {
     /// Retention period in days (for automatic cleanup)
     #[cfg(feature = "storage-sqlite")]
     retention_days: Option<u32>,
+
+    /// Cleanup interval in hours (Phase 4)
+    #[cfg(feature = "storage-sqlite")]
+    cleanup_interval_hours: Option<u32>,
+
+    /// Cleanup statistics (Phase 4)
+    #[cfg(feature = "storage-sqlite")]
+    last_cleanup_time: Option<chrono::DateTime<chrono::Utc>>,
+
+    #[cfg(feature = "storage-sqlite")]
+    total_metrics_deleted: u64,
+
+    #[cfg(feature = "storage-sqlite")]
+    total_service_checks_deleted: u64,
 }
 
 impl StorageActor {
@@ -98,6 +112,7 @@ impl StorageActor {
         service_check_rx: broadcast::Receiver<ServiceCheckEvent>,
         backend: Option<Box<dyn StorageBackend>>,
         retention_days: Option<u32>,
+        cleanup_interval_hours: Option<u32>,
     ) -> Self {
         let mode = if backend.is_some() {
             "persistent"
@@ -110,6 +125,10 @@ impl StorageActor {
             debug!("retention cleanup enabled: {} days", days);
         }
 
+        if let Some(hours) = cleanup_interval_hours {
+            debug!("cleanup interval: every {} hours", hours);
+        }
+
         Self {
             backend,
             batch_buffer: Vec::with_capacity(BATCH_SIZE_TRIGGER),
@@ -120,6 +139,10 @@ impl StorageActor {
             service_check_rx,
             flush_count: 0,
             retention_days,
+            cleanup_interval_hours,
+            last_cleanup_time: None,
+            total_metrics_deleted: 0,
+            total_service_checks_deleted: 0,
         }
     }
 
@@ -166,9 +189,13 @@ impl StorageActor {
         #[cfg(feature = "storage-sqlite")]
         let mut flush_interval = time::interval(BATCH_TIME_TRIGGER);
 
-        // Cleanup interval for retention policy
+        // Cleanup interval for retention policy (configurable, default 24 hours)
         #[cfg(feature = "storage-sqlite")]
-        let mut cleanup_interval = time::interval(CLEANUP_INTERVAL);
+        let cleanup_duration =
+            Duration::from_secs((self.cleanup_interval_hours.unwrap_or(24) as u64) * 3600);
+
+        #[cfg(feature = "storage-sqlite")]
+        let mut cleanup_interval = time::interval(cleanup_duration);
 
         // Run initial cleanup on startup if retention is configured
         #[cfg(feature = "storage-sqlite")]
@@ -440,7 +467,7 @@ impl StorageActor {
 
     /// Run retention cleanup - delete metrics older than retention_days
     #[cfg(feature = "storage-sqlite")]
-    async fn run_cleanup(&self) {
+    async fn run_cleanup(&mut self) {
         if let (Some(backend), Some(retention_days)) = (self.backend.as_ref(), self.retention_days)
         {
             // Calculate cutoff date
@@ -451,9 +478,13 @@ impl StorageActor {
                 cutoff
             );
 
+            let mut metrics_deleted = 0;
+            let mut checks_deleted = 0;
+
             // Cleanup old metrics
             match backend.cleanup_old_metrics(cutoff).await {
                 Ok(deleted_count) => {
+                    metrics_deleted = deleted_count;
                     if deleted_count > 0 {
                         info!(
                             "retention cleanup complete: deleted {} old metrics",
@@ -472,6 +503,7 @@ impl StorageActor {
             // Cleanup old service checks
             match backend.cleanup_old_service_checks(cutoff).await {
                 Ok(deleted_count) => {
+                    checks_deleted = deleted_count;
                     if deleted_count > 0 {
                         info!(
                             "retention cleanup complete: deleted {} old service checks",
@@ -485,6 +517,21 @@ impl StorageActor {
                     error!("failed to cleanup old service checks: {}", e);
                     // Don't crash the actor - cleanup will be retried on next interval
                 }
+            }
+
+            // Update cleanup statistics
+            self.last_cleanup_time = Some(chrono::Utc::now());
+            self.total_metrics_deleted += metrics_deleted as u64;
+            self.total_service_checks_deleted += checks_deleted as u64;
+
+            if metrics_deleted > 0 || checks_deleted > 0 {
+                info!(
+                    "cleanup stats: {} metrics deleted (total: {}), {} service checks deleted (total: {})",
+                    metrics_deleted,
+                    self.total_metrics_deleted,
+                    checks_deleted,
+                    self.total_service_checks_deleted
+                );
             }
         }
     }
@@ -661,6 +708,18 @@ impl StorageActor {
             total_metrics,
             buffer_size: self.memory_buffer.len(),
             flush_count: self.flush_count,
+            #[cfg(feature = "storage-sqlite")]
+            last_cleanup_time: self.last_cleanup_time,
+            #[cfg(not(feature = "storage-sqlite"))]
+            last_cleanup_time: None,
+            #[cfg(feature = "storage-sqlite")]
+            total_metrics_deleted: self.total_metrics_deleted,
+            #[cfg(not(feature = "storage-sqlite"))]
+            total_metrics_deleted: 0,
+            #[cfg(feature = "storage-sqlite")]
+            total_service_checks_deleted: self.total_service_checks_deleted,
+            #[cfg(not(feature = "storage-sqlite"))]
+            total_service_checks_deleted: 0,
         }
     }
 }
@@ -679,10 +738,18 @@ impl StorageHandle {
         service_check_rx: broadcast::Receiver<ServiceCheckEvent>,
         backend: Option<Box<dyn StorageBackend>>,
         retention_days: Option<u32>,
+        cleanup_interval_hours: Option<u32>,
     ) -> Self {
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
 
-        let actor = StorageActor::new(cmd_rx, metric_rx, service_check_rx, backend, retention_days);
+        let actor = StorageActor::new(
+            cmd_rx,
+            metric_rx,
+            service_check_rx,
+            backend,
+            retention_days,
+            cleanup_interval_hours,
+        );
 
         tokio::spawn(actor.run());
 
@@ -697,7 +764,7 @@ impl StorageHandle {
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
 
         #[cfg(feature = "storage-sqlite")]
-        let actor = StorageActor::new(cmd_rx, metric_rx, service_check_rx, None, None);
+        let actor = StorageActor::new(cmd_rx, metric_rx, service_check_rx, None, None, None);
 
         #[cfg(not(feature = "storage-sqlite"))]
         let actor = StorageActor::new(cmd_rx, metric_rx, service_check_rx);

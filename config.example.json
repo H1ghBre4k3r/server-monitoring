@@ -6,7 +6,10 @@
     "backend": "sqlite",
     "path": "./metrics.db",
     "retention_days": 30,
-    "_note": "Use 'backend: none' for in-memory storage (no persistence)"
+    "cleanup_interval_hours": 24,
+    "_retention_note": "Metrics older than retention_days will be deleted",
+    "_cleanup_note": "Cleanup runs every cleanup_interval_hours (default: 24, range: 1-720)",
+    "_backend_note": "Use 'backend: none' for in-memory storage (no persistence)"
   },
   "servers": [
     {

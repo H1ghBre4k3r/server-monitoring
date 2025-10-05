@@ -75,7 +75,15 @@ The hub now uses an actor-based architecture for better scalability and maintain
   - `calculate_uptime()` - uptime statistics
 - ✅ Integration tests (persistence, uptime, range queries)
 - ✅ All tests passing (75/75: 29 unit + 34 integration + 9 property + 3 doc)
-- 📋 NEXT: Phase 4 - Retention cleanup, then dashboard/API
+
+**Phase 4 Status (✅ Retention & Cleanup COMPLETE):**
+- ✅ Startup cleanup (runs once on hub start)
+- ✅ Configurable cleanup interval (default: 24 hours, range: 1-720 hours)
+- ✅ Cleanup statistics tracking (`last_cleanup_time`, `total_metrics_deleted`, `total_service_checks_deleted`)
+- ✅ Configuration validation (retention_days: 1-3650, cleanup_interval_hours: 1-720)
+- ✅ Exposed in `StorageStats` via `GetStats` command
+- ✅ All tests passing (75/75)
+- 📋 NEXT: Phase 4.1 - API endpoints and dashboard
 
 **Legacy Code:**
 - Old `monitors/server.rs` and `monitors/resources.rs` are kept for reference
@@ -121,7 +129,8 @@ The system now supports persistent metric storage through a pluggable backend ar
   "storage": {
     "backend": "sqlite",
     "path": "./metrics.db",
-    "retention_days": 30
+    "retention_days": 30,
+    "cleanup_interval_hours": 24
   }
 }
 ```
@@ -134,6 +143,12 @@ Or use in-memory mode (no persistence):
   }
 }
 ```
+
+**Retention & Cleanup (Phase 4):**
+- `retention_days`: How long to keep metrics (1-3650 days, default: 30)
+- `cleanup_interval_hours`: How often to run cleanup (1-720 hours, default: 24)
+- Cleanup runs automatically on startup and at configured intervals
+- Statistics tracked: `last_cleanup_time`, `total_metrics_deleted`, `total_service_checks_deleted`
 
 **Backward Compatibility:**
 - `storage` config section is optional - defaults to in-memory if omitted

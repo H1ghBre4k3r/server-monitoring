@@ -20,8 +20,55 @@ pub enum StorageConfig {
         /// Retention period in days (metrics older than this are deleted)
         #[serde(default = "default_retention_days")]
         retention_days: u32,
+
+        /// Cleanup interval in hours (how often to run retention cleanup)
+        #[serde(default = "default_cleanup_interval_hours")]
+        cleanup_interval_hours: u32,
     },
     // Future: PostgreSQL, Parquet, etc.
+}
+
+impl StorageConfig {
+    /// Validate storage configuration parameters
+    pub fn validate(&self) -> Result<(), String> {
+        match self {
+            StorageConfig::None => Ok(()),
+            StorageConfig::Sqlite {
+                retention_days,
+                cleanup_interval_hours,
+                ..
+            } => {
+                // Validate retention_days: 1 day to 10 years
+                if *retention_days < 1 {
+                    return Err("retention_days must be at least 1".to_string());
+                }
+                if *retention_days > 3650 {
+                    return Err("retention_days cannot exceed 3650 (10 years)".to_string());
+                }
+
+                // Validate cleanup_interval_hours: 1 hour to 30 days
+                if *cleanup_interval_hours < 1 {
+                    return Err("cleanup_interval_hours must be at least 1".to_string());
+                }
+                if *cleanup_interval_hours > 720 {
+                    return Err("cleanup_interval_hours cannot exceed 720 (30 days)".to_string());
+                }
+
+                // Warn if cleanup interval is longer than retention period
+                let retention_hours = *retention_days as u64 * 24;
+                if (*cleanup_interval_hours as u64) > retention_hours {
+                    tracing::warn!(
+                        "cleanup_interval_hours ({}) is longer than retention period ({} hours). \
+                         Old data may accumulate.",
+                        cleanup_interval_hours,
+                        retention_hours
+                    );
+                }
+
+                Ok(())
+            }
+        }
+    }
 }
 
 impl Default for StorageConfig {
@@ -29,6 +76,7 @@ impl Default for StorageConfig {
         StorageConfig::Sqlite {
             path: default_sqlite_path(),
             retention_days: default_retention_days(),
+            cleanup_interval_hours: default_cleanup_interval_hours(),
         }
     }
 }
@@ -39,6 +87,10 @@ fn default_sqlite_path() -> PathBuf {
 
 fn default_retention_days() -> u32 {
     30
+}
+
+fn default_cleanup_interval_hours() -> u32 {
+    24 // Run cleanup once per day by default
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

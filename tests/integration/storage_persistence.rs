@@ -35,6 +35,7 @@ async fn test_full_persistence_pipeline() {
         service_rx,
         Some(Box::new(backend) as Box<dyn StorageBackend>),
         Some(30), // 30 days retention
+        Some(24), // cleanup every 24 hours
     );
 
     // Give actor time to initialize
@@ -190,6 +191,7 @@ async fn test_batch_write_performance() {
         service_rx,
         Some(Box::new(backend) as Box<dyn StorageBackend>),
         None, // No retention cleanup for this test
+        None, // No cleanup interval for this test
     );
 
     let server_id = "batch-test:3000".to_string();
@@ -319,6 +321,7 @@ async fn test_service_check_persistence() {
         service_tx.subscribe(),
         Some(Box::new(backend) as Box<dyn StorageBackend>),
         Some(30),
+        Some(24),
     );
 
     // Give actor time to initialize
@@ -424,6 +427,7 @@ async fn test_service_uptime_calculation() {
         service_tx.subscribe(),
         Some(Box::new(backend) as Box<dyn StorageBackend>),
         Some(30),
+        Some(24),
     );
 
     // Give actor time to initialize
@@ -533,6 +537,7 @@ async fn test_service_check_query_range() {
         service_tx.subscribe(),
         Some(Box::new(backend) as Box<dyn StorageBackend>),
         Some(30),
+        Some(24),
     );
 
     tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;

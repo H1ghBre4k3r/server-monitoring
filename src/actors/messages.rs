@@ -186,6 +186,15 @@ pub struct StorageStats {
 
     /// Number of flush operations performed
     pub flush_count: u64,
+
+    /// Last cleanup timestamp (Phase 4 - retention)
+    pub last_cleanup_time: Option<DateTime<Utc>>,
+
+    /// Total metrics deleted by cleanup operations (Phase 4 - retention)
+    pub total_metrics_deleted: u64,
+
+    /// Total service checks deleted by cleanup operations (Phase 4 - retention)
+    pub total_service_checks_deleted: u64,
 }
 
 // ============================================================================
