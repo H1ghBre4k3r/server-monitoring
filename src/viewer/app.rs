@@ -17,7 +17,6 @@ use super::{
     websocket::{WebSocketClient, WsEvent},
 };
 
-use crate::api::{ServerInfo, ServiceInfo};
 
 /// Main TUI application
 pub struct App {
@@ -142,14 +141,12 @@ impl App {
         // Fetch services
         let request = self.build_authenticated_request("/api/v1/services");
 
-        if let Ok(response) = request.send().await {
-            if response.status().is_success() {
-                if let Ok(services_response) = response.json::<crate::api::ServicesResponse>().await
+        if let Ok(response) = request.send().await
+            && response.status().is_success()
+                && let Ok(services_response) = response.json::<crate::api::ServicesResponse>().await
                 {
                     self.state.update_services(services_response.services);
                 }
-            }
-        }
 
         Ok(())
     }
@@ -266,25 +263,21 @@ impl App {
         // Fetch servers
         let request = self.build_authenticated_request("/api/v1/servers");
 
-        if let Ok(response) = request.send().await {
-            if response.status().is_success() {
-                if let Ok(servers_response) = response.json::<crate::api::ServersResponse>().await {
+        if let Ok(response) = request.send().await
+            && response.status().is_success()
+                && let Ok(servers_response) = response.json::<crate::api::ServersResponse>().await {
                     self.state.update_servers(servers_response.servers);
                 }
-            }
-        }
 
         // Fetch services
         let request = self.build_authenticated_request("/api/v1/services");
 
-        if let Ok(response) = request.send().await {
-            if response.status().is_success() {
-                if let Ok(services_response) = response.json::<crate::api::ServicesResponse>().await
+        if let Ok(response) = request.send().await
+            && response.status().is_success()
+                && let Ok(services_response) = response.json::<crate::api::ServicesResponse>().await
                 {
                     self.state.update_services(services_response.services);
                 }
-            }
-        }
 
         Ok(())
     }

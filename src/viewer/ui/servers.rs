@@ -10,7 +10,9 @@ use ratatui::{
 
 use crate::viewer::state::AppState;
 
-use super::widgets::{render_cpu_chart, render_memory_chart, render_memory_gauge, render_temp_chart};
+use super::widgets::{
+    render_cpu_chart, render_memory_chart, render_temp_chart,
+};
 
 /// Render servers tab
 pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {

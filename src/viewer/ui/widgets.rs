@@ -2,11 +2,13 @@
 
 use ratatui::{
     Frame,
-    layout::Rect,
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     symbols,
     text::{Line, Span},
-    widgets::{Axis, Block, Borders, Chart, Dataset, GraphType, Paragraph},
+    widgets::{
+        Axis, Block, Borders, Chart, Dataset, GraphType, LegendPosition, List, ListItem, Paragraph,
+    },
 };
 
 use crate::viewer::state::AppState;
@@ -31,7 +33,39 @@ const LINE_COLORS: [Color; 16] = [
     Color::White,
 ];
 
+/// Minimum width for legend area
+const MIN_LEGEND_WIDTH: u16 = 10;
+
+/// Render a side legend with all items (no truncation)
+/// Inspired by bottom's approach - shows all items in a list
+fn render_side_legend(frame: &mut Frame, area: Rect, datasets: &[(String, Color, String)]) {
+    if datasets.is_empty() {
+        return;
+    }
+
+    let items: Vec<ListItem> = datasets
+        .iter()
+        .map(|(name, color, additional_information)| {
+            ListItem::new(Line::from(vec![
+                Span::styled("● ", Style::default().fg(*color)),
+                Span::raw(name),
+                Span::raw(additional_information),
+            ]))
+        })
+        .collect();
+
+    let legend = List::new(items).block(Block::default().borders(Borders::ALL).title("Legend"));
+
+    frame.render_widget(legend, area);
+}
+
 /// Render CPU usage chart with per-core breakdown
+///
+/// **Legend Behavior:**
+/// - Uses side-by-side layout: Graph (85%) + Legend list (15%) on the right
+/// - Legend shows ALL cores without truncation - scrollable list
+/// - If legend width < 10 chars, skips legend and uses full width for graph
+/// - Inspired by bottom's approach for handling many CPU cores
 pub fn render_cpu_chart(frame: &mut Frame, area: Rect, server_id: &str, state: &AppState) {
     if let Some(history) = state.get_metrics_history(server_id) {
         if history.is_empty() {
@@ -51,18 +85,37 @@ pub fn render_cpu_chart(frame: &mut Frame, area: Rect, server_id: &str, state: &
             .map(|point| point.metrics.cpus.cpus.len())
             .unwrap_or(0);
 
-        if num_cores == 0 {
-            // Fallback to average if no per-core data
+        if num_cores <= 1 {
+            // Fallback to average if no per-core data or only one core present
             render_cpu_chart_average(frame, area, server_id, state);
             return;
         }
+
+        // Calculate legend width (15% of area, minimum 10 chars)
+        let legend_width = ((area.width as f64 * 0.15) as u16).max(MIN_LEGEND_WIDTH);
+        let use_legend = legend_width >= MIN_LEGEND_WIDTH && area.width > legend_width + 20;
+
+        let (graph_area, legend_area) = if use_legend {
+            // Split horizontally: graph on left, legend on right
+            let chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([
+                    Constraint::Min(20),              // Graph needs minimum space
+                    Constraint::Length(legend_width), // Legend fixed width
+                ])
+                .split(area);
+            (chunks[0], Some(chunks[1]))
+        } else {
+            // Use full width for graph with built-in legend at bottom
+            (area, None)
+        };
 
         // Collect per-core data
         let mut core_data: Vec<Vec<(f64, f64)>> = vec![Vec::new(); num_cores];
 
         for point in history.iter().filter(|p| p.timestamp >= window_start) {
             let timestamp = point.timestamp.timestamp() as f64;
-            
+
             for (core_idx, cpu) in point.metrics.cpus.cpus.iter().enumerate() {
                 if core_idx < num_cores {
                     core_data[core_idx].push((timestamp, cpu.usage as f64));
@@ -101,21 +154,29 @@ pub fn render_cpu_chart(frame: &mut Frame, area: Rect, server_id: &str, state: &
 
         // Create datasets for each core
         let mut datasets = Vec::new();
+        let mut legend_items = Vec::new();
+
         for (core_idx, data) in core_data.iter().enumerate() {
             if !data.is_empty() {
                 let color = LINE_COLORS[core_idx % LINE_COLORS.len()];
+                let name = format!("cpu{}", core_idx);
                 datasets.push(
                     Dataset::default()
-                        .name(format!("cpu{}", core_idx))
+                        .name(name.clone())
                         .marker(symbols::Marker::Braille)
                         .graph_type(GraphType::Line)
                         .style(Style::default().fg(color))
                         .data(data),
                 );
+                let Some(last) = data.last() else {
+                    unreachable!("duh?!");
+                };
+                legend_items.push((name, color, format!(" - {:.1}%", last.1)));
             }
         }
 
-        let chart = Chart::new(datasets)
+        // Build chart - use built-in legend only if not using side legend
+        let mut chart = Chart::new(datasets)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
@@ -138,11 +199,21 @@ pub fn render_cpu_chart(frame: &mut Frame, area: Rect, server_id: &str, state: &
                     .bounds([0.0, max_cpu]),
             );
 
-        frame.render_widget(chart, area);
+        // Add built-in legend if not using side legend
+        if legend_area.is_none() {
+            chart = chart.legend_position(Some(LegendPosition::Bottom));
+        }
+
+        frame.render_widget(chart, graph_area);
+
+        // Render side legend if enabled
+        if let Some(legend_rect) = legend_area {
+            render_side_legend(frame, legend_rect, &legend_items);
+        }
     }
 }
 
-/// Fallback: Render average CPU usage chart (when no per-core data)
+/// Fallback: Render average CPU usage chart (when no per-core data or only one core)
 fn render_cpu_chart_average(frame: &mut Frame, area: Rect, server_id: &str, state: &AppState) {
     if let Some(history) = state.get_metrics_history(server_id) {
         use chrono::Utc;
@@ -210,6 +281,12 @@ fn render_cpu_chart_average(frame: &mut Frame, area: Rect, server_id: &str, stat
 }
 
 /// Render temperature chart with per-component breakdown
+///
+/// **Legend Behavior:**
+/// - Uses side-by-side layout: Graph (85%) + Legend list (15%) on the right
+/// - Legend shows ALL sensors without truncation - scrollable list
+/// - If legend width < 10 chars, skips legend and uses full width for graph
+/// - Inspired by bottom's approach for handling many temperature sensors
 pub fn render_temp_chart(frame: &mut Frame, area: Rect, server_id: &str, state: &AppState) {
     if let Some(history) = state.get_metrics_history(server_id) {
         if history.is_empty() {
@@ -239,6 +316,25 @@ pub fn render_temp_chart(frame: &mut Frame, area: Rect, server_id: &str, state: 
             return;
         }
 
+        // Calculate legend width (15% of area, minimum 10 chars)
+        let legend_width = ((area.width as f64 * 0.15) as u16).max(MIN_LEGEND_WIDTH);
+        let use_legend = legend_width >= MIN_LEGEND_WIDTH && area.width > legend_width + 20;
+
+        let (graph_area, legend_area) = if use_legend && component_names.len() > 4 {
+            // Split horizontally: graph on left, legend on right
+            let chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([
+                    Constraint::Min(20),              // Graph needs minimum space
+                    Constraint::Length(legend_width), // Legend fixed width
+                ])
+                .split(area);
+            (chunks[0], Some(chunks[1]))
+        } else {
+            // Use full width for graph with built-in legend at bottom
+            (area, None)
+        };
+
         // Collect per-component data
         let mut component_data: HashMap<String, Vec<(f64, f64)>> = HashMap::new();
         for name in &component_names {
@@ -247,12 +343,12 @@ pub fn render_temp_chart(frame: &mut Frame, area: Rect, server_id: &str, state: 
 
         for point in history.iter().filter(|p| p.timestamp >= window_start) {
             let timestamp = point.timestamp.timestamp() as f64;
-            
+
             for component in &point.metrics.components.components {
-                if let Some(temp) = component.temperature {
-                    if let Some(data) = component_data.get_mut(&component.name) {
-                        data.push((timestamp, temp as f64));
-                    }
+                if let Some(temp) = component.temperature
+                    && let Some(data) = component_data.get_mut(&component.name)
+                {
+                    data.push((timestamp, temp as f64));
                 }
             }
         }
@@ -262,31 +358,38 @@ pub fn render_temp_chart(frame: &mut Frame, area: Rect, server_id: &str, state: 
             .values()
             .flat_map(|data| data.iter().map(|(_, temp)| *temp))
             .fold(0.0, f64::max)
-            .max(50.0); // Minimum scale of 50°C
+            .max(100.0); // Minimum scale of 50°C
 
         // Create datasets by taking references
         let mut datasets = Vec::new();
         let mut sorted_data: Vec<(String, Vec<(f64, f64)>)> = Vec::new();
-        
-        for (idx, name) in component_names.iter().enumerate() {
-            if let Some(mut data) = component_data.remove(name) {
-                if !data.is_empty() {
-                    data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-                    sorted_data.push((name.clone(), data));
-                }
+        let mut legend_items = Vec::new();
+
+        for name in component_names.iter() {
+            if let Some(mut data) = component_data.remove(name)
+                && !data.is_empty()
+            {
+                data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+                sorted_data.push((name.clone(), data));
             }
         }
 
         for (idx, (name, data)) in sorted_data.iter().enumerate() {
-            let color = LINE_COLORS[idx % LINE_COLORS.len()];
-            datasets.push(
-                Dataset::default()
-                    .name(name.clone())
-                    .marker(symbols::Marker::Braille)
-                    .graph_type(GraphType::Line)
-                    .style(Style::default().fg(color))
-                    .data(data),
-            );
+            if !data.is_empty() {
+                let color = LINE_COLORS[idx % LINE_COLORS.len()];
+                datasets.push(
+                    Dataset::default()
+                        .name(name.clone())
+                        .marker(symbols::Marker::Braille)
+                        .graph_type(GraphType::Line)
+                        .style(Style::default().fg(color))
+                        .data(data),
+                );
+                let Some(last) = data.last() else {
+                    unreachable!("duh?!");
+                };
+                legend_items.push((name.clone(), color, format!(" - {:.1}°C", last.1)));
+            }
         }
 
         if datasets.is_empty() {
@@ -305,12 +408,12 @@ pub fn render_temp_chart(frame: &mut Frame, area: Rect, server_id: &str, state: 
         .to_string();
         let end_time = now.format("%H:%M:%S").to_string();
 
-        let chart = Chart::new(datasets)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title(format!("Temperature Per Component (°C) - {} sensors", component_names.len())),
-            )
+        // Build chart - use built-in legend only if not using side legend
+        let mut chart = Chart::new(datasets)
+            .block(Block::default().borders(Borders::ALL).title(format!(
+                "Temperature Per Component (°C) - {} sensors",
+                component_names.len()
+            )))
             .x_axis(
                 Axis::default()
                     .style(Style::default().fg(Color::Gray))
@@ -328,10 +431,21 @@ pub fn render_temp_chart(frame: &mut Frame, area: Rect, server_id: &str, state: 
                     .bounds([0.0, max_temp]),
             );
 
-        frame.render_widget(chart, area);
+        // Add built-in legend if not using side legend
+        if legend_area.is_none() {
+            chart = chart.legend_position(Some(LegendPosition::Bottom));
+        }
+
+        frame.render_widget(chart, graph_area);
+
+        // Render side legend if enabled
+        if let Some(legend_rect) = legend_area {
+            render_side_legend(frame, legend_rect, &legend_items);
+        }
     }
 }
 
+/// Render temperature chart with custom two-column legend for many components
 /// Fallback: Render average temperature chart (when no per-component data)
 fn render_temp_chart_average(frame: &mut Frame, area: Rect, server_id: &str, state: &AppState) {
     if let Some(history) = state.get_metrics_history(server_id) {
@@ -422,22 +536,23 @@ pub fn render_memory_chart(frame: &mut Frame, area: Rect, server_id: &str, state
         let now = Utc::now();
         let window_start = now - chrono::Duration::seconds(state.time_window_seconds as i64);
 
-        // Collect RAM and Swap usage percentages
+        // Collect RAM and Swap usage
         let mut ram_data: Vec<(f64, f64)> = Vec::new();
         let mut swap_data: Vec<(f64, f64)> = Vec::new();
+
+        let mut max_memory = 0.0f64;
 
         for point in history.iter().filter(|p| p.timestamp >= window_start) {
             let timestamp = point.timestamp.timestamp() as f64;
             let memory = &point.metrics.memory;
 
-            // Calculate RAM percentage
-            let ram_percent = (memory.used as f64 / memory.total as f64) * 100.0;
-            ram_data.push((timestamp, ram_percent));
+            max_memory = max_memory.max(memory.total as f64);
 
-            // Calculate Swap percentage (if swap exists)
+            ram_data.push((timestamp, memory.used as f64));
+
             if memory.total_swap > 0 {
-                let swap_percent = (memory.used_swap as f64 / memory.total_swap as f64) * 100.0;
-                swap_data.push((timestamp, swap_percent));
+                max_memory = max_memory.max(memory.total_swap as f64);
+                swap_data.push((timestamp, memory.used_swap as f64));
             }
         }
 
@@ -498,12 +613,13 @@ pub fn render_memory_chart(frame: &mut Frame, area: Rect, server_id: &str, state
                 Axis::default()
                     .style(Style::default().fg(Color::Gray))
                     .labels(vec![
-                        "0".to_string(),
-                        "50".to_string(),
-                        "100".to_string(),
+                        "0GB".to_string(),
+                        format!("{:.1} GB", max_memory / (2u64.pow(31) as f64)),
+                        format!("{:.1} GB", max_memory / (2u64.pow(30) as f64)),
                     ])
-                    .bounds([0.0, 100.0]),
-            );
+                    .bounds([0.0, max_memory]),
+            )
+            .legend_position(Some(LegendPosition::Bottom));
 
         frame.render_widget(chart, area);
     }
