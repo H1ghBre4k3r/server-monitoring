@@ -10,9 +10,7 @@ use ratatui::{
 
 use crate::viewer::state::AppState;
 
-use super::widgets::{
-    render_cpu_chart, render_memory_chart, render_temp_chart,
-};
+use super::widgets::{render_cpu_chart, render_memory_chart, render_temp_chart};
 
 /// Render servers tab
 pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
@@ -35,13 +33,7 @@ fn render_server_list(frame: &mut Frame, area: Rect, state: &AppState) {
         .iter()
         .enumerate()
         .map(|(i, server)| {
-            let health_color = match server.health_status {
-                crate::api::types::ServerHealthStatus::Up => Color::Green,
-                crate::api::types::ServerHealthStatus::Down => Color::Red,
-                crate::api::types::ServerHealthStatus::Stale => Color::Yellow,
-                crate::api::types::ServerHealthStatus::Unknown => Color::Gray,
-            };
-
+            let health_color = server.health_status.into();
             let content = Line::from(vec![
                 Span::styled("● ", Style::default().fg(health_color)),
                 Span::raw(&server.display_name),
@@ -119,12 +111,7 @@ fn render_server_info(
         Span::styled(
             format!("[{}]", &server.health_status),
             Style::default()
-                .fg(match server.health_status {
-                    crate::api::types::ServerHealthStatus::Up => Color::Green,
-                    crate::api::types::ServerHealthStatus::Down => Color::Red,
-                    crate::api::types::ServerHealthStatus::Stale => Color::Yellow,
-                    crate::api::types::ServerHealthStatus::Unknown => Color::Gray,
-                })
+                .fg(server.health_status.into())
                 .add_modifier(Modifier::BOLD),
         ),
     ])];

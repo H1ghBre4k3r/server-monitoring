@@ -224,33 +224,8 @@ pub struct StorageStats {
 // Service Monitoring Messages (Phase 3)
 // ============================================================================
 
-/// Service health status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ServiceStatus {
-    /// Service is responding correctly
-    Up,
-
-    /// Service is not responding or failing checks
-    Down,
-
-    /// Service is responding but not meeting all health criteria
-    /// (e.g., unexpected status code, body pattern mismatch)
-    Degraded,
-}
-
-impl ServiceStatus {
-    /// Get the string representation (lowercase)
-    ///
-    /// This matches the serde serialization format.
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            ServiceStatus::Up => "up",
-            ServiceStatus::Down => "down",
-            ServiceStatus::Degraded => "degraded",
-        }
-    }
-}
+// Re-export it for backward compatibility
+pub use crate::api::types::ServiceStatus;
 
 /// Event published when a service health check is performed
 ///

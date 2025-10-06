@@ -49,15 +49,6 @@ fn render_service_list(frame: &mut Frame, area: Rect, state: &AppState) {
         .iter()
         .enumerate()
         .map(|(i, service)| {
-            let health_color = match service.health_status.as_str() {
-                "up" => Color::Green,
-                "down" => Color::Red,
-                "degraded" => Color::Yellow,
-                "stale" => Color::Magenta,
-                "unknown" => Color::Gray,
-                _ => Color::White,
-            };
-
             let mut style = Style::default();
             if i == state.selected_service {
                 style = style.bg(Color::DarkGray).add_modifier(Modifier::BOLD);
@@ -73,7 +64,7 @@ fn render_service_list(frame: &mut Frame, area: Rect, state: &AppState) {
                     .unwrap_or_else(|| "Never".to_string()),
             ])
             .style(style)
-            .fg(health_color)
+            .fg(service.health_status)
         })
         .collect();
 
@@ -114,13 +105,7 @@ fn render_service_details(frame: &mut Frame, area: Rect, state: &AppState) {
                 Span::styled("Status: ", Style::default().fg(Color::Cyan)),
                 Span::styled(
                     service.health_status.to_string(),
-                    Style::default().fg(match service.health_status {
-                        crate::api::types::ServiceHealthStatus::Up => Color::Green,
-                        crate::api::types::ServiceHealthStatus::Down => Color::Red,
-                        crate::api::types::ServiceHealthStatus::Degraded => Color::Yellow,
-                        crate::api::types::ServiceHealthStatus::Stale => Color::Magenta,
-                        crate::api::types::ServiceHealthStatus::Unknown => Color::Gray,
-                    }),
+                    Style::default().fg(service.health_status.into()),
                 ),
             ]),
             Line::from(vec![

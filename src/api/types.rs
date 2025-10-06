@@ -4,7 +4,13 @@
 //! By centralizing these types, we ensure consistency in serialization/deserialization
 //! and avoid type drift between components.
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+
+use crate::{
+    ServerMetrics,
+    actors::messages::{MetricEvent, ServiceCheckEvent},
+};
 
 // ============================================================================
 // Status Enums - Type-safe status representations
@@ -30,7 +36,7 @@ impl std::fmt::Display for MonitoringStatus {
 }
 
 /// Health status for servers
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ServerHealthStatus {
     /// Server responding and metrics recent
@@ -64,7 +70,7 @@ impl ServerHealthStatus {
 }
 
 /// Health status for services
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ServiceHealthStatus {
     /// Service responding normally
@@ -100,24 +106,46 @@ impl ServiceHealthStatus {
     }
 }
 
-/// Service check result status
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Service health status - used for internal service monitoring
+///
+/// This is the canonical service status enum used throughout the system.
+/// It represents the actual result of service health checks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum ServiceCheckStatus {
+pub enum ServiceStatus {
+    /// Service is responding correctly
     Up,
+    /// Service is not responding or failing checks
     Down,
+    /// Service is responding but not meeting all health criteria
+    /// (e.g., unexpected status code, body pattern mismatch)
     Degraded,
 }
 
-impl std::fmt::Display for ServiceCheckStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl ServiceStatus {
+    /// Get the string representation (lowercase)
+    ///
+    /// This matches the serde serialization format.
+    pub fn as_str(&self) -> &'static str {
         match self {
-            ServiceCheckStatus::Up => write!(f, "up"),
-            ServiceCheckStatus::Down => write!(f, "down"),
-            ServiceCheckStatus::Degraded => write!(f, "degraded"),
+            ServiceStatus::Up => "up",
+            ServiceStatus::Down => "down",
+            ServiceStatus::Degraded => "degraded",
         }
     }
 }
+
+impl std::fmt::Display for ServiceStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Service check result status - alias for ServiceStatus for API consistency
+///
+/// This type is used in API responses to maintain naming consistency.
+/// It's a type alias to avoid duplication while keeping the API clear.
+pub type ServiceCheckStatus = ServiceStatus;
 
 /// Server information with health status
 ///
@@ -260,4 +288,70 @@ pub struct StorageStats {
     pub last_cleanup: Option<String>,
     pub total_metrics_deleted: u64,
     pub total_service_checks_deleted: u64,
+}
+
+/// WebSocket event from the API server
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum WsEvent {
+    Metric {
+        server_id: String,
+        display_name: String,
+        metrics: ServerMetrics,
+        timestamp: DateTime<Utc>,
+    },
+    ServiceCheck {
+        service_name: String,
+        url: String,
+        timestamp: DateTime<Utc>,
+        status: ServiceStatus,
+        response_time_ms: Option<u64>,
+        http_status_code: Option<u16>,
+        ssl_expiry_days: Option<i64>,
+        error_message: Option<String>,
+    },
+}
+
+impl From<MetricEvent> for WsEvent {
+    fn from(value: MetricEvent) -> Self {
+        let MetricEvent {
+            server_id,
+            metrics,
+            timestamp,
+            display_name,
+        } = value;
+
+        WsEvent::Metric {
+            server_id,
+            display_name,
+            timestamp,
+            metrics,
+        }
+    }
+}
+
+impl From<ServiceCheckEvent> for WsEvent {
+    fn from(value: ServiceCheckEvent) -> Self {
+        let ServiceCheckEvent {
+            service_name,
+            url,
+            timestamp,
+            status,
+            response_time_ms,
+            http_status_code,
+            ssl_expiry_days,
+            error_message,
+        } = value;
+
+        WsEvent::ServiceCheck {
+            service_name,
+            url,
+            timestamp,
+            status,
+            response_time_ms,
+            http_status_code,
+            ssl_expiry_days,
+            error_message,
+        }
+    }
 }

@@ -120,7 +120,8 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
             .clone()
             .unwrap_or_else(|| format!("{}:{}", server_config.ip, server_config.port));
 
-        let handle = CollectorHandle::spawn(server_config.clone(), metric_tx.clone(), polling_tx.clone());
+        let handle =
+            CollectorHandle::spawn(server_config.clone(), metric_tx.clone(), polling_tx.clone());
         info!("collector actor started for {display_name}");
         collector_handles.push(handle);
     }

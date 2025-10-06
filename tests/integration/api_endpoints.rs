@@ -182,7 +182,11 @@ async fn test_list_servers_with_no_metrics_shows_unknown() {
         display: Some("Test Server".to_string()),
         limits: None,
     };
-    let collector = CollectorHandle::spawn(config, metric_tx.clone(), tokio::sync::broadcast::channel(16).0);
+    let collector = CollectorHandle::spawn(
+        config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     let addr = spawn_test_api(vec![collector], vec![], storage, metric_tx, service_tx).await;
 
@@ -236,7 +240,11 @@ async fn test_list_servers_with_recent_metrics_shows_up() {
         display: Some("Test Server".to_string()),
         limits: None,
     };
-    let collector = CollectorHandle::spawn(config, metric_tx.clone(), tokio::sync::broadcast::channel(16).0);
+    let collector = CollectorHandle::spawn(
+        config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     // Publish a recent metric
     let event = MetricEvent {
@@ -299,7 +307,11 @@ async fn test_list_servers_with_stale_metrics_shows_stale() {
         display: Some("Test Server".to_string()),
         limits: None,
     };
-    let collector = CollectorHandle::spawn(config, metric_tx.clone(), tokio::sync::broadcast::channel(16).0);
+    let collector = CollectorHandle::spawn(
+        config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     // Publish a stale metric (10 minutes old)
     let event = MetricEvent {

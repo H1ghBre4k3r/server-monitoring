@@ -2,18 +2,18 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{RwLock, broadcast};
 
 use crate::actors::{
     alert::AlertHandle,
     collector::CollectorHandle,
-    messages::{MetricEvent, ServiceCheckEvent, PollingStatusEvent},
+    messages::{MetricEvent, PollingStatusEvent, ServiceCheckEvent},
     service_monitor::ServiceHandle,
     storage::StorageHandle,
 };
 
 /// Polling status information for a server
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct PollingStatus {
     pub last_success: Option<String>,
     pub last_error: Option<String>,
@@ -33,9 +33,16 @@ impl PollingStatusStore {
     }
 
     /// Update polling status for a server
-    pub async fn update_status(&self, server_id: &str, success: bool, error_message: Option<String>) {
+    pub async fn update_status(
+        &self,
+        server_id: &str,
+        success: bool,
+        error_message: Option<String>,
+    ) {
         let mut statuses = self.statuses.write().await;
-        let status = statuses.entry(server_id.to_string()).or_insert_with(PollingStatus::default);
+        let status = statuses
+            .entry(server_id.to_string())
+            .or_insert_with(PollingStatus::default);
 
         let now = chrono::Utc::now();
         if success {
@@ -57,18 +64,8 @@ impl PollingStatusStore {
 
     /// Process a PollingStatusEvent
     pub async fn handle_event(&self, event: &PollingStatusEvent) {
-        self.update_status(&event.server_id, event.success, event.error_message.clone()).await;
-    }
-}
-
-impl Default for PollingStatus {
-    fn default() -> Self {
-        Self {
-            last_success: None,
-            last_error: None,
-            last_success_timestamp: None,
-            last_error_timestamp: None,
-        }
+        self.update_status(&event.server_id, event.success, event.error_message.clone())
+            .await;
     }
 }
 

@@ -31,6 +31,8 @@ pub mod state;
 #[cfg(feature = "api")]
 pub mod types;
 #[cfg(feature = "api")]
+pub mod utils;
+#[cfg(feature = "api")]
 pub mod websocket;
 
 #[cfg(feature = "api")]

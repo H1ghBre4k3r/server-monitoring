@@ -10,13 +10,14 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 use std::io;
 use tokio::sync::mpsc;
 
+use crate::api::types::WsEvent;
+
 use super::{
     config::Config,
     state::{AlertEntry, AlertSeverity, AppState},
     ui,
-    websocket::{WebSocketClient, WsEvent},
+    websocket::WebSocketClient,
 };
-
 
 /// Main TUI application
 pub struct App {
@@ -143,10 +144,10 @@ impl App {
 
         if let Ok(response) = request.send().await
             && response.status().is_success()
-                && let Ok(services_response) = response.json::<crate::api::ServicesResponse>().await
-                {
-                    self.state.update_services(services_response.services);
-                }
+            && let Ok(services_response) = response.json::<crate::api::ServicesResponse>().await
+        {
+            self.state.update_services(services_response.services);
+        }
 
         Ok(())
     }
@@ -265,19 +266,20 @@ impl App {
 
         if let Ok(response) = request.send().await
             && response.status().is_success()
-                && let Ok(servers_response) = response.json::<crate::api::ServersResponse>().await {
-                    self.state.update_servers(servers_response.servers);
-                }
+            && let Ok(servers_response) = response.json::<crate::api::ServersResponse>().await
+        {
+            self.state.update_servers(servers_response.servers);
+        }
 
         // Fetch services
         let request = self.build_authenticated_request("/api/v1/services");
 
         if let Ok(response) = request.send().await
             && response.status().is_success()
-                && let Ok(services_response) = response.json::<crate::api::ServicesResponse>().await
-                {
-                    self.state.update_services(services_response.services);
-                }
+            && let Ok(services_response) = response.json::<crate::api::ServicesResponse>().await
+        {
+            self.state.update_services(services_response.services);
+        }
 
         Ok(())
     }

@@ -14,10 +14,8 @@ use crate::api::{
         MonitoringStatus, ServiceCheckStatus, ServiceChecksResponse, ServiceHealthStatus,
         ServiceInfo, ServicesResponse, UptimeResponse,
     },
+    utils::STALE_THRESHOLD_SECS,
 };
-
-/// Maximum age in seconds before a service check is considered stale
-const STALE_THRESHOLD_SECS: i64 = 300; // 5 minutes
 
 /// Default lookback period for service checks (24 hours)
 const DEFAULT_LOOKBACK_HOURS: i64 = 24;

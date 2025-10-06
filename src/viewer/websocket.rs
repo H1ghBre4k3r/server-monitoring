@@ -1,35 +1,11 @@
 //! WebSocket client for real-time metric streaming
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
 use futures::{SinkExt, StreamExt};
-use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use crate::{ServerMetrics, actors::messages::ServiceStatus};
-
-/// WebSocket event from the API server
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum WsEvent {
-    Metric {
-        server_id: String,
-        display_name: String,
-        metrics: ServerMetrics,
-        timestamp: DateTime<Utc>,
-    },
-    ServiceCheck {
-        service_name: String,
-        url: String,
-        timestamp: DateTime<Utc>,
-        status: ServiceStatus,
-        response_time_ms: Option<u64>,
-        http_status_code: Option<u16>,
-        ssl_expiry_days: Option<i64>,
-        error_message: Option<String>,
-    },
-}
+use crate::api::types::WsEvent;
 
 /// WebSocket client for streaming events from the API
 pub struct WebSocketClient {
