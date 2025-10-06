@@ -30,10 +30,26 @@ impl WebSocketClient {
     pub async fn connect(self) -> Result<mpsc::UnboundedReceiver<WsEvent>> {
         let (tx, rx) = mpsc::unbounded_channel();
 
+        // Clone the URL for use in error handling
+        let url = self.url.clone();
+
         // Spawn connection task
         tokio::spawn(async move {
             if let Err(e) = self.run(tx.clone()).await {
                 tracing::error!("WebSocket connection error: {}", e);
+                // Try to send an error message via the channel if possible
+                // Use a simple format that won't break the TUI
+                let error_msg = format!("WebSocket: {}", e);
+                tx.send(WsEvent::ServiceCheck {
+                    service_name: "Connection".to_string(),
+                    url: url.clone(),
+                    timestamp: chrono::Utc::now(),
+                    status: crate::actors::messages::ServiceStatus::Down,
+                    response_time_ms: None,
+                    http_status_code: None,
+                    ssl_expiry_days: None,
+                    error_message: Some(error_msg),
+                }).ok();
             }
         });
 

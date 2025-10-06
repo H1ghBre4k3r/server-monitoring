@@ -31,25 +31,33 @@ pub struct App {
 impl App {
     /// Create a new application instance
     pub fn new(config: Config) -> Result<Self> {
-        // Create WebSocket client
-        let ws_client = WebSocketClient::new(&config.api_url, config.api_token.clone());
-
-        // Connect to WebSocket
-        let ws_rx = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(ws_client.connect())
-        })?;
-
         // Create reusable HTTP client
         let http_client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(10))
             .build()?;
 
-        Ok(Self {
+        // Create WebSocket client
+        let ws_client = WebSocketClient::new(&config.api_url, config.api_token.clone());
+
+        // Connect to WebSocket - handle connection errors gracefully
+        let ws_rx = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(ws_client.connect())
+        }).map_err(|e| {
+            // Return a more user-friendly error
+            anyhow::anyhow!("Failed to connect to API at {}: {}", config.api_url, e)
+        })?;
+
+        let mut app = Self {
             state: AppState::new(config.time_window_seconds),
             config,
             ws_rx,
             http_client,
-        })
+        };
+
+        // Mark as not connected initially - will be updated when first event arrives
+        app.state.connected = false;
+
+        Ok(app)
     }
 
     /// Build an authenticated GET request to the API
@@ -307,6 +315,13 @@ impl App {
                 error_message,
                 ..
             } => {
+                // Special handling for connection errors
+                if service_name == "Connection" && matches!(status, crate::actors::messages::ServiceStatus::Down) {
+                    self.state.connected = false;
+                    self.state.error_message = error_message;
+                    return;
+                }
+
                 // Add to alerts if DOWN
                 if matches!(status, crate::actors::messages::ServiceStatus::Down) {
                     self.state.add_alert(AlertEntry {

@@ -29,11 +29,39 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize tracing
-    tracing_subscriber::fmt()
-        .with_target(false)
-        .with_level(true)
-        .init();
+    // Initialize tracing - redirect logs to file when in TUI mode to avoid console output
+    let log_path = dirs::data_dir()
+        .unwrap_or_else(|| std::env::current_dir().unwrap())
+        .join("dev.lome.guardia")
+        .join("viewer.log");
+
+    // Create directory if it doesn't exist
+    if let Some(parent) = log_path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+
+    let log_file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path);
+
+    match log_file {
+        Ok(file) => {
+            tracing_subscriber::fmt()
+                .with_target(false)
+                .with_level(true)
+                .with_writer(file)
+                .init();
+        }
+        Err(_) => {
+            // If we can't create a log file, use a minimal stderr logger that only shows errors
+            tracing_subscriber::fmt()
+                .with_target(false)
+                .with_level(true)
+                .with_max_level(tracing::Level::ERROR)
+                .init();
+        }
+    }
 
     #[cfg(feature = "dashboard")]
     {
