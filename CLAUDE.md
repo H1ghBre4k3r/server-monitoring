@@ -6,18 +6,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Rust-based server monitoring solution that uses a hub-agent architecture to monitor server resources (CPU usage and temperature) and send alerts when thresholds are exceeded.
 
+**Current Version:** v0.9.0 (Pre-Release - nearing v1.0.0)
+
 **Architecture:**
 - **Agent (`src/bin/agent.rs`)**: Runs on monitored servers, exposes metrics via Rocket HTTP server on `/metrics` endpoint
-- **Hub (`src/bin/hub.rs`)**: Central monitoring service using actor-based architecture (Phase 1 refactoring in progress)
+- **Hub (`src/bin/hub.rs`)**: Central monitoring service using actor-based architecture with graceful shutdown
+- **Viewer (`src/bin/viewer.rs`)**: TUI dashboard for real-time visualization with time-based charts
 
 **Key Components:**
 - `ServerMetrics`: Core data structure containing system info, memory, CPU, and component temperature data
 - `AlertManager`: Handles sending alerts via Discord webhooks or generic webhooks
 - Configuration is JSON-based (see `config.example.json`)
 
-### Actor-Based Architecture (✅ Phase 1 COMPLETE)
+### Actor-Based Architecture (✅ COMPLETE)
 
-The hub now uses an actor-based architecture for better scalability and maintainability:
+The hub uses an actor-based architecture for better scalability and maintainability:
 
 **Actors (`src/actors/`):**
 - **MetricCollectorActor** (`collector.rs`): Polls agent endpoints at configured intervals, publishes metrics to broadcast channel
@@ -43,25 +46,23 @@ The hub now uses an actor-based architecture for better scalability and maintain
 - Supervision - actors can be monitored and restarted independently
 - Efficiency - HTTP client reused across requests (old system created new client each poll)
 
-**Phase 1 Status (✅ COMPLETE):**
+**Phase 1 Status (✅ COMPLETE - January 15, 2025):**
 - ✅ Core actor infrastructure implemented
 - ✅ All actor types created with command/event channels
-- ✅ Unit tests passing (5/5)
+- ✅ Unit tests passing
 - ✅ Actors integrated into hub.rs
 - ✅ Graceful shutdown on Ctrl+C
 - ✅ Feature parity verified with old implementation
 
-**Phase 2 Status (✅ SQLite Backend COMPLETE):**
+**Phase 2 Status (✅ COMPLETE - January 15, 2025):**
 - ✅ StorageBackend trait for pluggable persistence
 - ✅ SQLite backend with batching (dual flush triggers: 100 metrics OR 5 seconds)
 - ✅ Hybrid schema: indexed aggregates + full metadata
 - ✅ StorageActor extended with `Option<Box<dyn StorageBackend>>`
 - ✅ Configuration support for storage backends
 - ✅ Backward compatible (falls back to in-memory mode)
-- ✅ All tests passing (60/60)
-- ✅ COMPLETE - Moving to Phase 4 (retention cleanup)
 
-**Phase 3 Status (✅ Service Monitoring COMPLETE):**
+**Phase 3 Status (✅ COMPLETE - January 15, 2025):**
 - ✅ HTTP/HTTPS service check monitoring
 - ✅ ServiceMonitorActor with configurable check intervals
 - ✅ Service check persistence (SQLite + in-memory)
@@ -74,9 +75,8 @@ The hub now uses an actor-based architecture for better scalability and maintain
   - `query_latest_service_checks()` - latest N checks
   - `calculate_uptime()` - uptime statistics
 - ✅ Integration tests (persistence, uptime, range queries)
-- ✅ All tests passing (75/75: 29 unit + 34 integration + 9 property + 3 doc)
 
-**Phase 4 Status:**
+**Phase 4 Status (✅ COMPLETE - January 16, 2025):**
 
 **✅ Phase 4.0: Retention & Cleanup COMPLETE**
 - ✅ Startup cleanup (runs once on hub start)
@@ -84,6 +84,7 @@ The hub now uses an actor-based architecture for better scalability and maintain
 - ✅ Cleanup statistics tracking (`last_cleanup_time`, `total_metrics_deleted`, `total_service_checks_deleted`)
 - ✅ Configuration validation (retention_days: 1-3650, cleanup_interval_hours: 1-720)
 - ✅ Exposed in `StorageStats` via `GetStats` command
+- ✅ Background task in StorageActor
 
 **✅ Phase 4.1: API Server COMPLETE**
 - ✅ REST API with Axum framework
@@ -102,21 +103,55 @@ The hub now uses an actor-based architecture for better scalability and maintain
 - ✅ WebSocket streaming with broadcast channel integration
 - ✅ API configuration via JSON config file
 - ✅ Feature flag: `api` (enabled by default)
-- ✅ All tests passing (75/75)
+- ✅ All tests passing (84/84)
 
-**📋 Phase 4.2: TUI Dashboard (NEXT)**
-- See "TUI Dashboard Architecture" section below for detailed plans
+**✅ Phase 4.2: TUI Dashboard COMPLETE**
+- ✅ Ratatui-based terminal UI (`guardia-viewer` binary)
+- ✅ WebSocket client for real-time metric/service check streaming
+- ✅ Three-tab interface: Servers, Services, Alerts
+- ✅ **Time-based charts with sliding window** (X-axis shows actual timestamps in HH:MM:SS format)
+  - CPU usage chart with time-based X-axis and configurable window (default: 5 minutes)
+  - Temperature chart with time-based X-axis
+  - Historical data loading on startup (queries `/api/v1/servers/:id/metrics/latest`)
+  - Automatic cleanup of metrics older than 2x time window
+- ✅ **Enhanced memory visualization**
+  - Color-coded memory gauge (green <70%, yellow <85%, red ≥85%)
+  - Progress bars for RAM and Swap usage
+  - Absolute values (GB) + percentages
+- ✅ **Enhanced system information panel**
+  - Hostname, OS, architecture
+  - Quick metrics summary (CPU, temperature, memory)
+- ✅ **Shared type architecture** (`src/api/types.rs`)
+  - ServerInfo and ServiceInfo shared between API and viewer
+  - Prevents serialization mismatches and type drift
+- ✅ Server health status display (up/stale/unknown)
+- ✅ Service health monitoring (up/down/degraded/stale/unknown)
+- ✅ Alert timeline with severity indicators (Critical/Warning/Info)
+- ✅ Keybindings: Tab navigation, arrow keys, space to pause, R to refresh, Q to quit
+- ✅ TOML configuration support (`~/.config/guardia/viewer.toml`)
+  - `api_url`, `api_token`, `refresh_interval`, `max_metrics`
+  - `time_window_seconds` (default: 300 = 5 minutes)
+- ✅ Automatic reconnection on WebSocket disconnect
+- ✅ Time-based metric cleanup (removes metrics older than 2x window)
+- ✅ Feature flag: `dashboard` (enabled by default)
+- See "TUI Dashboard Architecture" section below for implementation details
 
-**Legacy Code:**
-- Old `monitors/server.rs` and `monitors/resources.rs` are kept for reference
-- The `ResourceEvaluation` logic in `monitors/resources.rs` is still used by AlertActor
-- Will be cleaned up after Phase 2
-
-**Testing:**
-- Run actor tests: `cargo test --lib`
-- Run all tests: `cargo test --workspace --all-features`
-- All actors have unit tests in their respective modules
+**Testing Status (January 16, 2025):**
+- ✅ **84 tests passing** (100% pass rate):
+  - 29 unit tests (actors, storage backends, utilities)
+  - 43 integration tests (actor communication, persistence, API endpoints)
+  - 9 property-based tests (QuickCheck)
+  - 3 doc tests
+- Run tests: `cargo test --workspace --all-features`
+- Actor tests: `cargo test --lib`
+- Integration tests: `cargo test --test '*'`
+- All actors have comprehensive unit tests in their respective modules
 - Integration tests for actor communication in `tests/integration/`
+
+**Legacy Code Status:**
+- ✅ Old `monitors/server.rs` and `monitors/resources.rs` cleaned up (Phase 1)
+- ✅ `ResourceEvaluation` logic migrated to AlertActor
+- All monitoring now uses actor-based architecture
 
 ### Metric Persistence (✅ Phase 2 - SQLite Complete)
 
@@ -226,138 +261,159 @@ cargo run --bin hub -- -f config.json
 # API will start automatically: "API server started on http://127.0.0.1:8080"
 ```
 
-### TUI Dashboard Architecture (📋 Phase 4.2 - Planned)
+### TUI Dashboard Architecture (✅ Phase 4.2 - COMPLETE)
 
 A beautiful terminal dashboard for monitoring servers and services in real-time.
 
-**Binary:** `src/bin/viewer.rs` (new binary: `guardia-viewer`)
+**Binary:** `src/bin/viewer.rs` → `guardia-viewer`
+
+**Implementation (`src/viewer/`):**
+- `app.rs` - Main application loop, event handling, WebSocket integration
+  - Historical metrics loading on startup
+  - Periodic API refresh
+  - WebSocket event handling
+- `config.rs` - TOML configuration loading from `~/.config/guardia/viewer.toml`
+- `state.rs` - Application state management
+  - Time-based metric ring buffers with automatic cleanup
+  - Tab navigation and selection state
+  - Server/service/alert lists
+- `websocket.rs` - WebSocket client with automatic reconnection
+- `ui/` - Ratatui-based UI modules
+
+**Shared Types (`src/api/types.rs`):**
+- `ServerInfo` - Shared server response type (used by API and viewer)
+- `ServiceInfo` - Shared service response type (used by API and viewer)
+- **Purpose**: Prevents serialization mismatches and type drift between API and viewer
+- **Benefit**: Single source of truth for API response structures
 
 **Architecture:**
 - Connects to API server (local or remote) via HTTP + WebSocket
-- Real-time updates via `/api/v1/stream` WebSocket
-- Historical data via REST endpoints on demand
-- Configuration file: `~/.config/guardia/viewer.toml`
+- Real-time updates via `/api/v1/stream` WebSocket endpoint
+- Initial data fetch via REST endpoints (`/api/v1/servers`, `/api/v1/services`)
+- Periodic refresh (configurable interval, default 5s)
+- Configuration file: `~/.config/guardia/viewer.toml` or via CLI args
 
 **UI Design (Ratatui + Crossterm):**
 
-**Tab 1: Overview** - All servers at a glance
-- Grid layout with server cards (3-4 per row)
-- Each card shows: server name, health badge, CPU/temp sparklines, last seen
-- Color coding: green (up), yellow (stale), red (unknown/down)
-- Auto-scrolls if more servers than fit on screen
+**Tab 1: Servers** - Server monitoring
+- **Left panel**: Server list with health status indicators (●)
+  - Color coding: green (up), yellow (stale), gray (unknown)
+  - Shows display name and status badge
+  - Arrow keys to select servers
+- **Right panel**: Selected server details
+  - **Enhanced server info panel**: hostname, OS, architecture, quick metrics summary
+  - **Color-coded memory gauge**: RAM and Swap with progress bars (█/░), color-coded by usage
+  - **Time-based CPU chart** (line graph with Braille markers)
+    - X-axis shows actual timestamps (HH:MM:SS format)
+    - Sliding window (default 5 minutes, configurable)
+    - Displays only metrics within time window
+  - **Time-based temperature chart** (line graph with Braille markers)
+    - X-axis shows actual timestamps (HH:MM:SS format)
+    - Same sliding window behavior as CPU chart
+  - Charts auto-update as WebSocket events arrive
+  - **Historical data loading**: queries past metrics on startup for immediate visualization
 
-**Tab 2-N: Server Details** - Per-server graphs
-- One tab per monitored server
-- CPU usage over time (line chart with threshold)
-- Temperature over time (line chart with threshold)
-- Memory usage gauge
-- Last 10 metrics table
-- Navigation: left/right arrows to switch servers
+**Tab 2: Services** - Service health monitoring
+- **Table view**: Service list with columns
+  - Status indicator (●), Service Name, URL, Last Check
+  - Color-coded: green (up), red (down), yellow (degraded), magenta (stale), gray (unknown)
+  - Arrow keys to navigate
+- **Detail panel**: Selected service details
+  - Service name, URL, status, monitoring status, last check, last status
 
-**Tab N+1: Services** - Service health status
-- Table with columns: Name, URL, Status, Last Check, Uptime %, Avg Response
-- Sortable by any column
-- Color-coded status indicators
-- Filter by status (all/up/down/degraded)
+**Tab 3: Alerts** - Alert timeline
+- **Scrollable list** of alerts (newest first, max 500 in memory)
+- Shows: timestamp, severity icon (⚠/⚡/ℹ), server/service ID, alert type, message
+- Color-coded by severity: red (critical), yellow (warning), blue (info)
+- Currently captures service DOWN events automatically
 
-**Tab N+2: Alerts** - Recent alerts timeline
-- Scrollable list of recent alerts (last 100)
-- Shows: timestamp, server/service, type (CPU/temp/service), message
-- Color-coded by severity
-- Filter by server/service/type
-
-**Custom Widgets:**
-```rust
-// src/dashboard/widgets/server_card.rs
-struct ServerCard {
-    server_id: String,
-    display_name: String,
-    health_status: HealthStatus,
-    cpu_sparkline: Vec<f32>,      // Last 60 values
-    temp_sparkline: Vec<f32>,     // Last 60 values
-    last_seen: DateTime<Utc>,
-}
-
-// src/dashboard/widgets/metric_graph.rs
-struct MetricGraph {
-    title: String,
-    data: Vec<(DateTime<Utc>, f32)>,
-    threshold: Option<f32>,       // Draws horizontal line
-    y_range: (f32, f32),
-    time_window: Duration,        // e.g., last 5 minutes
-}
-
-// src/dashboard/widgets/service_list.rs
-struct ServiceList {
-    services: Vec<ServiceRow>,
-    sort_column: Column,
-    filter_status: Option<ServiceStatus>,
-}
-
-// src/dashboard/widgets/alert_timeline.rs
-struct AlertTimeline {
-    alerts: Vec<Alert>,
-    scroll_offset: usize,
-}
-```
+**Implemented Widgets (`src/viewer/ui/`):**
+- `layout.rs` - Main dashboard layout with header (tabs), content area, footer (keybindings/status)
+- `servers.rs` - Server list + enhanced metrics display (system info + memory gauge + time-based charts)
+- `services.rs` - Service table + detail panel
+- `alerts.rs` - Alert timeline with severity indicators
+- `widgets.rs` - Reusable chart widgets
+  - `render_cpu_chart` - Time-based CPU chart with sliding window and HH:MM:SS labels
+  - `render_temp_chart` - Time-based temperature chart with sliding window
+  - `render_memory_gauge` - Color-coded memory/swap gauge with progress bars
 
 **Keybindings:**
-- `Tab` / `Shift+Tab` - Navigate between tabs
-- `↑` `↓` - Navigate within lists/tables
-- `←` `→` - Switch server detail tabs
+- `Tab` / `→` - Next tab
+- `Shift+Tab` / `←` - Previous tab
+- `↑` / `k` - Select previous item (in lists/tables)
+- `↓` / `j` - Select next item (in lists/tables)
 - `Space` - Pause/resume real-time updates
-- `r` - Force refresh (re-query API)
-- `+` / `-` - Zoom time range (5min/15min/1hr/6hr/24hr)
-- `s` - Sort services table (cycles through columns)
-- `f` - Filter services by status
-- `q` - Quit
-- `h` - Show help overlay
+- `r` / `R` - Force refresh (re-query API)
+- `c` - Clear error message
+- `q` / `Q` / `Esc` - Quit
 
 **Data Flow:**
 1. Viewer connects to API server on startup
 2. Fetches initial state via REST endpoints (`/api/v1/servers`, `/api/v1/services`)
-3. Opens WebSocket to `/api/v1/stream`
-4. Receives `MetricEvent` and `ServiceCheckEvent` messages
-5. Updates in-memory ring buffers (last 5 minutes of data)
-6. Renders UI at 60fps using Crossterm
-7. On user navigation to server detail, queries `/api/v1/servers/:id/metrics?start=...` for historical data
+3. **Loads historical metrics** for each server (`/api/v1/servers/:id/metrics/latest?limit=N`)
+   - N calculated based on `time_window_seconds` (e.g., 5 min window = ~30 points at 10s intervals)
+   - Populates charts immediately with historical data
+4. Opens WebSocket to `/api/v1/stream` (automatic reconnection on disconnect)
+5. Receives `MetricEvent` and `ServiceCheckEvent` messages from WebSocket
+6. Updates in-memory ring buffers with **time-based cleanup**
+   - Metrics older than 2x `time_window_seconds` are automatically removed
+   - Safety limit: max 1000 metrics per server, 500 alerts total
+7. Renders UI on state changes or keyboard events (event-driven, ~10 FPS polling)
+   - Charts filter to only show metrics within `time_window_seconds` window
+   - X-axis displays actual timestamps (HH:MM:SS format)
+8. Periodic refresh (default 5s) re-fetches server/service lists from API
+9. Paused mode freezes updates but maintains WebSocket connection
 
 **Configuration (`~/.config/guardia/viewer.toml`):**
 ```toml
-[api]
-endpoint = "http://localhost:8080"
-auth_token = "your-secret-token"  # Optional
+# API server URL
+api_url = "http://localhost:8080"
 
-[ui]
-refresh_rate = 60         # FPS (1-120)
-buffer_size = 300         # Seconds of data in memory
-theme = "dark"            # "dark" or "light"
-graph_style = "line"      # "line", "bar", "area"
+# Optional API authentication token
+api_token = "your-api-token-here"
 
-[timeranges]
-default = "5m"            # Default zoom: 5m, 15m, 1h, 6h, 24h
-zoom_levels = ["5m", "15m", "1h", "6h", "24h"]
+# Refresh interval in seconds (default: 5)
+refresh_interval = 5
+
+# Maximum metrics to keep in memory per server (default: 100)
+max_metrics = 100
+
+# Chart time window in seconds (default: 300 = 5 minutes)
+# Determines how much historical data to display in charts
+# Metrics older than 2x this value are automatically cleaned up
+time_window_seconds = 300
+
+# Enable debug mode (default: false)
+debug = false
 ```
 
-**Running the Dashboard:**
+See `viewer.example.toml` for full configuration template.
+
+**Running the Viewer:**
 ```bash
-# Connect to local hub (default: http://localhost:8080)
-cargo run --bin viewer
+# With default config (~/.config/guardia/viewer.toml)
+guardia-viewer
 
-# Connect to remote hub
-cargo run --bin viewer -- --endpoint http://monitoring.example.com:8080 --token <token>
+# With custom config file
+guardia-viewer --config viewer.toml
 
-# Use config file
-cargo run --bin viewer -- --config ~/.config/guardia/viewer.toml
+# Override API URL and token via CLI
+guardia-viewer --url http://remote-server:8080 --token secret123
 ```
+
+**Dependencies:**
+- `ratatui` (0.29) - Terminal UI framework
+- `crossterm` (0.28) - Terminal manipulation
+- `tokio-tungstenite` (0.24) - WebSocket client
+- `toml` (0.8) - Config file parsing
+- `dirs` (5.0) - Cross-platform config directory
 
 **Implementation Notes:**
-- Use `Ratatui` for rendering (modern, well-maintained TUI framework)
-- Use `Crossterm` as backend (cross-platform terminal control)
-- Use `tokio-tungstenite` for WebSocket client
-- Store data in `Arc<RwLock<AppState>>` for concurrent access
-- Separate thread for WebSocket to avoid blocking UI
-- Use `mpsc` channel to send events from WebSocket thread to UI thread
+- WebSocket client runs in background tokio task with automatic reconnection
+- Events sent to app via `mpsc::unbounded_channel`
+- State updates are non-blocking (try_recv in event loop)
+- Charts use Ratatui's `Chart` widget with Braille markers for smooth rendering
+- Ring buffers (VecDeque) for metric history prevent unbounded memory growth
 
 ## Development Commands
 
@@ -489,9 +545,63 @@ struct ServiceAlertManager {
 ```
 
 **When to Do:**
-- **Priority**: Medium - after Phase 4.1 (retention cleanup and basic API)
+- **Priority**: Medium - after v1.0.0 release
 - **Reason**: Current implementation works without bugs or performance issues
-- **Timing**: 3-5 days after retention/API features are complete
+- **Timing**: Post-release refactoring (v1.1.0 cycle)
 - **Before**: Adding more alert types (would compound the technical debt)
 
 See [ROADMAP.md Phase 3.5](ROADMAP.md#phase-35-alert-architecture-refactoring-) for full plan.
+
+## Current Development Focus (Phase 5: Production Readiness)
+
+**Status:** v0.9.0 (Pre-Release) → Target: v1.0.0 in Q1 2025
+
+**What's Complete:**
+- ✅ All core features implemented (Phases 1-4 complete)
+- ✅ Actor-based architecture with graceful shutdown
+- ✅ SQLite persistence with configurable retention
+- ✅ Service health monitoring with uptime tracking
+- ✅ REST API + WebSocket streaming
+- ✅ Beautiful TUI dashboard with time-based charts
+- ✅ 84 tests passing (29 unit + 43 integration + 9 property + 3 doc)
+
+**Next Steps (Phase 5):**
+1. **Performance Optimization:**
+   - Profile CPU and memory usage under load
+   - Optimize database queries and add connection pooling
+   - Benchmark metric throughput (target: 10k metrics/sec)
+   - Load testing with multiple agents and services
+
+2. **Production Hardening:**
+   - Add structured logging with tracing
+   - Implement meta-monitoring (monitor the monitoring system)
+   - Enhanced health checks for all components
+   - Graceful degradation strategies
+
+3. **Documentation:**
+   - Complete API documentation (OpenAPI/Swagger)
+   - Write deployment guides (systemd, Docker, Kubernetes)
+   - Create troubleshooting guide
+   - Add architecture diagrams
+
+4. **Distribution:**
+   - Create release binaries (Linux, macOS, Windows)
+   - Docker images with multi-stage builds
+   - Installation scripts and package managers
+   - GitHub Actions for automated releases
+
+5. **Quality Assurance:**
+   - Performance regression tests
+   - Chaos testing (network failures, high load)
+   - End-to-end tests
+   - Security audit
+
+**Contributing:**
+When working on this project, focus on:
+- Maintaining backward compatibility with existing configs
+- Adding tests for new features
+- Following the actor pattern for new components
+- Documenting API changes
+- Updating ROADMAP.md with progress notes
+
+See [ROADMAP.md](ROADMAP.md) for detailed development plans and [README.md](README.md) for user-facing documentation.

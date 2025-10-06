@@ -47,7 +47,11 @@ async fn test_metric_flows_from_collector_to_alert() {
         metric_tx.subscribe(),
         service_rx,
     );
-    let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
+    let collector_handle = CollectorHandle::spawn(
+        config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     // Wait a moment for actor startup
     tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
@@ -94,7 +98,11 @@ async fn test_metric_flows_from_collector_to_storage() {
     let (_service_tx, service_rx) = broadcast::channel(256);
 
     let storage_handle = StorageHandle::spawn(metric_tx.subscribe(), service_rx);
-    let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
+    let collector_handle = CollectorHandle::spawn(
+        config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     // Trigger a few polls
     for _ in 0..3 {
@@ -168,8 +176,16 @@ async fn test_multiple_collectors_single_alert_actor() {
         metric_tx.subscribe(),
         service_rx,
     );
-    let collector1 = CollectorHandle::spawn(config1, metric_tx.clone());
-    let collector2 = CollectorHandle::spawn(config2, metric_tx.clone());
+    let collector1 = CollectorHandle::spawn(
+        config1,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
+    let collector2 = CollectorHandle::spawn(
+        config2,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
@@ -230,7 +246,11 @@ async fn test_graceful_shutdown_all_actors() {
         metric_tx.subscribe(),
         service_rx,
     );
-    let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
+    let collector_handle = CollectorHandle::spawn(
+        config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     // Let them run briefly
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
@@ -285,7 +305,11 @@ async fn test_alert_triggered_after_exact_grace_period() {
         metric_tx.subscribe(),
         service_rx,
     );
-    let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
+    let collector_handle = CollectorHandle::spawn(
+        config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     // Wait for actors to initialize and any initial auto-polling to complete
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
@@ -359,7 +383,11 @@ async fn test_recovery_alert_when_back_to_ok() {
         metric_tx.subscribe(),
         service_rx,
     );
-    let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
+    let collector_handle = CollectorHandle::spawn(
+        config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     // Wait for initial auto-poll to complete
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;

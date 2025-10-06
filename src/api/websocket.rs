@@ -10,7 +10,7 @@ use axum::{
 use futures::{SinkExt, stream::StreamExt};
 use tracing::{debug, info};
 
-use crate::{actors::messages::MetricEvent, api::state::ApiState};
+use crate::api::{state::ApiState, types::WsEvent};
 
 /// WebSocket upgrade handler
 ///
@@ -34,15 +34,9 @@ async fn handle_websocket(socket: WebSocket, state: ApiState) {
         loop {
             tokio::select! {
                 // Forward metric events
-                Ok(MetricEvent { server_id, metrics, timestamp, .. }) = metric_rx.recv() => {
-                    let json = serde_json::json!({
-                        "type": "metric",
-                        "server_id": server_id,
-                        "timestamp": timestamp.to_rfc3339(),
-                        "metrics": metrics,
-                    });
-
-                    if let Ok(text) = serde_json::to_string(&json)
+                Ok(event) = metric_rx.recv() => {
+                    let payload = WsEvent::from(event);
+                    if let Ok(text) = serde_json::to_string(&payload)
                         && sender.send(Message::Text(text)).await.is_err() {
                             debug!("WebSocket send failed, client disconnected");
                             break;
@@ -51,18 +45,9 @@ async fn handle_websocket(socket: WebSocket, state: ApiState) {
 
                 // Forward service check events
                 Ok(event) = service_rx.recv() => {
-                    let json = serde_json::json!({
-                        "type": "service_check",
-                        "service_name": event.service_name,
-                        "url": event.url,
-                        "timestamp": event.timestamp.to_rfc3339(),
-                        "status": format!("{:?}", event.status),
-                        "response_time_ms": event.response_time_ms,
-                        "http_status_code": event.http_status_code,
-                        "error_message": event.error_message,
-                    });
+                    let payload = WsEvent::from(event);
 
-                    if let Ok(text) = serde_json::to_string(&json)
+                    if let Ok(text) = serde_json::to_string(&payload)
                         && sender.send(Message::Text(text)).await.is_err() {
                             debug!("WebSocket send failed, client disconnected");
                             break;
@@ -82,7 +67,7 @@ async fn handle_websocket(socket: WebSocket, state: ApiState) {
         while let Some(Ok(msg)) = receiver.next().await {
             match msg {
                 Message::Close(_) => break,
-                Message::Ping(data) => {
+                Message::Ping(_data) => {
                     // Pong is automatically sent by axum
                     debug!("Received ping");
                 }

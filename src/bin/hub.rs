@@ -77,6 +77,12 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
     // Create broadcast channel for service check events
     let (service_tx, _service_rx) = broadcast::channel(256);
 
+    // Create broadcast channel for polling status events
+    let (polling_tx, _polling_rx) = broadcast::channel(256);
+
+    // Clone services for alert actor registration (needed before storage actor)
+    let services_for_alert = config.services.clone().unwrap_or_default();
+
     // Initialize storage backend based on config
     #[cfg(feature = "storage-sqlite")]
     let (backend, retention_days, cleanup_interval_hours) =
@@ -97,10 +103,6 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
 
     info!("storage actor started");
 
-    // TODO: move this up to the head of the function
-    // Clone services for alert actor registration
-    let services_for_alert = config.services.clone().unwrap_or_default();
-
     // Spawn alert actor with all server and service configs
     let alert_handle = AlertHandle::spawn(
         servers.clone(),
@@ -118,7 +120,8 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
             .clone()
             .unwrap_or_else(|| format!("{}:{}", server_config.ip, server_config.port));
 
-        let handle = CollectorHandle::spawn(server_config.clone(), metric_tx.clone());
+        let handle =
+            CollectorHandle::spawn(server_config.clone(), metric_tx.clone(), polling_tx.clone());
         info!("collector actor started for {display_name}");
         collector_handles.push(handle);
     }
@@ -137,10 +140,9 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
 
     info!("all actors started, monitoring active");
 
-    // TODO: do we need the api_addr? Maybe for logging
     // Spawn API server if configured
     #[cfg(feature = "api")]
-    let api_addr = if let Some(api_config) = config.api {
+    if let Some(api_config) = config.api {
         use server_monitoring::api::{ApiConfig, ApiState, spawn_api_server};
         use std::net::SocketAddr;
 
@@ -163,23 +165,29 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
             enable_cors: api_config.enable_cors,
         };
 
+        // Spawn polling status tracking task
+        let polling_store_for_tracker = api_state.polling_store.clone();
+        let mut polling_rx = polling_tx.subscribe();
+        tokio::spawn(async move {
+            while let Ok(polling_event) = polling_rx.recv().await {
+                polling_store_for_tracker.handle_event(&polling_event).await;
+            }
+        });
+
         match spawn_api_server(api_config, api_state).await {
             Ok(addr) => {
                 info!("API server started on http://{}", addr);
-                Some(addr)
             }
             Err(e) => {
                 error!("Failed to start API server: {}", e);
-                None
             }
         }
     } else {
         info!("API server disabled (not configured)");
-        None
-    };
+    }
 
     #[cfg(not(feature = "api"))]
-    let api_addr: Option<std::net::SocketAddr> = None;
+    info!("API server disabled (feature not enabled)");
 
     info!("press Ctrl+C to shutdown gracefully");
 

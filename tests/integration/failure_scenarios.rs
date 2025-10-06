@@ -21,7 +21,11 @@ async fn test_collector_handles_agent_unreachable() {
     let config = create_test_server_config("127.0.0.1", 9999);
 
     let (metric_tx, mut metric_rx) = broadcast::channel(256);
-    let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
+    let collector_handle = CollectorHandle::spawn(
+        config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     // Poll should fail but not panic
     let result = collector_handle.poll_now().await;
@@ -53,7 +57,11 @@ async fn test_collector_handles_500_error() {
     let config = create_test_server_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
 
     let (metric_tx, _metric_rx) = broadcast::channel(256);
-    let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
+    let collector_handle = CollectorHandle::spawn(
+        config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     // Poll should fail gracefully
     let result = collector_handle.poll_now().await;
@@ -77,7 +85,11 @@ async fn test_collector_handles_malformed_json() {
     let config = create_test_server_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
 
     let (metric_tx, _metric_rx) = broadcast::channel(256);
-    let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
+    let collector_handle = CollectorHandle::spawn(
+        config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     // Poll should fail gracefully
     let result = collector_handle.poll_now().await;
@@ -181,8 +193,16 @@ async fn test_system_continues_after_collector_error() {
         service_rx,
     );
 
-    let working_collector = CollectorHandle::spawn(working_config, metric_tx.clone());
-    let failing_collector = CollectorHandle::spawn(failing_config, metric_tx.clone());
+    let working_collector = CollectorHandle::spawn(
+        working_config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
+    let failing_collector = CollectorHandle::spawn(
+        failing_config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     // Poll both
     let _ = working_collector.poll_now().await; // Should succeed
@@ -223,7 +243,11 @@ async fn test_slow_agent_response_timeout() {
     let config = create_test_server_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
 
     let (metric_tx, _metric_rx) = broadcast::channel(256);
-    let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
+    let collector_handle = CollectorHandle::spawn(
+        config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     // Poll with our own shorter timeout
     let result = tokio::time::timeout(
@@ -262,7 +286,11 @@ async fn test_partial_metrics_data_handled() {
     let config = create_test_server_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
 
     let (metric_tx, mut metric_rx) = broadcast::channel(256);
-    let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
+    let collector_handle = CollectorHandle::spawn(
+        config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     // Poll should succeed even with partial data
     collector_handle.poll_now().await.unwrap();

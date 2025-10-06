@@ -49,7 +49,7 @@ const BATCH_SIZE_TRIGGER: usize = 100;
 const BATCH_TIME_TRIGGER: Duration = Duration::from_secs(5);
 
 /// Cleanup interval - run retention cleanup daily
-const CLEANUP_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60); // 24 hours
+const DEFAULT_CLEANUP_INTERVAL_HOURS: u32 = 24;
 
 /// Storage actor with optional persistent backend
 ///
@@ -191,8 +191,12 @@ impl StorageActor {
 
         // Cleanup interval for retention policy (configurable, default 24 hours)
         #[cfg(feature = "storage-sqlite")]
-        let cleanup_duration =
-            Duration::from_secs((self.cleanup_interval_hours.unwrap_or(24) as u64) * 3600);
+        let cleanup_duration = Duration::from_secs(
+            (self
+                .cleanup_interval_hours
+                .unwrap_or(DEFAULT_CLEANUP_INTERVAL_HOURS) as u64)
+                * 3600,
+        );
 
         #[cfg(feature = "storage-sqlite")]
         let mut cleanup_interval = time::interval(cleanup_duration);

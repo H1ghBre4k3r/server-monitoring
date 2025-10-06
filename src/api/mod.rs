@@ -29,12 +29,21 @@ pub mod routes;
 #[cfg(feature = "api")]
 pub mod state;
 #[cfg(feature = "api")]
+pub mod types;
+#[cfg(feature = "api")]
+pub mod utils;
+#[cfg(feature = "api")]
 pub mod websocket;
 
 #[cfg(feature = "api")]
 pub use error::{ApiError, ApiResult};
 #[cfg(feature = "api")]
 pub use state::ApiState;
+#[cfg(feature = "api")]
+pub use types::{
+    HealthResponse, LatestMetricsResponse, MetricsResponse, ServerInfo, ServersResponse,
+    ServiceChecksResponse, ServiceInfo, ServicesResponse, StatsResponse, UptimeResponse,
+};
 
 #[cfg(feature = "api")]
 use axum::{Router, routing::get};

@@ -20,14 +20,14 @@
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio::time::interval;
 use tracing::{debug, error, instrument, trace, warn};
 
 use crate::{ServerMetrics, config::ServerConfig};
 
-use super::messages::{CollectorCommand, MetricEvent};
+use super::messages::{CollectorCommand, MetricEvent, PollingStatusEvent};
 
 /// Actor that polls a single server for metrics
 ///
@@ -46,11 +46,20 @@ pub struct MetricCollectorActor {
     /// Broadcast sender for publishing metrics
     metric_tx: broadcast::Sender<MetricEvent>,
 
+    /// Broadcast sender for publishing polling status updates
+    polling_tx: broadcast::Sender<PollingStatusEvent>,
+
     /// Display name for logging
     display_name: String,
 
     /// Current polling interval
     interval_duration: Duration,
+
+    /// Last successful poll timestamp
+    last_poll_success: Option<DateTime<Utc>>,
+
+    /// Last polling error (timestamp and error message)
+    last_poll_error: Option<(DateTime<Utc>, String)>,
 }
 
 impl MetricCollectorActor {
@@ -59,6 +68,7 @@ impl MetricCollectorActor {
         config: ServerConfig,
         command_rx: mpsc::Receiver<CollectorCommand>,
         metric_tx: broadcast::Sender<MetricEvent>,
+        polling_tx: broadcast::Sender<PollingStatusEvent>,
     ) -> Self {
         let display_name = config
             .display
@@ -75,8 +85,11 @@ impl MetricCollectorActor {
                 .expect("Failed to build HTTP client"),
             command_rx,
             metric_tx,
+            polling_tx,
             display_name,
             interval_duration,
+            last_poll_success: None,
+            last_poll_error: None,
         }
     }
 
@@ -137,13 +150,15 @@ impl MetricCollectorActor {
     ///
     /// This method:
     /// 1. Makes HTTP request to agent's /metrics endpoint
-    /// 2. Parses the JSON response
-    /// 3. Publishes a MetricEvent to the broadcast channel
+    /// 2. Updates polling status (success/failure)
+    /// 3. Parses the JSON response on success
+    /// 4. Publishes PollingStatusEvent and MetricEvent to broadcast channels
     ///
     /// Errors are logged but do not crash the actor (retry on next interval).
     #[instrument(skip(self), fields(server = %self.display_name))]
-    async fn poll_metrics(&self) -> Result<()> {
+    async fn poll_metrics(&mut self) -> Result<()> {
         let url = format!("http://{}:{}/metrics", self.config.ip, self.config.port);
+        let now = Utc::now();
 
         trace!("requesting metrics from {url}");
 
@@ -154,50 +169,103 @@ impl MetricCollectorActor {
             request = request.header("X-MONITORING-SECRET", token);
         }
 
-        // Send request with timeout
-        let response = request
-            .send()
-            .await
-            .context("failed to send HTTP request")?;
+        // Attempt the request
+        let poll_result = async {
+            // Send request with timeout
+            let response = request
+                .send()
+                .await
+                .context("failed to send HTTP request")?;
 
-        // Check status code
-        if !response.status().is_success() {
-            anyhow::bail!("HTTP error: {}", response.status());
-        }
-
-        // Parse response body
-        let body = response
-            .text()
-            .await
-            .context("failed to read response body")?;
-
-        let metrics: ServerMetrics =
-            serde_json::from_str(&body).context("failed to parse metrics JSON")?;
-
-        trace!("successfully parsed metrics");
-
-        // Create event
-        let event = MetricEvent {
-            server_id: format!("{}:{}", self.config.ip, self.config.port),
-            metrics,
-            timestamp: Utc::now(),
-            display_name: self.display_name.clone(),
-        };
-
-        // Publish to broadcast channel
-        // Note: We ignore send errors. It's OK if there are no subscribers.
-        // The broadcast channel will also lag/drop messages for slow subscribers,
-        // which is acceptable for real-time metrics.
-        match self.metric_tx.send(event) {
-            Ok(num_receivers) => {
-                trace!("published metric event to {num_receivers} receivers");
+            // Check status code
+            if !response.status().is_success() {
+                anyhow::bail!("HTTP error: {}", response.status());
             }
-            Err(_) => {
-                trace!("no receivers for metric event (this is OK)");
+
+            // Parse response body
+            let body = response
+                .text()
+                .await
+                .context("failed to read response body")?;
+
+            let metrics: ServerMetrics =
+                serde_json::from_str(&body).context("failed to parse metrics JSON")?;
+
+            Ok(metrics)
+        }
+        .await;
+
+        // Update polling status and emit appropriate events
+        match poll_result {
+            Ok(metrics) => {
+                // Update success status
+                self.last_poll_success = Some(now);
+                self.last_poll_error = None;
+
+                // Publish polling success event
+                let polling_event = PollingStatusEvent {
+                    server_id: format!("{}:{}", self.config.ip, self.config.port),
+                    timestamp: now,
+                    display_name: self.display_name.clone(),
+                    success: true,
+                    error_message: None,
+                };
+
+                match self.polling_tx.send(polling_event) {
+                    Ok(num_receivers) => {
+                        trace!("published polling success event to {num_receivers} receivers");
+                    }
+                    Err(_) => {
+                        trace!("no receivers for polling event (this is OK)");
+                    }
+                }
+
+                // Create and publish metric event
+                let metric_event = MetricEvent {
+                    server_id: format!("{}:{}", self.config.ip, self.config.port),
+                    metrics,
+                    timestamp: now,
+                    display_name: self.display_name.clone(),
+                };
+
+                match self.metric_tx.send(metric_event) {
+                    Ok(num_receivers) => {
+                        trace!("published metric event to {num_receivers} receivers");
+                    }
+                    Err(_) => {
+                        trace!("no receivers for metric event (this is OK)");
+                    }
+                }
+
+                Ok(())
+            }
+            Err(e) => {
+                // Update error status
+                let error_msg = e.to_string();
+                self.last_poll_error = Some((now, error_msg.clone()));
+
+                // Publish polling failure event
+                let polling_event = PollingStatusEvent {
+                    server_id: format!("{}:{}", self.config.ip, self.config.port),
+                    timestamp: now,
+                    display_name: self.display_name.clone(),
+                    success: false,
+                    error_message: Some(error_msg),
+                };
+
+                match self.polling_tx.send(polling_event) {
+                    Ok(num_receivers) => {
+                        trace!("published polling failure event to {num_receivers} receivers");
+                    }
+                    Err(_) => {
+                        trace!("no receivers for polling event (this is OK)");
+                    }
+                }
+
+                // Return the error for logging
+                Err(e)
             }
         }
-
-        Ok(())
     }
 }
 
@@ -221,13 +289,17 @@ impl CollectorHandle {
     /// Spawn a new collector actor
     ///
     /// This creates the actor, spawns it as a tokio task, and returns a handle.
-    pub fn spawn(config: ServerConfig, metric_tx: broadcast::Sender<MetricEvent>) -> Self {
+    pub fn spawn(
+        config: ServerConfig,
+        metric_tx: broadcast::Sender<MetricEvent>,
+        polling_tx: broadcast::Sender<PollingStatusEvent>,
+    ) -> Self {
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
 
         let server_id = format!("{}:{}", config.ip, config.port);
         let display_name = config.display.clone().unwrap_or_else(|| server_id.clone());
 
-        let actor = MetricCollectorActor::new(config, cmd_rx, metric_tx);
+        let actor = MetricCollectorActor::new(config, cmd_rx, metric_tx, polling_tx);
 
         tokio::spawn(actor.run());
 
@@ -299,8 +371,9 @@ mod tests {
     async fn test_collector_handle_creation() {
         let config = create_test_config("127.0.0.1", 3000);
         let (metric_tx, _metric_rx) = broadcast::channel(16);
+        let (polling_tx, _polling_rx) = broadcast::channel(16);
 
-        let handle = CollectorHandle::spawn(config, metric_tx);
+        let handle = CollectorHandle::spawn(config, metric_tx, polling_tx);
 
         assert_eq!(handle.server_id, "127.0.0.1:3000");
         assert_eq!(handle.display_name, "Test 127.0.0.1:3000");
@@ -313,7 +386,8 @@ mod tests {
     async fn test_update_interval() {
         let config = create_test_config("127.0.0.1", 3000);
         let (metric_tx, _metric_rx) = broadcast::channel(16);
-        let handle = CollectorHandle::spawn(config, metric_tx);
+        let (polling_tx, _polling_rx) = broadcast::channel(16);
+        let handle = CollectorHandle::spawn(config, metric_tx, polling_tx);
 
         // Should not error
         handle.update_interval(5).await.unwrap();
@@ -326,7 +400,8 @@ mod tests {
         // Test that poll_now returns error when server is unreachable
         let config = create_test_config("127.0.0.1", 9999); // Unlikely to be running
         let (metric_tx, _metric_rx) = broadcast::channel(16);
-        let handle = CollectorHandle::spawn(config, metric_tx);
+        let (polling_tx, _polling_rx) = broadcast::channel(16);
+        let handle = CollectorHandle::spawn(config, metric_tx, polling_tx);
 
         // Poll should fail but not panic
         let result = handle.poll_now().await;
@@ -380,7 +455,8 @@ mod tests {
         config.interval = 1;
 
         let (metric_tx, mut metric_rx) = broadcast::channel(16);
-        let handle = CollectorHandle::spawn(config, metric_tx);
+        let (polling_tx, _polling_rx) = broadcast::channel(16);
+        let handle = CollectorHandle::spawn(config, metric_tx, polling_tx);
 
         // Trigger poll
         handle.poll_now().await.unwrap();
@@ -416,7 +492,8 @@ mod tests {
         let config = create_test_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
 
         let (metric_tx, _metric_rx) = broadcast::channel(16);
-        let handle = CollectorHandle::spawn(config, metric_tx);
+        let (polling_tx, _polling_rx) = broadcast::channel(16);
+        let handle = CollectorHandle::spawn(config, metric_tx, polling_tx);
 
         // Should return error but not panic
         let result = handle.poll_now().await;
@@ -444,7 +521,8 @@ mod tests {
         let config = create_test_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
 
         let (metric_tx, _metric_rx) = broadcast::channel(16);
-        let handle = CollectorHandle::spawn(config, metric_tx);
+        let (polling_tx, _polling_rx) = broadcast::channel(16);
+        let handle = CollectorHandle::spawn(config, metric_tx, polling_tx);
 
         // Should return error for invalid JSON
         let result = handle.poll_now().await;
@@ -457,7 +535,8 @@ mod tests {
     async fn test_shutdown_stops_polling() {
         let config = create_test_config("127.0.0.1", 9999);
         let (metric_tx, _metric_rx) = broadcast::channel(16);
-        let handle = CollectorHandle::spawn(config, metric_tx);
+        let (polling_tx, _polling_rx) = broadcast::channel(16);
+        let handle = CollectorHandle::spawn(config, metric_tx, polling_tx);
 
         // Shutdown immediately
         handle.shutdown().await.unwrap();
@@ -497,7 +576,8 @@ mod tests {
         let config = create_test_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
 
         let (metric_tx, _metric_rx) = broadcast::channel(16);
-        let handle = CollectorHandle::spawn(config, metric_tx);
+        let (polling_tx, _polling_rx) = broadcast::channel(16);
+        let handle = CollectorHandle::spawn(config, metric_tx, polling_tx);
 
         // Send multiple concurrent poll requests
         let mut tasks = vec![];

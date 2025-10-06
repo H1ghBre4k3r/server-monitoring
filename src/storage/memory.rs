@@ -23,12 +23,6 @@ use super::error::StorageResult;
 use super::schema::{MetricRow, ServiceCheckRow, UptimeStats};
 use crate::actors::messages::ServiceStatus;
 
-/// Maximum metrics to keep in memory per server
-const MAX_METRICS_PER_SERVER: usize = 1000;
-
-/// Maximum service checks to keep in memory per service
-const MAX_SERVICE_CHECKS_PER_SERVICE: usize = 1000;
-
 /// In-memory storage backend
 ///
 /// Stores metrics in a ring buffer with a fixed capacity.

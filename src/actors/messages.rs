@@ -40,6 +40,29 @@ pub struct MetricEvent {
     pub display_name: String,
 }
 
+/// Event published when polling status changes for a server
+///
+/// This event tracks whether the collector can successfully reach the server,
+/// regardless of the metrics themselves. This helps distinguish between
+/// "server is down" vs "metrics are old" scenarios.
+#[derive(Debug, Clone)]
+pub struct PollingStatusEvent {
+    /// Unique identifier for the server (format: "ip:port")
+    pub server_id: String,
+
+    /// When the poll attempt occurred
+    pub timestamp: DateTime<Utc>,
+
+    /// Display name for the server (for logging/alerts)
+    pub display_name: String,
+
+    /// Whether the poll was successful
+    pub success: bool,
+
+    /// Error message if poll failed
+    pub error_message: Option<String>,
+}
+
 /// Commands that can be sent to a MetricCollectorActor
 #[derive(Debug)]
 pub enum CollectorCommand {
@@ -201,20 +224,8 @@ pub struct StorageStats {
 // Service Monitoring Messages (Phase 3)
 // ============================================================================
 
-/// Service health status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ServiceStatus {
-    /// Service is responding correctly
-    Up,
-
-    /// Service is not responding or failing checks
-    Down,
-
-    /// Service is responding but not meeting all health criteria
-    /// (e.g., unexpected status code, body pattern mismatch)
-    Degraded,
-}
+// Re-export it for backward compatibility
+pub use crate::api::types::ServiceStatus;
 
 /// Event published when a service health check is performed
 ///

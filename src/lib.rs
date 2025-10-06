@@ -7,6 +7,8 @@ pub mod discord;
 pub mod monitors;
 pub mod storage;
 pub mod util;
+#[cfg(feature = "dashboard")]
+pub mod viewer;
 
 use serde::{Deserialize, Serialize};
 

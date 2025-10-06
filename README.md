@@ -14,7 +14,8 @@
 - **💾 Time-Series Storage**: SQLite backend with configurable retention and automatic cleanup
 - **🎯 Actor-Based Architecture**: Scalable, maintainable, and testable design using Tokio actors
 - **🔌 REST + WebSocket API**: Remote access with real-time streaming capabilities
-- **📺 TUI Dashboard**: Beautiful terminal UI for monitoring (coming soon in Phase 4.2)
+- **📺 TUI Dashboard**: Beautiful terminal UI with time-based charts, memory gauges, and sliding windows
+- **📈 Advanced Visualization**: Time-based charts with HH:MM:SS labels, color-coded memory gauges, historical data loading
 - **🔐 Security**: Token-based authentication for agents and API access
 - **⚙️ Configurable**: JSON-based configuration with extensive customization options
 
@@ -55,7 +56,7 @@
 **Components:**
 - **Agent** (`guardia-agent`): Runs on each monitored server, exposes metrics via HTTP
 - **Hub** (`guardia-hub`): Central monitoring service with actor-based architecture
-- **Viewer** (`guardia-viewer`): TUI dashboard for real-time visualization (Phase 4.2)
+- **Viewer** (`guardia-viewer`): TUI dashboard for real-time visualization
 
 ## 🚀 Quick Start
 
@@ -158,7 +159,46 @@ Create `config.json`:
 guardia-hub -f config.json
 ```
 
-### 5. Access the API
+### 5. Start the Viewer (TUI Dashboard)
+
+```bash
+# Create viewer config
+mkdir -p ~/.config/guardia
+cat > ~/.config/guardia/viewer.toml <<EOF
+api_url = "http://localhost:8080"
+api_token = "api-secret-token"
+refresh_interval = 5
+max_metrics = 100
+time_window_seconds = 300  # 5 minute sliding window for charts
+EOF
+
+# Run the viewer
+guardia-viewer
+
+# Or with CLI args
+guardia-viewer --url http://localhost:8080 --token api-secret-token
+```
+
+**TUI Dashboard Features:**
+- **Time-based Charts**: CPU and temperature charts with actual timestamps (HH:MM:SS format)
+  - Configurable sliding window (default: 5 minutes)
+  - Automatic historical data loading on startup
+  - Real-time updates via WebSocket
+- **Enhanced Memory Visualization**: Color-coded gauges for RAM and Swap
+  - Green (<70%), Yellow (<85%), Red (≥85%)
+  - Progress bars with absolute values (GB) and percentages
+- **Server Details**: Hostname, OS, architecture, quick metrics summary
+- **Three-Tab Interface**: Servers, Services, Alerts
+- **Health Status Indicators**: Color-coded status for all monitored resources
+
+**Keybindings:**
+- `Tab` / `←` `→` - Navigate between tabs (Servers, Services, Alerts)
+- `↑` `↓` / `j` `k` - Select items in lists
+- `Space` - Pause/resume real-time updates
+- `r` - Refresh data from API
+- `q` / `Esc` - Quit
+
+### 6. Access the API (Optional)
 
 ```bash
 # Health check
@@ -301,7 +341,7 @@ cargo build --bin agent
 ### Testing
 
 ```bash
-# Run all tests (75 tests: unit + integration + property + doc)
+# Run all tests (84 tests: unit + integration + property + doc)
 cargo test --workspace --all-features
 
 # Run specific test suite
@@ -381,18 +421,20 @@ This project is licensed under the GPL-3.0 License - see the [LICENSE](LICENSE) 
 
 ## 🗺️ Roadmap
 
-**Completed:**
-- ✅ Phase 1: Actor-based architecture
-- ✅ Phase 2: SQLite persistence with retention
-- ✅ Phase 3: Service health monitoring
-- ✅ Phase 4.0: Automatic cleanup
-- ✅ Phase 4.1: REST API + WebSocket server
+**Completed (v0.9.0):**
+- ✅ Phase 1: Actor-based architecture with graceful shutdown
+- ✅ Phase 2: SQLite persistence with batching and hybrid schema
+- ✅ Phase 3: Service health monitoring (HTTP/HTTPS with uptime tracking)
+- ✅ Phase 4.0: Automatic retention cleanup with configurable policies
+- ✅ Phase 4.1: REST API + WebSocket streaming
+- ✅ Phase 4.2: TUI Dashboard with time-based charts and historical data loading
 
-**In Progress:**
-- 🚧 Phase 4.2: TUI Dashboard with Ratatui
+**Current Focus:**
+- 🎯 Phase 5: Production hardening and performance optimization (target: v1.0.0)
 
-**Planned:**
-- 📋 Phase 5: Production hardening and performance optimization
+**Future Plans:**
+- 📋 Phase 3.5: Alert architecture refactoring (split metric/service alerts)
+- 📋 v1.1.0+: Mobile app, additional alert channels, anomaly detection
 
 See [ROADMAP.md](ROADMAP.md) for detailed plans.
 

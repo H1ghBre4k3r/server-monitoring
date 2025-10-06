@@ -44,7 +44,11 @@ async fn test_concurrent_collectors_no_race() {
             create_test_server_config(mock_url.host_str().unwrap(), mock_url.port().unwrap());
         config.display = Some(format!("Collector {i}"));
 
-        let handle = CollectorHandle::spawn(config, metric_tx.clone());
+        let handle = CollectorHandle::spawn(
+            config,
+            metric_tx.clone(),
+            tokio::sync::broadcast::channel(16).0,
+        );
         handles.push(handle);
     }
 
@@ -114,7 +118,11 @@ async fn test_rapid_metric_updates_no_data_loss() {
     let (_service_tx, service_rx) = broadcast::channel(256);
 
     let storage_handle = StorageHandle::spawn(metric_tx.subscribe(), service_rx);
-    let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
+    let collector_handle = CollectorHandle::spawn(
+        config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     // Trigger many rapid polls
     let mut tasks = vec![];
@@ -193,7 +201,11 @@ async fn test_concurrent_shutdown_requests() {
     let config = create_test_server_config("127.0.0.1", 9999);
 
     let (metric_tx, _metric_rx) = broadcast::channel(256);
-    let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
+    let collector_handle = CollectorHandle::spawn(
+        config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     // Send shutdown from multiple tasks concurrently
     let mut tasks = vec![];
@@ -241,7 +253,11 @@ async fn test_grace_period_race_condition() {
         metric_tx.subscribe(),
         service_rx,
     );
-    let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
+    let collector_handle = CollectorHandle::spawn(
+        config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     // Wait for initialization and get initial counter (may have auto-polled)
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
@@ -304,7 +320,11 @@ async fn test_multiple_subscribers_all_receive_metrics() {
         service_rx,
     );
 
-    let collector_handle = CollectorHandle::spawn(config, metric_tx.clone());
+    let collector_handle = CollectorHandle::spawn(
+        config,
+        metric_tx.clone(),
+        tokio::sync::broadcast::channel(16).0,
+    );
 
     // Trigger some polls
     for _ in 0..3 {

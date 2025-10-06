@@ -14,7 +14,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Install the agent binary
-install -m 755 target/release/agent /usr/local/bin/guardia-agent
+install -m 755 target/release/guardia-agent /usr/local/bin/guardia-agent
 
 # Create the environment file
 cat > /etc/default/guardia-agent <<EOF
