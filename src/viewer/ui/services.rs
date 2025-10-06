@@ -113,20 +113,19 @@ fn render_service_details(frame: &mut Frame, area: Rect, state: &AppState) {
             Line::from(vec![
                 Span::styled("Status: ", Style::default().fg(Color::Cyan)),
                 Span::styled(
-                    &service.health_status,
-                    Style::default().fg(match service.health_status.as_str() {
-                        "up" => Color::Green,
-                        "down" => Color::Red,
-                        "degraded" => Color::Yellow,
-                        "stale" => Color::Magenta,
-                        "unknown" => Color::Gray,
-                        _ => Color::White,
+                    service.health_status.to_string(),
+                    Style::default().fg(match service.health_status {
+                        crate::api::types::ServiceHealthStatus::Up => Color::Green,
+                        crate::api::types::ServiceHealthStatus::Down => Color::Red,
+                        crate::api::types::ServiceHealthStatus::Degraded => Color::Yellow,
+                        crate::api::types::ServiceHealthStatus::Stale => Color::Magenta,
+                        crate::api::types::ServiceHealthStatus::Unknown => Color::Gray,
                     }),
                 ),
             ]),
             Line::from(vec![
                 Span::styled("Monitoring: ", Style::default().fg(Color::Cyan)),
-                Span::raw(&service.monitoring_status),
+                Span::raw(service.monitoring_status.to_string()),
             ]),
         ];
 
@@ -140,7 +139,7 @@ fn render_service_details(frame: &mut Frame, area: Rect, state: &AppState) {
         if let Some(last_status) = &service.last_status {
             lines.push(Line::from(vec![
                 Span::styled("Last Status: ", Style::default().fg(Color::Cyan)),
-                Span::raw(last_status),
+                Span::raw(last_status.to_string()),
             ]));
         }
 

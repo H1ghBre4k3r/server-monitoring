@@ -40,6 +40,29 @@ pub struct MetricEvent {
     pub display_name: String,
 }
 
+/// Event published when polling status changes for a server
+///
+/// This event tracks whether the collector can successfully reach the server,
+/// regardless of the metrics themselves. This helps distinguish between
+/// "server is down" vs "metrics are old" scenarios.
+#[derive(Debug, Clone)]
+pub struct PollingStatusEvent {
+    /// Unique identifier for the server (format: "ip:port")
+    pub server_id: String,
+
+    /// When the poll attempt occurred
+    pub timestamp: DateTime<Utc>,
+
+    /// Display name for the server (for logging/alerts)
+    pub display_name: String,
+
+    /// Whether the poll was successful
+    pub success: bool,
+
+    /// Error message if poll failed
+    pub error_message: Option<String>,
+}
+
 /// Commands that can be sent to a MetricCollectorActor
 #[derive(Debug)]
 pub enum CollectorCommand {

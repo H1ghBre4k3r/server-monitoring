@@ -35,11 +35,11 @@ fn render_server_list(frame: &mut Frame, area: Rect, state: &AppState) {
         .iter()
         .enumerate()
         .map(|(i, server)| {
-            let health_color = match server.health_status.as_str() {
-                "up" => Color::Green,
-                "stale" => Color::Yellow,
-                "unknown" => Color::Gray,
-                _ => Color::Red,
+            let health_color = match server.health_status {
+                crate::api::types::ServerHealthStatus::Up => Color::Green,
+                crate::api::types::ServerHealthStatus::Down => Color::Red,
+                crate::api::types::ServerHealthStatus::Stale => Color::Yellow,
+                crate::api::types::ServerHealthStatus::Unknown => Color::Gray,
             };
 
             let content = Line::from(vec![
@@ -119,11 +119,11 @@ fn render_server_info(
         Span::styled(
             format!("[{}]", &server.health_status),
             Style::default()
-                .fg(match server.health_status.as_str() {
-                    "up" => Color::Green,
-                    "stale" => Color::Yellow,
-                    "unknown" => Color::Gray,
-                    _ => Color::Red,
+                .fg(match server.health_status {
+                    crate::api::types::ServerHealthStatus::Up => Color::Green,
+                    crate::api::types::ServerHealthStatus::Down => Color::Red,
+                    crate::api::types::ServerHealthStatus::Stale => Color::Yellow,
+                    crate::api::types::ServerHealthStatus::Unknown => Color::Gray,
                 })
                 .add_modifier(Modifier::BOLD),
         ),

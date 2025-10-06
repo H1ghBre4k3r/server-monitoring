@@ -6,6 +6,119 @@
 
 use serde::{Deserialize, Serialize};
 
+// ============================================================================
+// Status Enums - Type-safe status representations
+// ============================================================================
+
+/// Monitoring status for servers and services
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum MonitoringStatus {
+    Active,
+    Paused,
+    Disabled,
+}
+
+impl std::fmt::Display for MonitoringStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MonitoringStatus::Active => write!(f, "active"),
+            MonitoringStatus::Paused => write!(f, "paused"),
+            MonitoringStatus::Disabled => write!(f, "disabled"),
+        }
+    }
+}
+
+/// Health status for servers
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ServerHealthStatus {
+    /// Server responding and metrics recent
+    Up,
+    /// Server not responding (polling failures)
+    Down,
+    /// Metrics are old (>5 min) but polling succeeds
+    Stale,
+    /// No data available
+    Unknown,
+}
+
+impl std::fmt::Display for ServerHealthStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl ServerHealthStatus {
+    /// Get the string representation (lowercase)
+    ///
+    /// This matches the serde serialization format.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ServerHealthStatus::Up => "up",
+            ServerHealthStatus::Down => "down",
+            ServerHealthStatus::Stale => "stale",
+            ServerHealthStatus::Unknown => "unknown",
+        }
+    }
+}
+
+/// Health status for services
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ServiceHealthStatus {
+    /// Service responding normally
+    Up,
+    /// Service not responding
+    Down,
+    /// Service responding slowly/with errors
+    Degraded,
+    /// Last check is old (>5 min)
+    Stale,
+    /// No data available
+    Unknown,
+}
+
+impl std::fmt::Display for ServiceHealthStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl ServiceHealthStatus {
+    /// Get the string representation (lowercase)
+    ///
+    /// This matches the serde serialization format.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ServiceHealthStatus::Up => "up",
+            ServiceHealthStatus::Down => "down",
+            ServiceHealthStatus::Degraded => "degraded",
+            ServiceHealthStatus::Stale => "stale",
+            ServiceHealthStatus::Unknown => "unknown",
+        }
+    }
+}
+
+/// Service check result status
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ServiceCheckStatus {
+    Up,
+    Down,
+    Degraded,
+}
+
+impl std::fmt::Display for ServiceCheckStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ServiceCheckStatus::Up => write!(f, "up"),
+            ServiceCheckStatus::Down => write!(f, "down"),
+            ServiceCheckStatus::Degraded => write!(f, "degraded"),
+        }
+    }
+}
+
 /// Server information with health status
 ///
 /// Returned by GET /api/v1/servers and used by the viewer for display
@@ -17,15 +130,23 @@ pub struct ServerInfo {
     /// Human-readable display name
     pub display_name: String,
 
-    /// Monitoring status: "active", "paused", etc.
-    pub monitoring_status: String,
+    /// Monitoring status
+    pub monitoring_status: MonitoringStatus,
 
-    /// Health status: "up", "stale", "unknown"
-    pub health_status: String,
+    /// Health status
+    pub health_status: ServerHealthStatus,
 
     /// Last time metrics were received (RFC 3339 timestamp)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_seen: Option<String>,
+
+    /// Last successful poll timestamp (RFC 3339 format)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_poll_success: Option<String>,
+
+    /// Last polling error message
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_poll_error: Option<String>,
 }
 
 /// Service information with health status
@@ -39,19 +160,19 @@ pub struct ServiceInfo {
     /// URL being monitored
     pub url: String,
 
-    /// Monitoring status: "active", "paused", etc.
-    pub monitoring_status: String,
+    /// Monitoring status
+    pub monitoring_status: MonitoringStatus,
 
-    /// Health status: "up", "down", "degraded", "stale", "unknown"
-    pub health_status: String,
+    /// Health status
+    pub health_status: ServiceHealthStatus,
 
     /// Last check timestamp (RFC 3339 format)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_check: Option<String>,
 
-    /// Last status result: "up", "down", or "degraded"
+    /// Last status result
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_status: Option<String>,
+    pub last_status: Option<ServiceCheckStatus>,
 }
 
 // ============================================================================

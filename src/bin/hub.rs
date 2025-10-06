@@ -77,6 +77,9 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
     // Create broadcast channel for service check events
     let (service_tx, _service_rx) = broadcast::channel(256);
 
+    // Create broadcast channel for polling status events
+    let (polling_tx, _polling_rx) = broadcast::channel(256);
+
     // Clone services for alert actor registration (needed before storage actor)
     let services_for_alert = config.services.clone().unwrap_or_default();
 
@@ -117,7 +120,7 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
             .clone()
             .unwrap_or_else(|| format!("{}:{}", server_config.ip, server_config.port));
 
-        let handle = CollectorHandle::spawn(server_config.clone(), metric_tx.clone());
+        let handle = CollectorHandle::spawn(server_config.clone(), metric_tx.clone(), polling_tx.clone());
         info!("collector actor started for {display_name}");
         collector_handles.push(handle);
     }
@@ -160,6 +163,15 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
             auth_token: api_config.auth_token,
             enable_cors: api_config.enable_cors,
         };
+
+        // Spawn polling status tracking task
+        let polling_store_for_tracker = api_state.polling_store.clone();
+        let mut polling_rx = polling_tx.subscribe();
+        tokio::spawn(async move {
+            while let Ok(polling_event) = polling_rx.recv().await {
+                polling_store_for_tracker.handle_event(&polling_event).await;
+            }
+        });
 
         match spawn_api_server(api_config, api_state).await {
             Ok(addr) => {

@@ -11,7 +11,7 @@ use crate::{
     api::{
         error::ApiResult,
         state::ApiState,
-        types::{LatestMetricsResponse, MetricsResponse, ServerInfo, ServersResponse},
+        types::{LatestMetricsResponse, MetricsResponse, ServerInfo, ServersResponse, MonitoringStatus, ServerHealthStatus},
     },
     storage::backend::QueryRange,
 };
@@ -50,12 +50,43 @@ pub struct LatestQuery {
     limit: Option<usize>,
 }
 
-/// Determine health status based on metric age
-fn determine_health_status(metric_age_secs: i64) -> &'static str {
+/// Determine health status based on metric age and polling status
+fn determine_health_status(
+    metric_age_secs: i64,
+    polling_status: &crate::api::state::PollingStatus,
+) -> ServerHealthStatus {
+    let now = Utc::now();
+
+    // Check if we have recent polling failures (server is down)
+    if let Some(last_error_time) = polling_status.last_error_timestamp {
+        let error_age_secs = (now - last_error_time).num_seconds();
+
+        // If the last poll was within the last 2 minutes and failed, mark as down
+        if error_age_secs < 120 {
+            return ServerHealthStatus::Down;
+        }
+    }
+
+    // Check if we have recent successful polls and recent metrics
+    if let Some(last_success_time) = polling_status.last_success_timestamp {
+        let success_age_secs = (now - last_success_time).num_seconds();
+
+        // If last poll was successful but metrics are old, mark as stale
+        if metric_age_secs > STALE_THRESHOLD_SECS && success_age_secs < STALE_THRESHOLD_SECS {
+            return ServerHealthStatus::Stale;
+        }
+
+        // If both polling and metrics are recent, mark as up
+        if metric_age_secs <= STALE_THRESHOLD_SECS && success_age_secs < STALE_THRESHOLD_SECS {
+            return ServerHealthStatus::Up;
+        }
+    }
+
+    // If no recent polling data, check metric age
     if metric_age_secs > STALE_THRESHOLD_SECS {
-        "stale"
+        ServerHealthStatus::Stale
     } else {
-        "up"
+        ServerHealthStatus::Up
     }
 }
 
@@ -69,25 +100,37 @@ pub async fn list_servers(State(state): State<ApiState>) -> ApiResult<Json<Serve
         let server_id = collector.server_id().to_string();
         let display_name = collector.display_name.clone();
 
+        // Get polling status for this server
+        let polling_status = state.polling_store.get_status(&server_id).await;
+
         // Query latest metric to determine health
         let (health_status, last_seen) =
             match state.storage.query_latest(server_id.clone(), 1).await {
                 Ok(metrics) if !metrics.is_empty() => {
                     let metric = &metrics[0];
                     let age_secs = (Utc::now() - metric.timestamp).num_seconds();
-                    let status = determine_health_status(age_secs);
+                    let status = determine_health_status(age_secs, &polling_status);
                     let timestamp = metric.timestamp.to_rfc3339();
                     (status, Some(timestamp))
                 }
-                _ => ("unknown", None),
+                _ => {
+                    // No metrics available - check if we have polling data
+                    if polling_status.last_error_timestamp.is_some() {
+                        (ServerHealthStatus::Down, None)
+                    } else {
+                        (ServerHealthStatus::Unknown, None)
+                    }
+                }
             };
 
         servers.push(ServerInfo {
             server_id,
             display_name,
-            monitoring_status: "active".to_string(),
-            health_status: health_status.to_string(),
+            monitoring_status: MonitoringStatus::Active,
+            health_status,
             last_seen,
+            last_poll_success: polling_status.last_success,
+            last_poll_error: polling_status.last_error,
         });
     }
 

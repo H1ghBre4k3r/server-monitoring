@@ -10,7 +10,10 @@ use serde::Deserialize;
 use crate::api::{
     error::ApiResult,
     state::ApiState,
-    types::{ServiceChecksResponse, ServiceInfo, ServicesResponse, UptimeResponse},
+    types::{
+        MonitoringStatus, ServiceCheckStatus, ServiceChecksResponse, ServiceHealthStatus,
+        ServiceInfo, ServicesResponse, UptimeResponse,
+    },
 };
 
 /// Maximum age in seconds before a service check is considered stale
@@ -35,16 +38,28 @@ pub struct UptimeQuery {
 /// Determine service health status and metadata from latest check
 fn determine_service_health(
     check: &crate::storage::schema::ServiceCheckRow,
-) -> (String, String, String) {
+) -> (ServiceHealthStatus, String, ServiceCheckStatus) {
     let age_secs = (Utc::now() - check.timestamp).num_seconds();
-    let status_str = check.status.as_str().to_string();
     let timestamp = check.timestamp.to_rfc3339();
 
-    if age_secs > STALE_THRESHOLD_SECS {
-        ("stale".to_string(), timestamp, status_str)
+    // Convert storage status to ServiceCheckStatus
+    let check_status = match check.status {
+        crate::actors::messages::ServiceStatus::Up => ServiceCheckStatus::Up,
+        crate::actors::messages::ServiceStatus::Down => ServiceCheckStatus::Down,
+        crate::actors::messages::ServiceStatus::Degraded => ServiceCheckStatus::Degraded,
+    };
+
+    let health_status = if age_secs > STALE_THRESHOLD_SECS {
+        ServiceHealthStatus::Stale
     } else {
-        (status_str.clone(), timestamp, status_str)
-    }
+        match check.status {
+            crate::actors::messages::ServiceStatus::Up => ServiceHealthStatus::Up,
+            crate::actors::messages::ServiceStatus::Down => ServiceHealthStatus::Down,
+            crate::actors::messages::ServiceStatus::Degraded => ServiceHealthStatus::Degraded,
+        }
+    };
+
+    (health_status, timestamp, check_status)
 }
 
 /// GET /api/v1/services
@@ -68,13 +83,13 @@ pub async fn list_services(State(state): State<ApiState>) -> ApiResult<Json<Serv
                 let (health, timestamp, status) = determine_service_health(check);
                 (health, Some(timestamp), Some(status))
             }
-            _ => ("unknown".to_string(), None, None),
+            _ => (ServiceHealthStatus::Unknown, None, None),
         };
 
         services.push(ServiceInfo {
             name: service_name,
             url,
-            monitoring_status: "active".to_string(),
+            monitoring_status: MonitoringStatus::Active,
             health_status,
             last_check,
             last_status,
