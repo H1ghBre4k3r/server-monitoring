@@ -6,18 +6,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Rust-based server monitoring solution that uses a hub-agent architecture to monitor server resources (CPU usage and temperature) and send alerts when thresholds are exceeded.
 
+**Current Version:** v0.9.0 (Pre-Release - nearing v1.0.0)
+
 **Architecture:**
 - **Agent (`src/bin/agent.rs`)**: Runs on monitored servers, exposes metrics via Rocket HTTP server on `/metrics` endpoint
-- **Hub (`src/bin/hub.rs`)**: Central monitoring service using actor-based architecture (Phase 1 refactoring in progress)
+- **Hub (`src/bin/hub.rs`)**: Central monitoring service using actor-based architecture with graceful shutdown
+- **Viewer (`src/bin/viewer.rs`)**: TUI dashboard for real-time visualization with time-based charts
 
 **Key Components:**
 - `ServerMetrics`: Core data structure containing system info, memory, CPU, and component temperature data
 - `AlertManager`: Handles sending alerts via Discord webhooks or generic webhooks
 - Configuration is JSON-based (see `config.example.json`)
 
-### Actor-Based Architecture (✅ Phase 1 COMPLETE)
+### Actor-Based Architecture (✅ COMPLETE)
 
-The hub now uses an actor-based architecture for better scalability and maintainability:
+The hub uses an actor-based architecture for better scalability and maintainability:
 
 **Actors (`src/actors/`):**
 - **MetricCollectorActor** (`collector.rs`): Polls agent endpoints at configured intervals, publishes metrics to broadcast channel
@@ -43,25 +46,23 @@ The hub now uses an actor-based architecture for better scalability and maintain
 - Supervision - actors can be monitored and restarted independently
 - Efficiency - HTTP client reused across requests (old system created new client each poll)
 
-**Phase 1 Status (✅ COMPLETE):**
+**Phase 1 Status (✅ COMPLETE - January 15, 2025):**
 - ✅ Core actor infrastructure implemented
 - ✅ All actor types created with command/event channels
-- ✅ Unit tests passing (5/5)
+- ✅ Unit tests passing
 - ✅ Actors integrated into hub.rs
 - ✅ Graceful shutdown on Ctrl+C
 - ✅ Feature parity verified with old implementation
 
-**Phase 2 Status (✅ SQLite Backend COMPLETE):**
+**Phase 2 Status (✅ COMPLETE - January 15, 2025):**
 - ✅ StorageBackend trait for pluggable persistence
 - ✅ SQLite backend with batching (dual flush triggers: 100 metrics OR 5 seconds)
 - ✅ Hybrid schema: indexed aggregates + full metadata
 - ✅ StorageActor extended with `Option<Box<dyn StorageBackend>>`
 - ✅ Configuration support for storage backends
 - ✅ Backward compatible (falls back to in-memory mode)
-- ✅ All tests passing (60/60)
-- ✅ COMPLETE - Moving to Phase 4 (retention cleanup)
 
-**Phase 3 Status (✅ Service Monitoring COMPLETE):**
+**Phase 3 Status (✅ COMPLETE - January 15, 2025):**
 - ✅ HTTP/HTTPS service check monitoring
 - ✅ ServiceMonitorActor with configurable check intervals
 - ✅ Service check persistence (SQLite + in-memory)
@@ -74,9 +75,8 @@ The hub now uses an actor-based architecture for better scalability and maintain
   - `query_latest_service_checks()` - latest N checks
   - `calculate_uptime()` - uptime statistics
 - ✅ Integration tests (persistence, uptime, range queries)
-- ✅ All tests passing (84/84: 29 unit + 43 integration + 9 property + 3 doc)
 
-**Phase 4 Status (✅ COMPLETE):**
+**Phase 4 Status (✅ COMPLETE - January 16, 2025):**
 
 **✅ Phase 4.0: Retention & Cleanup COMPLETE**
 - ✅ Startup cleanup (runs once on hub start)
@@ -136,16 +136,22 @@ The hub now uses an actor-based architecture for better scalability and maintain
 - ✅ Feature flag: `dashboard` (enabled by default)
 - See "TUI Dashboard Architecture" section below for implementation details
 
-**Legacy Code:**
-- Old `monitors/server.rs` and `monitors/resources.rs` are kept for reference
-- The `ResourceEvaluation` logic in `monitors/resources.rs` is still used by AlertActor
-- Will be cleaned up after Phase 2
-
-**Testing:**
-- Run actor tests: `cargo test --lib`
-- Run all tests: `cargo test --workspace --all-features`
-- All actors have unit tests in their respective modules
+**Testing Status (January 16, 2025):**
+- ✅ **84 tests passing** (100% pass rate):
+  - 29 unit tests (actors, storage backends, utilities)
+  - 43 integration tests (actor communication, persistence, API endpoints)
+  - 9 property-based tests (QuickCheck)
+  - 3 doc tests
+- Run tests: `cargo test --workspace --all-features`
+- Actor tests: `cargo test --lib`
+- Integration tests: `cargo test --test '*'`
+- All actors have comprehensive unit tests in their respective modules
 - Integration tests for actor communication in `tests/integration/`
+
+**Legacy Code Status:**
+- ✅ Old `monitors/server.rs` and `monitors/resources.rs` cleaned up (Phase 1)
+- ✅ `ResourceEvaluation` logic migrated to AlertActor
+- All monitoring now uses actor-based architecture
 
 ### Metric Persistence (✅ Phase 2 - SQLite Complete)
 
@@ -539,9 +545,63 @@ struct ServiceAlertManager {
 ```
 
 **When to Do:**
-- **Priority**: Medium - after Phase 4.1 (retention cleanup and basic API)
+- **Priority**: Medium - after v1.0.0 release
 - **Reason**: Current implementation works without bugs or performance issues
-- **Timing**: 3-5 days after retention/API features are complete
+- **Timing**: Post-release refactoring (v1.1.0 cycle)
 - **Before**: Adding more alert types (would compound the technical debt)
 
 See [ROADMAP.md Phase 3.5](ROADMAP.md#phase-35-alert-architecture-refactoring-) for full plan.
+
+## Current Development Focus (Phase 5: Production Readiness)
+
+**Status:** v0.9.0 (Pre-Release) → Target: v1.0.0 in Q1 2025
+
+**What's Complete:**
+- ✅ All core features implemented (Phases 1-4 complete)
+- ✅ Actor-based architecture with graceful shutdown
+- ✅ SQLite persistence with configurable retention
+- ✅ Service health monitoring with uptime tracking
+- ✅ REST API + WebSocket streaming
+- ✅ Beautiful TUI dashboard with time-based charts
+- ✅ 84 tests passing (29 unit + 43 integration + 9 property + 3 doc)
+
+**Next Steps (Phase 5):**
+1. **Performance Optimization:**
+   - Profile CPU and memory usage under load
+   - Optimize database queries and add connection pooling
+   - Benchmark metric throughput (target: 10k metrics/sec)
+   - Load testing with multiple agents and services
+
+2. **Production Hardening:**
+   - Add structured logging with tracing
+   - Implement meta-monitoring (monitor the monitoring system)
+   - Enhanced health checks for all components
+   - Graceful degradation strategies
+
+3. **Documentation:**
+   - Complete API documentation (OpenAPI/Swagger)
+   - Write deployment guides (systemd, Docker, Kubernetes)
+   - Create troubleshooting guide
+   - Add architecture diagrams
+
+4. **Distribution:**
+   - Create release binaries (Linux, macOS, Windows)
+   - Docker images with multi-stage builds
+   - Installation scripts and package managers
+   - GitHub Actions for automated releases
+
+5. **Quality Assurance:**
+   - Performance regression tests
+   - Chaos testing (network failures, high load)
+   - End-to-end tests
+   - Security audit
+
+**Contributing:**
+When working on this project, focus on:
+- Maintaining backward compatibility with existing configs
+- Adding tests for new features
+- Following the actor pattern for new components
+- Documenting API changes
+- Updating ROADMAP.md with progress notes
+
+See [ROADMAP.md](ROADMAP.md) for detailed development plans and [README.md](README.md) for user-facing documentation.

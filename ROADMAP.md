@@ -2,7 +2,7 @@
 
 This roadmap outlines the development plan to transform the current basic monitoring system into a comprehensive, production-ready monitoring platform with persistence, visualization, and service health checks.
 
-## Current State (v0.1.0)
+## Current State (v0.9.0 - Pre-Release)
 
 ✅ **Implemented:**
 - Agent-hub architecture for distributed monitoring
@@ -10,14 +10,24 @@ This roadmap outlines the development plan to transform the current basic monito
 - Configurable thresholds with grace periods
 - Alert system (Discord webhooks, generic webhooks)
 - Authentication via tokens
+- Actor-based architecture with Tokio actors
+- SQLite persistence with configurable retention
+- Service health monitoring (HTTP/HTTPS)
+- REST API + WebSocket streaming
+- TUI dashboard with time-based charts
+- Historical data loading and uptime tracking
 
-❌ **Limitations:**
-- No metric persistence (all data is ephemeral)
-- No historical data or trend analysis
-- No visualization or dashboard
-- Only resource monitoring (no service/endpoint checks)
-- Thread-based architecture with tight coupling
-- No API for external access
+✅ **Architecture:**
+- Clean actor-based design (Collector, Storage, Alert, ServiceMonitor)
+- Broadcast channels for event distribution
+- Graceful shutdown and supervision
+- Pluggable storage backends (SQLite, in-memory)
+
+🎯 **Next Focus:**
+- Performance optimization and benchmarking
+- Production hardening and observability
+- Documentation and deployment guides
+- Release binaries and distribution
 
 ## Vision (v1.0.0)
 
@@ -320,47 +330,69 @@ A comprehensive monitoring platform featuring:
 
 ---
 
-## Phase 5: Polish & Production Readiness 🚀
+## Phase 5: Polish & Production Readiness 🚀 [🎯 IN PROGRESS]
 
 **Goal:** Optimize, document, and prepare for production deployment
 
 **Duration:** 1-2 weeks
 
+**Status:** In progress - focus on v1.0.0 release ✨
+
 ### 5.1 Performance Optimization
 - [ ] Profile CPU and memory usage under load
 - [ ] Optimize database queries and indexes
-- [ ] Implement connection pooling
-- [ ] Add caching layer for frequent queries
-- [ ] Benchmark metric throughput (targets: 10k metrics/sec)
+- [ ] Implement connection pooling for SQLite
+- [ ] Add caching layer for frequent queries (server list, service status)
+- [ ] Benchmark metric throughput (target: 10k metrics/sec)
+- [ ] Load testing with multiple agents and services
 
 ### 5.2 Observability
-- [ ] Add structured logging throughout
+- [ ] Add structured logging with log levels (tracing/serde_json)
 - [ ] Implement metrics about the monitoring system itself (meta-monitoring)
-- [ ] Create health check endpoints
-- [ ] Add distributed tracing support (optional)
+  - Actor health and message queue depths
+  - Storage backend performance metrics
+  - API request/response times
+- [ ] Enhanced health check endpoints (storage, actors, connectivity)
+- [ ] Add distributed tracing support (optional - opentelemetry)
 
 ### 5.3 Documentation
-- [ ] Complete API documentation
-- [ ] Write deployment guides
-- [ ] Create troubleshooting guide
-- [ ] Add example configurations
-- [ ] Record demo videos/screenshots
+- [ ] Complete API documentation (OpenAPI/Swagger spec)
+- [ ] Write deployment guides (systemd, Docker, Kubernetes)
+- [ ] Create troubleshooting guide (common issues, debugging)
+- [ ] Add example configurations (production, development, minimal)
+- [ ] Record demo videos/screenshots for TUI dashboard
+- [ ] Architecture diagrams (actor communication, data flow)
 
 ### 5.4 Distribution
-- [ ] Create release binaries for major platforms
-- [ ] Docker images with examples
-- [ ] Installation scripts
+- [ ] Create release binaries for major platforms (Linux, macOS, Windows)
+- [ ] Docker images with multi-stage builds
+  - Hub image
+  - Agent image
+  - All-in-one demo image
+- [ ] Installation scripts (curl | bash installer)
 - [ ] Homebrew formula (macOS)
-- [ ] Package for apt/yum (Linux)
+- [ ] Package for apt/yum (Linux distributions)
+- [ ] GitHub Actions for automated releases
 
-### 5.5 Testing
-- [ ] Expand unit test coverage (target: 80%)
-- [ ] Add integration tests
+### 5.5 Testing & Quality
+- [x] Good unit test coverage (29 unit tests) ✅
+- [x] Integration tests for actor communication (43 tests) ✅
+- [x] Property-based tests (9 tests) ✅
 - [ ] Performance regression tests
-- [ ] Chaos testing (network failures, high load)
+- [ ] Chaos testing (network failures, high load, disk full)
+- [ ] End-to-end tests (agent → hub → dashboard)
+- [ ] Security audit (dependency scanning, SAST)
 
-**Dependencies:** Phase 1-4
-**Deliverables:** Production-ready v1.0.0 release
+### 5.6 Configuration & UX
+- [ ] Configuration validation with helpful error messages
+- [ ] Migration tool for config format changes
+- [ ] Environment variable support for sensitive values
+- [ ] Wizard/interactive setup for first-time users
+- [ ] Better CLI help and examples
+
+**Dependencies:** Phase 1-4 ✅
+**Deliverables:** Production-ready v1.0.0 release with binaries and documentation
+**Target:** Q1 2025
 
 ---
 
@@ -382,33 +414,39 @@ A comprehensive monitoring platform featuring:
 
 ## Timeline Summary
 
-| Phase | Duration | Status | Notes |
-|-------|----------|--------|-------|
-| Phase 1: Architecture | 1-2 weeks | ✅ COMPLETE | Actor-based architecture with graceful shutdown |
-| Phase 2: Persistence | 1-2 weeks | ✅ COMPLETE | SQLite backend with batching and retention |
-| Phase 3: Services | 1 week | ✅ COMPLETE | HTTP/HTTPS monitoring with alerts and uptime |
-| Phase 3.5: Alert Refactoring | 3-5 days | 📋 PLANNED | Medium priority - after v1.0.0 release |
-| Phase 4: Dashboard/API | 2-3 weeks | ✅ COMPLETE | Full API server + TUI dashboard |
-| Phase 5: Polish | 1-2 weeks | 🎯 NEXT | Production readiness, optimization |
+| Phase | Duration | Status | Completion Date | Notes |
+|-------|----------|--------|-----------------|-------|
+| Phase 1: Architecture | 1-2 weeks | ✅ COMPLETE | 2025-01-15 | Actor-based architecture with graceful shutdown |
+| Phase 2: Persistence | 1-2 weeks | ✅ COMPLETE | 2025-01-15 | SQLite backend with batching and hybrid schema |
+| Phase 3: Services | 1 week | ✅ COMPLETE | 2025-01-15 | HTTP/HTTPS monitoring with alerts and uptime |
+| Phase 4.0: Retention | 2-3 days | ✅ COMPLETE | 2025-01-16 | Automatic cleanup with configurable policies |
+| Phase 4.1: API Server | 1 week | ✅ COMPLETE | 2025-01-16 | REST API + WebSocket streaming |
+| Phase 4.2: TUI Dashboard | 1 week | ✅ COMPLETE | 2025-01-16 | Ratatui dashboard with time-based charts |
+| Phase 5: Polish | 1-2 weeks | 🎯 IN PROGRESS | Target: Q1 2025 | Production readiness, optimization |
+| Phase 3.5: Alert Refactoring | 3-5 days | 📋 PLANNED | After v1.0.0 | Medium priority - split metric/service alerts |
 
-**Progress:**
-- ✅ Phases 1-4 complete (~5-6 weeks)
-- 🎯 Next: Phase 5 (Polish & Production Readiness)
-- 📋 After v1.0.0: Phase 3.5 (Alert refactoring)
-- 📋 Remaining: ~1-2 weeks to v1.0.0
+**Progress (as of 2025-01-16):**
+- ✅ Core features complete: All of Phases 1-4 (100%)
+- ✅ Test coverage: 84 tests passing (29 unit + 43 integration + 9 property + 3 doc)
+- 🎯 Current: Phase 5 (Production hardening and optimization)
+- 📋 Target: v1.0.0 release in Q1 2025
+- 📋 Post-release: Phase 3.5 (Alert architecture refactoring)
 
 ---
 
 ## Success Metrics
 
 **v1.0.0 Goals:**
-- ✅ Zero-downtime metric collection (actor-based architecture)
+- ✅ Zero-downtime metric collection (actor-based architecture implemented)
 - ✅ Storage: Persistent SQLite backend with configurable retention
-- ✅ Dashboard: Sub-second TUI responsiveness with real-time updates
-- ✅ API: WebSocket streaming with authentication
+- ✅ Dashboard: Sub-second TUI responsiveness with real-time updates achieved
+- ✅ API: WebSocket streaming with Bearer token authentication
 - ✅ Services: HTTP/HTTPS health checks with uptime tracking
-- 🎯 Reliability: 99.9% uptime for monitoring itself (Phase 5)
+- ✅ Test Coverage: 84 tests (29 unit + 43 integration + 9 property + 3 doc)
+- 🎯 Reliability: 99.9% uptime for monitoring itself (needs production validation)
 - 🎯 Performance: 10k metrics/sec throughput (needs benchmarking in Phase 5)
+- 🎯 Documentation: Complete deployment guides and API docs (in progress)
+- 🎯 Distribution: Release binaries for Linux, macOS, Windows (planned)
 
 ---
 

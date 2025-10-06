@@ -341,7 +341,7 @@ cargo build --bin agent
 ### Testing
 
 ```bash
-# Run all tests (75 tests: unit + integration + property + doc)
+# Run all tests (84 tests: unit + integration + property + doc)
 cargo test --workspace --all-features
 
 # Run specific test suite
@@ -421,17 +421,20 @@ This project is licensed under the GPL-3.0 License - see the [LICENSE](LICENSE) 
 
 ## 🗺️ Roadmap
 
-**Completed:**
-- ✅ Phase 1: Actor-based architecture
-- ✅ Phase 2: SQLite persistence with retention
-- ✅ Phase 3: Service health monitoring
-- ✅ Phase 4.0: Automatic cleanup
-- ✅ Phase 4.1: REST API + WebSocket server
-- ✅ Phase 4.2: TUI Dashboard with Ratatui
+**Completed (v0.9.0):**
+- ✅ Phase 1: Actor-based architecture with graceful shutdown
+- ✅ Phase 2: SQLite persistence with batching and hybrid schema
+- ✅ Phase 3: Service health monitoring (HTTP/HTTPS with uptime tracking)
+- ✅ Phase 4.0: Automatic retention cleanup with configurable policies
+- ✅ Phase 4.1: REST API + WebSocket streaming
+- ✅ Phase 4.2: TUI Dashboard with time-based charts and historical data loading
 
-**Planned:**
-- 📋 Phase 5: Production hardening and performance optimization
-- 📋 Alert architecture refactoring (split metric/service alerts)
+**Current Focus:**
+- 🎯 Phase 5: Production hardening and performance optimization (target: v1.0.0)
+
+**Future Plans:**
+- 📋 Phase 3.5: Alert architecture refactoring (split metric/service alerts)
+- 📋 v1.1.0+: Mobile app, additional alert channels, anomaly detection
 
 See [ROADMAP.md](ROADMAP.md) for detailed plans.
 
