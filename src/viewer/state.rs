@@ -270,6 +270,21 @@ impl AppState {
     pub fn clear_error(&mut self) {
         self.error_message = None;
     }
+
+    /// Check if connection appears to be stale based on last update time
+    pub fn check_connection_timeout(&mut self, timeout_seconds: u64) {
+        if let Some(last_update) = self.last_update {
+            let elapsed = Utc::now().signed_duration_since(last_update);
+            if elapsed.num_seconds() > timeout_seconds as i64 && self.connected {
+                // Mark as disconnected due to timeout
+                self.connected = false;
+                self.error_message = Some(format!(
+                    "Connection timeout (no data for {}s)",
+                    timeout_seconds
+                ));
+            }
+        }
+    }
 }
 
 impl Default for AppState {

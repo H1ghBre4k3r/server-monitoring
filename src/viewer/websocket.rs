@@ -49,7 +49,8 @@ impl WebSocketClient {
                     http_status_code: None,
                     ssl_expiry_days: None,
                     error_message: Some(error_msg),
-                }).ok();
+                })
+                .ok();
             }
         });
 
@@ -88,6 +89,19 @@ impl WebSocketClient {
 
         tracing::info!("WebSocket connected");
 
+        // Send connection established event
+        tx.send(WsEvent::ServiceCheck {
+            service_name: "Connection".to_string(),
+            url: url.clone(),
+            timestamp: chrono::Utc::now(),
+            status: crate::actors::messages::ServiceStatus::Up,
+            response_time_ms: None,
+            http_status_code: None,
+            ssl_expiry_days: None,
+            error_message: None,
+        })
+        .ok();
+
         let (mut write, mut read) = ws_stream.split();
 
         // Send ping periodically to keep connection alive
@@ -125,6 +139,18 @@ impl WebSocketClient {
                 }
                 Message::Close(_) => {
                     tracing::info!("WebSocket closed by server");
+                    // Send connection lost event
+                    tx.send(WsEvent::ServiceCheck {
+                        service_name: "Connection".to_string(),
+                        url: url.clone(),
+                        timestamp: chrono::Utc::now(),
+                        status: crate::actors::messages::ServiceStatus::Down,
+                        response_time_ms: None,
+                        http_status_code: None,
+                        ssl_expiry_days: None,
+                        error_message: Some("Connection closed by server".to_string()),
+                    })
+                    .ok();
                     break;
                 }
                 Message::Pong(_) => {
@@ -137,6 +163,20 @@ impl WebSocketClient {
         }
 
         ping_task.abort();
+
+        // Send connection lost event for unexpected disconnections
+        tx.send(WsEvent::ServiceCheck {
+            service_name: "Connection".to_string(),
+            url: url.clone(),
+            timestamp: chrono::Utc::now(),
+            status: crate::actors::messages::ServiceStatus::Down,
+            response_time_ms: None,
+            http_status_code: None,
+            ssl_expiry_days: None,
+            error_message: Some("Connection lost unexpectedly".to_string()),
+        })
+        .ok();
+
         Ok(())
     }
 }

@@ -42,7 +42,8 @@ impl App {
         // Connect to WebSocket - handle connection errors gracefully
         let ws_rx = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(ws_client.connect())
-        }).map_err(|e| {
+        })
+        .map_err(|e| {
             // Return a more user-friendly error
             anyhow::anyhow!("Failed to connect to API at {}: {}", config.api_url, e)
         })?;
@@ -259,6 +260,11 @@ impl App {
                 self.refresh_server_list().await.ok(); // Ignore errors
                 last_refresh = std::time::Instant::now();
             }
+
+            // Check connection timeout (every 5 seconds)
+            if !self.state.paused {
+                self.state.check_connection_timeout(30); // 30 second timeout
+            }
         }
 
         Ok(())
@@ -306,6 +312,10 @@ impl App {
                 ..
             } => {
                 self.state.add_metric(server_id, metrics, timestamp);
+                // Clear error message when connectivity is restored via metric data
+                if !self.state.connected {
+                    self.state.error_message = None;
+                }
                 self.state.connected = true;
             }
             WsEvent::ServiceCheck {
@@ -315,14 +325,29 @@ impl App {
                 error_message,
                 ..
             } => {
-                // Special handling for connection errors
-                if service_name == "Connection" && matches!(status, crate::actors::messages::ServiceStatus::Down) {
-                    self.state.connected = false;
-                    self.state.error_message = error_message;
-                    return;
+                // Special handling for connection state changes
+                if service_name == "Connection" {
+                    match status {
+                        crate::actors::messages::ServiceStatus::Up => {
+                            self.state.connected = true;
+                            self.state.error_message = None; // Clear any previous error
+                        }
+                        crate::actors::messages::ServiceStatus::Down => {
+                            self.state.connected = false;
+                            self.state.error_message = error_message;
+                        }
+                        _ => {}
+                    }
+                    return; // Don't treat connection events as service alerts
                 }
 
-                // Add to alerts if DOWN
+                // Clear error message when connectivity is restored via service data
+                // (for non-connection service events)
+                if !self.state.connected {
+                    self.state.error_message = None;
+                }
+
+                // Add to alerts if DOWN (but not for connection events)
                 if matches!(status, crate::actors::messages::ServiceStatus::Down) {
                     self.state.add_alert(AlertEntry {
                         timestamp,
