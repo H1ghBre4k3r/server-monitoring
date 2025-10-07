@@ -5,3 +5,6 @@
 *.db*
 
 .config.json
+
+# Docker config directory (contains secrets)
+config/config.json

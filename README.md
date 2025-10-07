@@ -22,7 +22,7 @@
 ## 🏗️ Architecture
 
 ```
-┌─────────────┐      HTTP polls      ┌──────────────┐
+┌─────────────┐      HTTP polls     ┌───────────────┐
 │   Agent 1   │◄────────────────────┤   Hub (Main)  │
 │  (Server A) │                     │   ┌─────────┐ │
 └─────────────┘                     │   │Collector│ │
@@ -211,6 +211,42 @@ curl -H "Authorization: Bearer api-secret-token" \
 # Get latest metrics
 curl -H "Authorization: Bearer api-secret-token" \
   "http://localhost:8080/api/v1/servers/192.168.1.100:3000/metrics/latest?limit=10"
+```
+
+## 🐳 Docker Deployment
+
+### Quick Start with Docker Compose
+
+1. **Create configuration:**
+```bash
+mkdir -p config
+cp config.example.json config/config.json
+# Edit config/config.json with your settings
+# Important: Set storage.path to "/app/data/metrics.db"
+```
+
+2. **Start the hub:**
+```bash
+docker compose up -d
+```
+
+3. **View logs:**
+```bash
+docker compose logs -f hub
+```
+
+### Configuration for Docker
+
+When using Docker, ensure your `config.json` uses container-appropriate paths:
+
+```json
+{
+  "storage": {
+    "backend": "sqlite",
+    "path": "/app/data/metrics.db",
+    "retention_days": 30
+  }
+}
 ```
 
 ## 📖 Configuration

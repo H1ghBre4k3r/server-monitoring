@@ -1,0 +1,48 @@
+# Exclude build artifacts and cache
+target/
+**/target/
+
+# Exclude git files
+.git/
+.gitignore
+.github/
+
+# Exclude IDE and editor files
+.vscode/
+.idea/
+**/.DS_Store
+*.swp
+*.swo
+*~
+
+# Exclude documentation
+*.md
+docs/
+ROADMAP.md
+CHANGES.md
+CLAUDE.md
+INSTALL.md
+TESTING.md
+LICENSE
+
+# Exclude development files
+.env
+.config.json
+config.json
+*.db
+*.db-shm
+*.db-wal
+justfile
+
+# Exclude Docker files (not needed in build context)
+Dockerfile*
+docker-compose*
+compose.y*ml
+.dockerignore
+
+# Exclude test files
+tests/
+
+# Exclude install scripts
+install.sh
+*.example.*
