@@ -389,8 +389,14 @@ async fn test_list_services_with_recent_up_check_shows_up() {
     };
     service_tx.send(event).unwrap();
 
-    // Wait for storage to persist
+    // Give time for storage actor to process the service check event
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+    // Manually flush storage to ensure the service check is persisted
+    storage.flush().await.unwrap();
+
+    // Give time for flush to complete
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
 
     let addr = spawn_test_api(vec![], vec![service], storage, metric_tx, service_tx).await;
 
