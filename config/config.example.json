@@ -1,0 +1,53 @@
+{
+  "api": {
+    "bind": "0.0.0.0",
+    "port": 8080,
+    "auth_token": "your-api-secret-token-here",
+    "enable_cors": true
+  },
+  "storage": {
+    "backend": "sqlite",
+    "path": "/app/data/metrics.db",
+    "retention_days": 30,
+    "cleanup_interval_hours": 24
+  },
+  "servers": [
+    {
+      "id": "server-1",
+      "name": "Production Server 1",
+      "addr": "https://192.168.1.100:3000",
+      "token": "agent-secret-token",
+      "interval_sec": 10,
+      "limits": {
+        "temperature": {
+          "grace_period": 3,
+          "limit": 80
+        },
+        "usage": {
+          "grace_period": 5,
+          "limit": 90
+        }
+      },
+      "alert": {
+        "discord": {
+          "url": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
+          "mentions": ["<@USER_ID>"]
+        }
+      }
+    }
+  ],
+  "services": [
+    {
+      "name": "website",
+      "url": "https://example.com",
+      "interval_sec": 60,
+      "grace_period": 2,
+      "alert": {
+        "discord": {
+          "url": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
+          "mentions": ["<@USER_ID>"]
+        }
+      }
+    }
+  ]
+}

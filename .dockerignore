@@ -1,32 +1,48 @@
-# Include any files or directories that you don't want to be copied to your
-# container here (e.g., local build artifacts, temporary files, etc.).
-#
-# For more help, visit the .dockerignore file reference guide at
-# https://docs.docker.com/go/build-context-dockerignore/
+# Exclude build artifacts and cache
+target/
+**/target/
 
+# Exclude git files
+.git/
+.gitignore
+.github/
+
+# Exclude IDE and editor files
+.vscode/
+.idea/
 **/.DS_Store
-**/.classpath
-**/.dockerignore
-**/.env
-**/.git
-**/.gitignore
-**/.project
-**/.settings
-**/.toolstarget
-**/.vs
-**/.vscode
-**/*.*proj.user
-**/*.dbmdl
-**/*.jfm
-**/charts
-**/docker-compose*
-**/compose.y*ml
-**/Dockerfile*
-**/node_modules
-**/npm-debug.log
-**/secrets.dev.yaml
-**/values.dev.yaml
-/bin
-/target
+*.swp
+*.swo
+*~
+
+# Exclude documentation
+*.md
+docs/
+ROADMAP.md
+CHANGES.md
+CLAUDE.md
+INSTALL.md
+TESTING.md
 LICENSE
-README.md
+
+# Exclude development files
+.env
+.config.json
+config.json
+*.db
+*.db-shm
+*.db-wal
+justfile
+
+# Exclude Docker files (not needed in build context)
+Dockerfile*
+docker-compose*
+compose.y*ml
+.dockerignore
+
+# Exclude test files
+tests/
+
+# Exclude install scripts
+install.sh
+*.example.*
