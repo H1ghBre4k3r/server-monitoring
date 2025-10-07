@@ -17,7 +17,13 @@ ARG APP_NAME
 WORKDIR /app
 
 # Install host build dependencies.
-RUN apk add --no-cache clang lld musl-dev git pkgconfig openssl-dev curl
+RUN apk add --no-cache clang lld musl-dev git pkgconfig openssl-dev curl \
+    openssl-libs-static mbedtls-dev
+
+# Set environment variables for OpenSSL linking on Alpine
+ENV OPENSSL_DIR=/usr
+ENV OPENSSL_STATIC=1
+ENV PKG_CONFIG_ALLOW_CROSS=1
 
 # Build the application.
 # Leverage a cache mount to /usr/local/cargo/registry/
@@ -48,6 +54,9 @@ cp ./target/release/$APP_NAME /bin/server
 # reproducibility is important, consider using a digest
 # (e.g., alpine@sha256:664888ac9cfd28068e062c991ebcff4b4c7307dc8dd4df9e728bedde5c449d91).
 FROM alpine:3.18 AS final
+
+# Install runtime SSL libraries and other dependencies
+RUN apk add --no-cache openssl ca-certificates
 
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/
