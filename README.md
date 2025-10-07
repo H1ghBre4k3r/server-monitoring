@@ -62,19 +62,48 @@
 
 ### 1. Install
 
+**Quick Install (Linux with systemd):**
+
+```bash
+# Install all components
+sudo ./install.sh
+
+# Or install specific components
+sudo ./install.sh agent          # Install only agent
+sudo ./install.sh hub viewer     # Install hub and viewer
+```
+
+**Manual Install:**
+
 ```bash
 # Build from source
 cargo build --release
 
-# Install binaries
-cargo install --path .
+# Install binaries manually
+sudo install -m 755 target/release/guardia-agent /usr/local/bin/
+sudo install -m 755 target/release/guardia-hub /usr/local/bin/
+sudo install -m 755 target/release/guardia-viewer /usr/local/bin/
 
-# Or download pre-built binaries (future release)
+# Or use cargo install
+cargo install --path .
 ```
+
+See [INSTALL.md](INSTALL.md) for detailed installation instructions, configuration, and troubleshooting.
 
 ### 2. Start an Agent
 
-On each server you want to monitor:
+**With systemd (after running install.sh):**
+
+```bash
+# Configure the agent
+sudo nano /etc/default/guardia-agent
+
+# Start the service
+sudo systemctl start guardia-agent
+sudo systemctl status guardia-agent
+```
+
+**Manual start:**
 
 ```bash
 # Set environment variables
@@ -154,6 +183,22 @@ Create `config.json`:
 ```
 
 ### 4. Start the Hub
+
+**With systemd (after running install.sh):**
+
+```bash
+# Configure the hub
+sudo nano /etc/guardia/config.json
+
+# Start the service
+sudo systemctl start guardia-hub
+sudo systemctl status guardia-hub
+
+# View logs
+sudo journalctl -u guardia-hub -f
+```
+
+**Manual start:**
 
 ```bash
 guardia-hub -f config.json
@@ -476,9 +521,12 @@ See [ROADMAP.md](ROADMAP.md) for detailed plans.
 
 ## 📚 Documentation
 
-- [CLAUDE.md](CLAUDE.md) - Detailed technical documentation for AI assistants
-- [ROADMAP.md](ROADMAP.md) - Development roadmap and feature plans
-- [config.example.json](config.example.json) - Complete configuration example
+- **[INSTALL.md](INSTALL.md)** - Detailed installation guide, service management, and troubleshooting
+- **[CLAUDE.md](CLAUDE.md)** - Technical documentation for AI assistants and contributors
+- **[ROADMAP.md](ROADMAP.md)** - Development roadmap and feature plans
+- **[TESTING.md](TESTING.md)** - Testing guide and test architecture
+- **[config.example.json](config.example.json)** - Complete hub configuration example
+- **[viewer.example.toml](viewer.example.toml)** - Complete viewer configuration example
 - API Documentation - Coming soon (OpenAPI/Swagger)
 
 ## 🙏 Acknowledgments
