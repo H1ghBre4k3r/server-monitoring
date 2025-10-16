@@ -19,7 +19,7 @@ export default function ServerDetail({ server }: ServerDetailProps) {
         const points = response.metrics.map(m => ({
           timestamp: new Date(m.timestamp),
           server_id: server.server_id,
-          data: m.data,
+          data: m.metadata, // Note: data is in the 'metadata' field
         }))
         setMetricsHistory(server.server_id, points)
       } catch (err) {

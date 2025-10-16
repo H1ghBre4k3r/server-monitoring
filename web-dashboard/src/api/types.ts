@@ -129,10 +129,13 @@ export interface MetricsResponse {
   metrics: Array<{
     timestamp: string // ISO 8601
     server_id: string
+    display_name: string
     metric_type: string
     cpu_avg: number | null
+    memory_used: number | null
+    memory_total: number | null
     temp_avg: number | null
-    data: ServerMetrics
+    metadata: ServerMetrics // Full metrics data is in metadata field
   }>
 }
 
@@ -142,10 +145,13 @@ export interface LatestMetricsResponse {
   metrics: Array<{
     timestamp: string // ISO 8601
     server_id: string
+    display_name: string
     metric_type: string
     cpu_avg: number | null
+    memory_used: number | null
+    memory_total: number | null
     temp_avg: number | null
-    data: ServerMetrics
+    metadata: ServerMetrics // Full metrics data is in metadata field
   }>
 }
 

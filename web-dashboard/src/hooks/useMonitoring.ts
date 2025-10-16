@@ -27,7 +27,7 @@ export function useMonitoring(refreshInterval: number = 5000) {
             const points = metricsResponse.metrics.map(m => ({
               timestamp: new Date(m.timestamp),
               server_id: server.server_id,
-              data: m.data,
+              data: m.metadata, // Note: data is in the 'metadata' field
             }))
             setMetricsHistory(server.server_id, points)
           } catch (err) {
