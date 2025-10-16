@@ -437,6 +437,122 @@ guardia-viewer --url http://remote-server:8080 --token secret123
 - Charts use Ratatui's `Chart` widget with Braille markers for smooth rendering
 - Ring buffers (VecDeque) for metric history prevent unbounded memory growth
 
+### Web Dashboard (✅ Phase 5 - Modern Browser UI - NEW)
+
+A modern, responsive web dashboard built with React, TypeScript, and Vite. Complements the TUI viewer with a browser-based interface.
+
+**Binary/Files:** `web-dashboard/` directory with React + TypeScript project
+
+**Key Features:**
+- Modern dark-themed UI with Tailwind CSS
+- Apache ECharts for professional visualizations
+- Real-time updates via WebSocket
+- Responsive design (desktop and tablet)
+- Per-core CPU charts with legend
+- Temperature monitoring with component breakdown
+- Memory gauges with color-coded usage levels
+- Service health dashboard
+- Alert timeline
+- Built-in to hub binary serving via Axum
+
+**Technology Stack (`web-dashboard/src/`):**
+- **React 18** + TypeScript - UI framework
+- **Vite** - Build tool and dev server
+- **Apache ECharts** - Beautiful charts (`components/servers/CpuChart.tsx`, `TemperatureChart.tsx`)
+- **Tailwind CSS** - Styling with custom dark theme
+- **Zustand** - Lightweight state management (`stores/monitoringStore.ts`)
+- **Lucide React** - Icons
+
+**Architecture (`web-dashboard/src/`):**
+- `api/client.ts` - HTTP + WebSocket API client (connects to `/api/v1/*`)
+- `api/types.ts` - TypeScript mirrors of Rust API types
+- `stores/monitoringStore.ts` - Central state (servers, services, metrics, alerts)
+- `hooks/useWebSocket.ts` - WebSocket connection with auto-reconnection
+- `hooks/useMonitoring.ts` - Initial data loading and periodic refresh
+- `components/layout/` - Header, sidebar, main layout
+- `components/servers/` - Server list, detail, CPU/temp/memory charts
+- `components/services/` - Service list and details
+- `components/alerts/` - Alert timeline
+
+**UI Components:**
+
+**Layout:**
+- `Header`: Connection status indicator, refresh button, app title
+- `Sidebar`: Tab navigation (Servers, Services, Alerts)
+- `Layout`: Main layout wrapper with responsive grid
+
+**Servers Tab:**
+- **Server List** (left panel): Card-based list with health status badges
+  - Color coding: green (up), yellow (stale), gray (unknown)
+  - Click to select and view details
+- **Server Detail** (right panel):
+  - System info panel: hostname, OS, arch, kernel
+  - CPU breakdown: per-core with progress bars
+  - Memory: RAM and Swap with color-coded gauges
+  - Temperatures: Component list with current values
+  - **CPU Chart**: ECharts line chart with:
+    - Per-core breakdown (multi-line)
+    - Average overlay
+    - Time-based X-axis (HH:MM:SS)
+    - Sliding window (default 5 min, configurable)
+    - Interactive legend
+  - **Temperature Chart**: ECharts line chart with:
+    - Per-component tracking
+    - Color-coded lines by temperature range
+    - Time-based X-axis
+    - Tooltip with values
+
+**Services Tab:**
+- **Service Table**: Columns for name, URL, status, response time, last check
+- Color-coded rows: green (up), red (down), yellow (degraded), gray (stale/unknown)
+- Click for additional details
+
+**Alerts Tab:**
+- **Timeline**: Reverse-chronological alert list
+- Severity indicators: ⚡ (critical), ⚠️ (warning), ℹ️ (info)
+- Color-coded by severity
+- Shows timestamp, service/server ID, alert message
+
+**Real-time Integration:**
+- WebSocket connects to `/api/v1/stream` on hub
+- Auto-reconnection with exponential backoff (max 10 attempts)
+- Handles `MetricEvent` and `ServiceCheckEvent` messages
+- Updates charts in real-time
+- Historical data loaded on server selection (150 points = ~5 min at 2s intervals)
+
+**Configuration (`web-dashboard/vite.config.ts`):**
+- Dev server proxies `/api` to `http://localhost:8080`
+- Production build to `dist/` directory
+- Code splitting for ECharts library
+- Sourcemaps disabled for production
+
+**Build & Deployment:**
+```bash
+# Development
+cd web-dashboard
+npm install
+npm run dev          # http://localhost:5173, proxies to hub on 8080
+
+# Production
+npm run build        # Outputs to dist/
+```
+
+The hub serves the dashboard:
+- Static files from `web-dashboard/dist/` when available
+- Served at `/` (root) - API routes at `/api/v1/*`
+- SPA routing fallback to `index.html`
+- Automatic gzip/brotli compression
+
+**Feature Flag:** `web-dashboard` (enabled by default, depends on `api` feature)
+
+**Development Notes:**
+- Types kept in sync with Rust API via `src/api/types.ts`
+- Zustand store manages all state
+- WebSocket auto-reconnection handles hub restarts gracefully
+- Ring buffers (VecDeque) limit memory per server: 1000 metrics, 500 alerts total
+- Time-based cleanup: metrics older than 2x time window removed automatically
+- No external API documentation needed - types ensure consistency
+
 ## Development Commands
 
 ### Quick Reference with Justfile

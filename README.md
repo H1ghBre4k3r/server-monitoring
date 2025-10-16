@@ -15,6 +15,7 @@
 - **🎯 Actor-Based Architecture**: Scalable, maintainable, and testable design using Tokio actors
 - **🔌 REST + WebSocket API**: Remote access with real-time streaming capabilities
 - **📺 TUI Dashboard**: Beautiful terminal UI with time-based charts, memory gauges, and sliding windows
+- **🌐 Web Dashboard**: Modern web interface with ECharts visualizations (React + TypeScript)
 - **📈 Advanced Visualization**: Time-based charts with HH:MM:SS labels, color-coded memory gauges, historical data loading
 - **🔐 Security**: Token-based authentication for agents and API access
 - **⚙️ Configurable**: JSON-based configuration with extensive customization options
@@ -55,8 +56,9 @@
 
 **Components:**
 - **Agent** (`guardia-agent`): Runs on each monitored server, exposes metrics via HTTP
-- **Hub** (`guardia-hub`): Central monitoring service with actor-based architecture
-- **Viewer** (`guardia-viewer`): TUI dashboard for real-time visualization
+- **Hub** (`guardia-hub`): Central monitoring service with actor-based architecture + API server
+- **Viewer** (`guardia-viewer`): TUI dashboard for real-time visualization (Ratatui)
+- **Web Dashboard**: Modern web dashboard served by hub at `http://localhost:8080`
 
 ## 🚀 Quick Start
 
@@ -159,7 +161,24 @@ Create `config.json`:
 guardia-hub -f config.json
 ```
 
-### 5. Start the Viewer (TUI Dashboard)
+### 5. Access the Dashboards
+
+**Option A: Web Dashboard (Recommended)**
+
+Access the modern web dashboard in your browser:
+
+```
+http://localhost:8080
+```
+
+Features:
+- Modern, responsive UI built with React and TypeScript
+- Beautiful ECharts visualizations
+- Real-time updates via WebSocket
+- Works on desktop and tablet
+- Dark theme by default
+
+**Option B: TUI Dashboard (Terminal)**
 
 ```bash
 # Create viewer config
@@ -386,16 +405,43 @@ cargo test --test '*'               # Integration tests
 cargo test --doc                    # Doc tests
 ```
 
+### Building the Web Dashboard
+
+The web dashboard is built automatically when building the hub with the `web-dashboard` feature enabled (default).
+
+```bash
+# Build web dashboard
+cd web-dashboard
+npm install
+npm run build
+
+# Dashboard will be available at http://localhost:8080 when hub runs
+```
+
+For development:
+
+```bash
+# Development server with hot reload
+cd web-dashboard
+npm install
+npm run dev
+
+# In another terminal, run hub API server
+cargo run --bin hub -- -f config.json
+```
+
+The dev server proxies API requests to `http://localhost:8080`.
+
 ### Feature Flags
 
 ```bash
-# Build with all features (default)
+# Build with all features (default - includes web-dashboard)
 cargo build --all-features
 
-# Build without storage
-cargo build --no-default-features --features api
+# Build without web dashboard
+cargo build --no-default-features --features "storage-sqlite,api,dashboard"
 
-# Build minimal hub (no storage, no API)
+# Build minimal hub (no storage, no API, no dashboards)
 cargo build --bin hub --no-default-features
 ```
 
@@ -403,6 +449,7 @@ Available features:
 - `storage-sqlite` (default): SQLite backend for persistence
 - `api` (default): REST API and WebSocket server
 - `dashboard` (default): TUI viewer dependencies
+- `web-dashboard` (default): Web dashboard served by hub
 
 ### Development Commands
 
