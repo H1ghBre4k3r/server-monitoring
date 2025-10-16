@@ -1,7 +1,4 @@
-import { useEffect } from 'react'
-import { useMonitoringStore } from '../../stores/monitoringStore'
-import { apiClient } from '../../api/client'
-import type { ServerInfo } from '../../api/types'
+import { ServerInfo } from '../../api/types'
 import CpuChart from './CpuChart'
 import TemperatureChart from './TemperatureChart'
 
@@ -10,26 +7,6 @@ interface ServerDetailProps {
 }
 
 export default function ServerDetail({ server }: ServerDetailProps) {
-  const { setMetricsHistory } = useMonitoringStore()
-
-  useEffect(() => {
-    const fetchMetrics = async () => {
-      try {
-        const response = await apiClient.getLatestMetrics(server.server_id, 150)
-        const points = response.metrics.map(m => ({
-          timestamp: new Date(m.timestamp),
-          server_id: server.server_id,
-          data: m.metadata, // Note: data is in the 'metadata' field
-        }))
-        setMetricsHistory(server.server_id, points)
-      } catch (err) {
-        console.error('Failed to fetch metrics:', err)
-      }
-    }
-
-    fetchMetrics()
-  }, [server.server_id, setMetricsHistory])
-
   const metrics = server.latest_metrics
 
   return (

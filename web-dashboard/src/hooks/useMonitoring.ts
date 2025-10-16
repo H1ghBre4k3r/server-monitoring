@@ -20,7 +20,21 @@ export function useMonitoring(refreshInterval: number = 5000) {
         const servicesResponse = await apiClient.getServices()
         setServices(servicesResponse.services)
 
-        // Fetch initial metrics for each server
+        setLoading(false)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to fetch monitoring data'
+        setError(message)
+        setLoading(false)
+      }
+    }
+
+    const fetchInitialMetrics = async () => {
+      try {
+        // Fetch servers first
+        const serversResponse = await apiClient.getServers()
+        setServers(serversResponse.servers)
+
+        // Fetch initial metrics for each server once
         for (const server of serversResponse.servers) {
           try {
             const metricsResponse = await apiClient.getLatestMetrics(server.server_id, 150)
@@ -35,18 +49,22 @@ export function useMonitoring(refreshInterval: number = 5000) {
           }
         }
 
-        setLoading(false)
+        // Also fetch services
+        const servicesResponse = await apiClient.getServices()
+        setServices(servicesResponse.services)
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to fetch monitoring data'
-        setError(message)
-        setLoading(false)
+        console.warn('Failed to fetch initial data:', err)
       }
     }
 
-    fetchData()
-    const interval = setInterval(fetchData, refreshInterval)
-
-    return () => clearInterval(interval)
+    // Initial load with metrics history
+    fetchInitialMetrics().then(() => {
+      setLoading(false)
+      // Then set up periodic refresh for servers/services only
+      fetchData()
+      const interval = setInterval(fetchData, refreshInterval)
+      return () => clearInterval(interval)
+    })
   }, [refreshInterval, setServers, setServices, setMetricsHistory])
 
   return { loading, error }

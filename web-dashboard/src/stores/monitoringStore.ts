@@ -78,13 +78,17 @@ export const useMonitoringStore = create<MonitoringState>((set) => ({
       const history = state.metricsHistory.get(serverId) || []
       const updated = [...history, point]
 
-      // Keep only MAX_METRICS_PER_SERVER most recent points
-      if (updated.length > MAX_METRICS_PER_SERVER) {
-        updated.shift()
-      }
+      // Time-based cleanup: remove metrics older than 2x time window
+      const cutoffTime = new Date(Date.now() - state.timeWindowSeconds * 2000)
+      const filtered = updated.filter(m => m.timestamp > cutoffTime)
+
+      // Also enforce maximum limit
+      const final = filtered.length > MAX_METRICS_PER_SERVER 
+        ? filtered.slice(-MAX_METRICS_PER_SERVER)
+        : filtered
 
       const newMap = new Map(state.metricsHistory)
-      newMap.set(serverId, updated)
+      newMap.set(serverId, final)
       return { metricsHistory: newMap }
     }),
   setMetricsHistory: (serverId, points) =>

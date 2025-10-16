@@ -30,6 +30,9 @@ export default function CpuChart({ serverId }: CpuChartProps) {
       }
     }
 
+    // Sort by timestamp to ensure proper time series
+    filtered.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+
     // Get number of cores with null checks
     const numCores = filtered[0]?.data?.cpus?.cpus?.length || 0
 
@@ -117,16 +120,29 @@ export default function CpuChart({ serverId }: CpuChartProps) {
       },
       xAxis: {
         type: 'time',
+        min: windowStart,
+        max: now,
         boundaryGap: false,
         axisLabel: {
           formatter: (value: number) => {
             const date = new Date(value)
-            return date.toLocaleTimeString()
+            // Show time based on window size
+            if (timeWindowSeconds <= 300) {
+              return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            } else if (timeWindowSeconds <= 3600) {
+              return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            } else {
+              return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }
           },
           color: '#6b7280',
         },
         axisLine: { lineStyle: { color: '#374151' } },
-        splitLine: { lineStyle: { color: '#1f2937' } },
+        splitLine: { 
+          lineStyle: { color: '#1f2937' },
+          // Show more grid lines for shorter time windows
+          interval: timeWindowSeconds <= 300 ? 'auto' : timeWindowSeconds <= 900 ? 0 : 1,
+        },
       },
       yAxis: {
         type: 'value',
@@ -148,7 +164,7 @@ export default function CpuChart({ serverId }: CpuChartProps) {
   }, [metrics, timeWindowSeconds])
 
   return (
-    <div className="card h-96">
+    <div key={`cpu-chart-${serverId}`} className="card h-96">
       <ReactECharts
         option={chartOption}
         style={{ height: '100%' }}
