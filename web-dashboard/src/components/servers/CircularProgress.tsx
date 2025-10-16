@@ -63,15 +63,15 @@ export default function CircularProgress({
       </svg>
       
       {/* Center content */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
+      <div className="absolute inset-0 flex flex-col items-center justify-center px-2">
         <div className="text-center">
-          <div className="text-2xl font-bold text-white mb-1">
+          <div className="text-xl sm:text-2xl font-bold text-white mb-0.5 sm:mb-1">
             {percentage.toFixed(1)}%
           </div>
-          <div className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">
+          <div className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider font-semibold mb-0.5 sm:mb-1">
             {label}
           </div>
-          <div className="text-xs font-medium text-gray-300">
+          <div className="text-[10px] sm:text-xs font-medium text-gray-300 truncate">
             {value}
           </div>
         </div>

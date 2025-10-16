@@ -305,3 +305,31 @@
 .shine-effect:hover::after {
   transform: translateX(100%) translateY(100%) rotate(45deg);
 }
+
+/* Mobile slide-in animation */
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.3s ease-out forwards;
+}
+
+/* Touch-friendly tap highlight */
+* {
+  -webkit-tap-highlight-color: rgba(99, 102, 241, 0.2);
+}
+
+/* Improve scrolling on mobile */
+@media (max-width: 1024px) {
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+}
