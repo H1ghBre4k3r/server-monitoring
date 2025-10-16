@@ -33,8 +33,10 @@ export default function TemperatureChart({ serverId }: TemperatureChartProps) {
     // Get unique component names with null checks
     const componentNames = new Set<string>()
     filtered.forEach(point => {
-      point.data?.temperatures?.temperatures?.forEach(temp => {
-        componentNames.add(temp.name)
+      point.data?.components?.components?.forEach(component => {
+        if (component.temperature !== null) {
+          componentNames.add(component.name)
+        }
       })
     })
 
@@ -53,9 +55,9 @@ export default function TemperatureChart({ serverId }: TemperatureChartProps) {
 
       const componentData: [number, number][] = filtered
         .map(point => {
-          const temp = point.data?.temperatures?.temperatures?.find(t => t.name === name)
-          if (temp) {
-            return [point.timestamp.getTime(), temp.current] as [number, number]
+          const component = point.data?.components?.components?.find(c => c.name === name)
+          if (component && component.temperature !== null) {
+            return [point.timestamp.getTime(), component.temperature] as [number, number]
           }
           return null
         })

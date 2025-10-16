@@ -175,6 +175,10 @@ pub struct ServerInfo {
     /// Last polling error message
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_poll_error: Option<String>,
+
+    /// Latest metrics data (if available)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub latest_metrics: Option<ServerMetrics>,
 }
 
 /// Service information with health status

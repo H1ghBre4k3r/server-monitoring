@@ -40,19 +40,19 @@ export default function ServerDetail({ server }: ServerDetailProps) {
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div>
             <span className="text-gray-400">Hostname:</span>
-            <p className="text-white font-medium">{metrics?.hostname || 'N/A'}</p>
+            <p className="text-white font-medium">{metrics?.system?.host_name || 'N/A'}</p>
           </div>
           <div>
             <span className="text-gray-400">Architecture:</span>
-            <p className="text-white font-medium">{metrics?.arch || 'N/A'}</p>
+            <p className="text-white font-medium">{metrics?.cpus?.arch || 'N/A'}</p>
           </div>
           <div>
             <span className="text-gray-400">OS:</span>
-            <p className="text-white font-medium">{metrics?.os || 'N/A'}</p>
+            <p className="text-white font-medium">{metrics?.system?.os_version || 'N/A'}</p>
           </div>
           <div>
             <span className="text-gray-400">Kernel:</span>
-            <p className="text-white font-medium">{metrics?.kernel_version || 'N/A'}</p>
+            <p className="text-white font-medium">{metrics?.system?.kernel_version || 'N/A'}</p>
           </div>
         </div>
       </div>
@@ -64,7 +64,7 @@ export default function ServerDetail({ server }: ServerDetailProps) {
           <div className="space-y-2">
             {metrics.cpus.cpus.map((cpu, idx) => (
               <div key={idx} className="flex items-center justify-between">
-                <span className="text-sm text-gray-400">Core {idx}</span>
+                <span className="text-sm text-gray-400">{cpu.name}</span>
                 <div className="flex items-center gap-2">
                   <div className="w-32 h-2 rounded-full bg-gray-700 overflow-hidden">
                     <div
@@ -107,14 +107,14 @@ export default function ServerDetail({ server }: ServerDetailProps) {
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-gray-400">Swap</span>
                 <span className="text-white font-medium">
-                  {(metrics.memory.swap_used / 1024 / 1024 / 1024).toFixed(1)}GB / {(metrics.memory.swap_total / 1024 / 1024 / 1024).toFixed(1)}GB
+                  {(metrics.memory.used_swap / 1024 / 1024 / 1024).toFixed(1)}GB / {(metrics.memory.total_swap / 1024 / 1024 / 1024).toFixed(1)}GB
                 </span>
               </div>
               <div className="w-full h-2 rounded-full bg-gray-700 overflow-hidden">
                 <div
                   className="h-full bg-orange-500"
                   style={{
-                    width: `${(metrics.memory.swap_used / metrics.memory.swap_total) * 100}%`,
+                    width: `${(metrics.memory.used_swap / metrics.memory.total_swap) * 100}%`,
                   }}
                 />
               </div>
@@ -124,14 +124,16 @@ export default function ServerDetail({ server }: ServerDetailProps) {
       )}
 
       {/* Temperature Info */}
-      {metrics && metrics.temperatures.temperatures.length > 0 && (
+      {metrics && metrics.components.components.length > 0 && (
         <div className="card">
           <h3 className="text-lg font-semibold text-white mb-3">Temperatures</h3>
           <div className="space-y-2">
-            {metrics.temperatures.temperatures.map((temp, idx) => (
+            {metrics.components.components.map((component, idx) => (
               <div key={idx} className="flex justify-between text-sm">
-                <span className="text-gray-400">{temp.name}</span>
-                <span className="text-white font-medium">{temp.current.toFixed(1)}°C</span>
+                <span className="text-gray-400">{component.name}</span>
+                <span className="text-white font-medium">
+                  {component.temperature ? `${component.temperature.toFixed(1)}°C` : 'N/A'}
+                </span>
               </div>
             ))}
           </div>
@@ -142,7 +144,7 @@ export default function ServerDetail({ server }: ServerDetailProps) {
       {metrics && (
         <div className="space-y-4">
           {metrics.cpus?.cpus && <CpuChart serverId={server.server_id} />}
-          {metrics.temperatures?.temperatures && <TemperatureChart serverId={server.server_id} />}
+          {metrics.components?.components && <TemperatureChart serverId={server.server_id} />}
         </div>
       )}
     </div>

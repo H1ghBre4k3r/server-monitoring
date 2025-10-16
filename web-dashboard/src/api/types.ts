@@ -25,12 +25,28 @@ export enum ServiceHealthStatus {
   Unknown = 'unknown',
 }
 
+// Component info
+export interface ComponentInfo {
+  name: string
+  temperature: number | null
+}
+
+export interface ComponentMetrics {
+  average_temperature: number | null
+  components: ComponentInfo[]
+}
+
 // CPU info
 export interface CpuInfo {
+  name: string
+  frequency: number
   usage: number
 }
 
 export interface CpuMetrics {
+  total: number
+  arch: string
+  average_usage: number
   cpus: CpuInfo[]
 }
 
@@ -38,28 +54,24 @@ export interface CpuMetrics {
 export interface MemoryMetrics {
   total: number
   used: number
-  available: number
-  swap_total: number
-  swap_used: number
+  total_swap: number
+  used_swap: number
 }
 
-// Temperature info
-export interface TemperatureMetrics {
-  temperatures: Array<{
-    name: string
-    current: number
-  }>
+// System info
+export interface SystemMetrics {
+  name: string | null
+  kernel_version: string | null
+  os_version: string | null
+  host_name: string | null
 }
 
 // Main metrics struct
 export interface ServerMetrics {
-  cpus: CpuMetrics
+  system: SystemMetrics
   memory: MemoryMetrics
-  temperatures: TemperatureMetrics
-  hostname: string
-  os: string
-  arch: string
-  kernel_version: string
+  cpus: CpuMetrics
+  components: ComponentMetrics
 }
 
 // Server info
@@ -68,7 +80,9 @@ export interface ServerInfo {
   display_name: string
   monitoring_status: MonitoringStatus
   health_status: ServerHealthStatus
-  last_update: string // ISO 8601 timestamp
+  last_seen: string | null // ISO 8601 timestamp
+  last_poll_success: string | null // ISO 8601 timestamp  
+  last_poll_error: string | null
   latest_metrics: ServerMetrics | null
 }
 
@@ -109,16 +123,28 @@ export interface ServicesResponse {
 
 export interface MetricsResponse {
   server_id: string
+  start: string
+  end: string
+  count: number
   metrics: Array<{
     timestamp: string // ISO 8601
+    server_id: string
+    metric_type: string
+    cpu_avg: number | null
+    temp_avg: number | null
     data: ServerMetrics
   }>
 }
 
 export interface LatestMetricsResponse {
   server_id: string
+  count: number
   metrics: Array<{
     timestamp: string // ISO 8601
+    server_id: string
+    metric_type: string
+    cpu_avg: number | null
+    temp_avg: number | null
     data: ServerMetrics
   }>
 }

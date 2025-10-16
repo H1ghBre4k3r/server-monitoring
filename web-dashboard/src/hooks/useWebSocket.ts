@@ -31,7 +31,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       if (event.type === 'metric') {
         const metricEvent = event as MetricEvent
         // Validate data exists before adding
-        if (metricEvent.metrics?.cpus || metricEvent.metrics?.temperatures) {
+        if (metricEvent.metrics?.cpus || metricEvent.metrics?.components) {
           addMetricPoint(metricEvent.server_id, {
             timestamp: new Date(metricEvent.timestamp),
             server_id: metricEvent.server_id,

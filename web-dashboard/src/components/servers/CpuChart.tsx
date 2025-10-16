@@ -53,8 +53,9 @@ export default function CpuChart({ serverId }: CpuChartProps) {
       })
 
       if (coreData.length > 0) {
+        const firstPoint = filtered[0]
         series.push({
-          name: `Core ${i}`,
+          name: firstPoint?.data?.cpus?.cpus?.[i]?.name || `Core ${i}`,
           type: 'line',
           smooth: 0.6,
           data: coreData,
