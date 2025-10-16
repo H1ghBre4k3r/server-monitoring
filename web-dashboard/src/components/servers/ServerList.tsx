@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useMonitoringStore } from '../../stores/monitoringStore'
 import { apiClient } from '../../api/client'
-import type { ServerInfo } from '../../api/types'
 import ServerDetail from './ServerDetail'
+import ServerSelector from './ServerSelector'
 import { Activity, Server as ServerIcon } from 'lucide-react'
 
 export default function ServerList() {
@@ -33,29 +33,6 @@ export default function ServerList() {
     const interval = setInterval(fetchServers, 5000)
     return () => clearInterval(interval)
   }, [setServers, selectedServerId, setSelectedServer])
-
-  const getStatusColor = (status: ServerInfo['health_status']) => {
-    switch (status) {
-      case 'up':
-        return 'badge-up'
-      case 'down':
-        return 'badge-down'
-      case 'stale':
-        return 'badge-stale'
-      default:
-        return 'badge-unknown'
-    }
-  }
-
-  const getStatusDot = (status: ServerInfo['health_status']) => {
-    const colors = {
-      up: 'bg-green-500',
-      down: 'bg-red-500',
-      stale: 'bg-yellow-500',
-      unknown: 'bg-gray-500'
-    }
-    return colors[status] || colors.unknown
-  }
 
   const selectedServer = servers.find(s => s.server_id === selectedServerId)
 
@@ -95,75 +72,23 @@ export default function ServerList() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-slide-up">
-      {/* Server list */}
-      <div className="lg:col-span-1 space-y-3">
-        <div className="flex items-center gap-2 mb-4">
-          <ServerIcon className="h-5 w-5 text-gray-400" />
-          <h2 className="text-lg font-semibold text-gray-300">Servers</h2>
-          <span className="ml-auto text-xs font-medium text-gray-500 bg-gray-800/50 px-2 py-1 rounded-full">
-            {servers.length}
-          </span>
-        </div>
+    <div className="space-y-6 animate-slide-up">
+      {/* Elegant server selector */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <ServerSelector />
         
-        <div className="space-y-3">
-          {servers.map((server, index) => {
-            const isSelected = selectedServerId === server.server_id
-            
-            return (
-              <button
-                key={server.server_id}
-                onClick={() => setSelectedServer(server.server_id)}
-                className={`group relative w-full text-left p-4 rounded-xl border transition-all duration-300 overflow-hidden ${
-                  isSelected
-                    ? 'border-blue-500/50 bg-gradient-to-br from-blue-600/20 via-indigo-600/15 to-purple-600/10 shadow-lg shadow-blue-500/20'
-                    : 'border-gray-700/50 bg-gradient-to-br from-gray-800/50 to-gray-900/50 hover:border-gray-600/70 hover:shadow-lg backdrop-blur-sm'
-                }`}
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                {/* Animated gradient border for selected */}
-                {isSelected && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 opacity-50 blur-xl animate-pulse-glow"></div>
-                )}
-                
-                <div className="relative flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1">
-                    {/* Status indicator with pulse */}
-                    <div className="relative">
-                      <div className={`w-3 h-3 rounded-full ${getStatusDot(server.health_status)}`}></div>
-                      {server.health_status === 'up' && (
-                        <div className={`absolute inset-0 w-3 h-3 rounded-full ${getStatusDot(server.health_status)} animate-ping opacity-75`}></div>
-                      )}
-                    </div>
-                    
-                    {/* Server info */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-white truncate">
-                        {server.display_name}
-                      </h3>
-                      <p className="text-xs text-gray-400 truncate">
-                        {server.server_id}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Status badge */}
-                  <div className={`px-2.5 py-1 rounded-lg text-xs font-bold ${getStatusColor(server.health_status)}`}>
-                    {server.health_status.toUpperCase()}
-                  </div>
-                </div>
-                
-                {/* Hover effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-purple-500/0 to-pink-500/0 group-hover:from-blue-500/5 group-hover:via-purple-500/5 group-hover:to-pink-500/5 transition-all duration-500 pointer-events-none"></div>
-              </button>
-            )
-          })}
+        {/* Server count badge */}
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-700/50 bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-sm">
+          <ServerIcon className="h-4 w-4 text-gray-400" />
+          <span className="text-sm font-medium text-gray-400">
+            {servers.length} {servers.length === 1 ? 'Server' : 'Servers'}
+          </span>
         </div>
       </div>
 
       {/* Server detail */}
       {selectedServer && (
-        <div className="lg:col-span-2 animate-scale-in">
+        <div className="animate-scale-in">
           <ServerDetail server={selectedServer} />
         </div>
       )}
