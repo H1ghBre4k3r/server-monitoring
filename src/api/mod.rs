@@ -113,8 +113,8 @@ pub async fn spawn_api_server(config: ApiConfig, state: ApiState) -> anyhow::Res
     // Add web dashboard static files if feature enabled
     #[cfg(feature = "web-dashboard")]
     {
-        use tower_http::services::ServeDir;
         use std::path::Path;
+        use tower_http::services::ServeDir;
 
         // Try to serve from dist directory (if it exists)
         let dist_path = Path::new("web-dashboard/dist");
@@ -127,7 +127,10 @@ pub async fn spawn_api_server(config: ApiConfig, state: ApiState) -> anyhow::Res
 
             app = app.nest_service("/", serve_dir);
         } else {
-            info!("web dashboard dist directory not found at {}", dist_path.display());
+            info!(
+                "web dashboard dist directory not found at {}",
+                dist_path.display()
+            );
             info!("run 'npm run build' in web-dashboard directory to build the dashboard");
         }
     }

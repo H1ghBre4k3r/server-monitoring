@@ -74,7 +74,11 @@ pub async fn list_servers(State(state): State<ApiState>) -> ApiResult<Json<Serve
                         polling_status.last_success_timestamp,
                         polling_status.last_error_timestamp,
                     );
-                    (health_status, Some(timestamp), Some(metric.metadata.clone()))
+                    (
+                        health_status,
+                        Some(timestamp),
+                        Some(metric.metadata.clone()),
+                    )
                 }
                 _ => {
                     // No metrics available - use shared utility
