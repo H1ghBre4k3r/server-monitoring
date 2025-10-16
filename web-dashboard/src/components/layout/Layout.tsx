@@ -57,32 +57,8 @@ export default function Layout({
           </>
         )}
         
-        {/* Mobile Bottom Navigation */}
-        <div className="fixed bottom-0 left-0 right-0 lg:hidden z-30 border-t border-gray-800/50 bg-gray-900/95 backdrop-blur-xl">
-          <div className="flex justify-around items-center py-3 px-2">
-            {[
-              { id: 'servers' as const, icon: '🖥️', label: 'Servers' },
-              { id: 'services' as const, icon: '⚡', label: 'Services' },
-              { id: 'alerts' as const, icon: '🔔', label: 'Alerts' },
-            ].map(({ id, icon, label }) => (
-              <button
-                key={id}
-                onClick={() => handleTabChange(id)}
-                className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${
-                  currentTab === id
-                    ? 'text-blue-400'
-                    : 'text-gray-400'
-                }`}
-              >
-                <span className="text-2xl">{icon}</span>
-                <span className="text-xs font-semibold">{label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        
         <main className="flex-1 overflow-auto relative">
-          <div className="p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8 animate-fade-in relative z-10">
+          <div className="p-4 sm:p-6 lg:p-8 animate-fade-in relative z-10">
             {children}
           </div>
         </main>
