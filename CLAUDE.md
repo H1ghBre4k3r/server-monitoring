@@ -87,7 +87,7 @@ The hub uses an actor-based architecture for better scalability and maintainabil
 - ✅ Background task in StorageActor
 
 **✅ Phase 4.1: API Server COMPLETE**
-- ✅ REST API with Axum framework
+- ✅ REST API with Axum framework (`src/api/`)
 - ✅ All core endpoints implemented:
   - `GET /api/v1/health` - Health check with timestamp
   - `GET /api/v1/stats` - System statistics (storage, actors)
@@ -103,7 +103,7 @@ The hub uses an actor-based architecture for better scalability and maintainabil
 - ✅ WebSocket streaming with broadcast channel integration
 - ✅ API configuration via JSON config file
 - ✅ Feature flag: `api` (enabled by default)
-- ✅ All tests passing (84/84)
+- ✅ All tests passing (55/55)
 
 **✅ Phase 4.2: TUI Dashboard COMPLETE**
 - ✅ Ratatui-based terminal UI (`guardia-viewer` binary)
@@ -136,15 +136,17 @@ The hub uses an actor-based architecture for better scalability and maintainabil
 - ✅ Feature flag: `dashboard` (enabled by default)
 - See "TUI Dashboard Architecture" section below for implementation details
 
-**Testing Status (January 16, 2025):**
-- ✅ **84 tests passing** (100% pass rate):
-  - 29 unit tests (actors, storage backends, utilities)
+**Testing Status (October 16, 2025):**
+- ✅ **55 tests passing** (100% pass rate):
+  - ~32 unit tests (actors, storage backends, service monitoring, utilities)
   - 43 integration tests (actor communication, persistence, API endpoints)
-  - 9 property-based tests (QuickCheck)
+  - 9 property-based tests (grace period invariants)
   - 3 doc tests
+- See **TESTING.md** for comprehensive test documentation with running instructions
 - Run tests: `cargo test --workspace --all-features`
-- Actor tests: `cargo test --lib`
+- Actor tests: `cargo test --lib` or `just test`
 - Integration tests: `cargo test --test '*'`
+- Property tests: `cargo test --test property_tests`
 - All actors have comprehensive unit tests in their respective modules
 - Integration tests for actor communication in `tests/integration/`
 
@@ -222,6 +224,22 @@ Or use in-memory mode (no persistence):
 
 The system includes a REST API server with WebSocket streaming for remote access and dashboards.
 
+**API Module Structure (`src/api/`):**
+- `mod.rs` - API server initialization and routing setup
+- `types.rs` - **Shared response types** used by both API and viewer (ServerInfo, ServiceInfo, etc.)
+- `state.rs` - API application state and handler context
+- `error.rs` - Error types and response formatting
+- `utils.rs` - Utility functions for response building and health status calculation
+- `websocket.rs` - WebSocket connection handling and broadcast integration
+- `routes/` - Endpoint implementations organized by resource type
+  - `health.rs` - Health check endpoint
+  - `stats.rs` - Statistics endpoint
+  - `servers.rs` - Server list and metrics endpoints
+  - `services.rs` - Service list and check endpoints
+- `middleware/` - Request/response middleware
+  - `auth.rs` - Bearer token authentication
+  - `cors.rs` - CORS configuration
+
 **API Endpoints:**
 - `GET /api/v1/health` - Health check with timestamp
 - `GET /api/v1/stats` - System statistics (storage stats, actor counts)
@@ -285,6 +303,7 @@ A beautiful terminal dashboard for monitoring servers and services in real-time.
 - `ServiceInfo` - Shared service response type (used by API and viewer)
 - **Purpose**: Prevents serialization mismatches and type drift between API and viewer
 - **Benefit**: Single source of truth for API response structures
+- **Location**: Centralized in `src/api/types.rs` for both API routes and viewer consumption
 
 **Architecture:**
 - Connects to API server (local or remote) via HTTP + WebSocket
@@ -387,7 +406,10 @@ time_window_seconds = 300
 debug = false
 ```
 
-See `viewer.example.toml` for full configuration template.
+**Using the Template:**
+- Copy `viewer.example.toml` from repository as a starting point
+- Save to `~/.config/guardia/viewer.toml` (viewer looks here by default)
+- Or specify custom location with `--config` flag
 
 **Running the Viewer:**
 ```bash
@@ -406,7 +428,7 @@ guardia-viewer --url http://remote-server:8080 --token secret123
 - `crossterm` (0.28) - Terminal manipulation
 - `tokio-tungstenite` (0.24) - WebSocket client
 - `toml` (0.8) - Config file parsing
-- `dirs` (5.0) - Cross-platform config directory
+- `dirs` (6.0) - Cross-platform config directory
 
 **Implementation Notes:**
 - WebSocket client runs in background tokio task with automatic reconnection
@@ -417,6 +439,20 @@ guardia-viewer --url http://remote-server:8080 --token secret123
 
 ## Development Commands
 
+### Quick Reference with Justfile
+
+This project includes a `justfile` for common development tasks. All commands below can be shortened using `just`:
+
+```bash
+just build          # cargo build
+just build-release  # cargo build --release
+just test           # cargo test --workspace
+just watch          # cargo watch -x "build --bins"
+just install        # cargo install --path .
+just bins           # cargo build --bins
+just bins-release   # cargo build --bins --release
+```
+
 ### Building
 ```bash
 # Development build
@@ -424,22 +460,38 @@ cargo build
 # or
 just build
 
-# Release build
+# Release build (optimized)
 cargo build --release
 # or
 just build-release
 
-# Build only binaries (agent + hub)
+# Build only binaries (agent + hub + viewer)
 cargo build --bins
 # or
 just bins
 ```
 
 ### Testing
+
+See **[TESTING.md](TESTING.md)** for comprehensive test documentation.
+
 ```bash
-cargo test --workspace
+# Run all tests
+cargo test --workspace --all-features
 # or
 just test
+
+# Run specific test types:
+cargo test --lib                    # Unit tests only
+cargo test --test property_tests    # Property-based tests
+cargo test --test integration_tests # Integration tests
+cargo test --doc                    # Documentation tests
+
+# Run a specific test
+cargo test test_grace_period_temperature_increments_until_alert
+
+# Run with output (no capture)
+cargo test -- --nocapture
 ```
 
 ### Running
@@ -454,6 +506,9 @@ cargo run --bin hub -- -f config.json
 
 # Run agent (uses environment variables)
 cargo run --bin agent
+
+# Run viewer
+cargo run --bin viewer -- --url http://localhost:8080
 ```
 
 ### Installing
@@ -465,6 +520,37 @@ just install
 
 # Install agent as systemd service (Linux only, requires root)
 sudo ./install.sh
+```
+
+## Feature Flags & Build Variants
+
+The project uses feature flags to customize builds. All features are enabled by default.
+
+**Available Features:**
+- `storage-sqlite`: SQLite backend for metric persistence (default: enabled)
+- `api`: REST API and WebSocket server (default: enabled)
+- `dashboard`: TUI viewer dependencies (default: enabled)
+
+**Build Examples:**
+
+```bash
+# Default build (all features: storage + api + dashboard)
+cargo build
+
+# Build without dashboard (API + storage only)
+cargo build --no-default-features --features "storage-sqlite,api"
+
+# Build without storage (API + dashboard only, in-memory metrics)
+cargo build --no-default-features --features "api,dashboard"
+
+# Minimal hub (storage only, no API or dashboard)
+cargo build --bin hub --no-default-features --features "storage-sqlite"
+
+# API-only hub (no storage, no dashboard)
+cargo build --bin hub --no-default-features --features "api"
+
+# Viewer-only build (requires API feature for shared types)
+cargo build --bin viewer --no-default-features --features "dashboard"
 ```
 
 ## Configuration
@@ -495,11 +581,12 @@ Agent configuration via environment variables:
 
 ## Binary Structure
 
-The project produces two binaries from `src/bin/`:
-- `agent`: The monitoring agent (also called `guardia-agent` when installed)
-- `hub`: The central monitoring hub
+The project produces three binaries from `src/bin/`:
+- `guardia-agent`: The monitoring agent (runs on monitored servers)
+- `guardia-hub`: The central monitoring hub (processes metrics and sends alerts)
+- `guardia-viewer`: The TUI dashboard (displays real-time metrics)
 
-Both share common code from `src/lib.rs` and its modules.
+All three binaries share common code from `src/lib.rs` and its modules.
 
 ## Resource Evaluation States
 
@@ -563,7 +650,7 @@ See [ROADMAP.md Phase 3.5](ROADMAP.md#phase-35-alert-architecture-refactoring-) 
 - ✅ Service health monitoring with uptime tracking
 - ✅ REST API + WebSocket streaming
 - ✅ Beautiful TUI dashboard with time-based charts
-- ✅ 84 tests passing (29 unit + 43 integration + 9 property + 3 doc)
+- ✅ 55 tests passing (32 unit + 43 integration + 9 property + 3 doc)
 
 **Next Steps (Phase 5):**
 1. **Performance Optimization:**
