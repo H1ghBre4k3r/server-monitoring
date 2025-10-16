@@ -1,4 +1,4 @@
-import { Activity, AlertCircle, CheckCircle2, Zap, Clock } from 'lucide-react'
+import { Activity, AlertCircle, CheckCircle2, Zap, Clock, Sparkles } from 'lucide-react'
 import { useMonitoringStore } from '../../stores/monitoringStore'
 
 interface HeaderProps {
@@ -22,8 +22,15 @@ export default function Header({ isConnected, onRefresh }: HeaderProps) {
   ]
 
   return (
-    <header className="border-b border-gray-800/50 bg-gradient-to-r from-gray-900/95 via-gray-900/90 to-gray-900/95 px-6 py-4 shadow-2xl backdrop-blur-xl">
-      <div className="flex items-center justify-between">
+    <header className="border-b border-gray-800/50 bg-gradient-to-r from-gray-900/95 via-gray-900/90 to-gray-900/95 px-6 py-4 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+      {/* Animated sparkles background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <Sparkles className="absolute top-2 right-1/4 h-4 w-4 text-blue-400/30 animate-pulse" style={{ animationDelay: '0s' }} />
+        <Sparkles className="absolute bottom-3 left-1/3 h-3 w-3 text-purple-400/30 animate-pulse" style={{ animationDelay: '1s' }} />
+        <Sparkles className="absolute top-4 left-1/2 h-3 w-3 text-cyan-400/30 animate-pulse" style={{ animationDelay: '2s' }} />
+      </div>
+      
+      <div className="flex items-center justify-between relative z-10">
         {/* Logo and title with gradient effect */}
         <div className="flex items-center gap-4">
           <div className="relative">

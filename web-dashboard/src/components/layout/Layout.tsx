@@ -21,21 +21,39 @@ export default function Layout({
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-screen overflow-hidden relative">
       <Header isConnected={isConnected} onRefresh={handleRefresh} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar currentTab={currentTab} onTabChange={onTabChange} />
-        <main className="flex-1 overflow-auto">
-          <div className="p-8 animate-fade-in">
+        <main className="flex-1 overflow-auto relative">
+          <div className="p-8 animate-fade-in relative z-10">
             {children}
           </div>
         </main>
       </div>
       
-      {/* Ambient background effects */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] animate-pulse-glow"></div>
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[120px] animate-pulse-glow" style={{ animationDelay: '1s' }}></div>
+      {/* Enhanced ambient background effects */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        {/* Large floating orbs */}
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[120px] animate-pulse-glow"></div>
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[120px] animate-pulse-glow" style={{ animationDelay: '1s' }}></div>
+        
+        {/* Medium floating orbs */}
+        <div className="absolute top-1/4 left-1/4 w-[300px] h-[300px] bg-cyan-500/8 rounded-full blur-[80px] animate-float"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-pink-500/8 rounded-full blur-[80px] animate-float" style={{ animationDelay: '2s' }}></div>
+        
+        {/* Small accent orbs */}
+        <div className="absolute top-1/2 right-1/3 w-[150px] h-[150px] bg-indigo-500/10 rounded-full blur-[60px] animate-bounce-slow"></div>
+        <div className="absolute top-2/3 left-1/2 w-[150px] h-[150px] bg-emerald-500/10 rounded-full blur-[60px] animate-bounce-slow" style={{ animationDelay: '1.5s' }}></div>
+        
+        {/* Subtle grid pattern overlay */}
+        <div className="absolute inset-0 opacity-[0.02]" style={{
+          backgroundImage: `
+            linear-gradient(90deg, rgba(99, 102, 241, 0.5) 1px, transparent 1px),
+            linear-gradient(rgba(99, 102, 241, 0.5) 1px, transparent 1px)
+          `,
+          backgroundSize: '50px 50px'
+        }}></div>
       </div>
     </div>
   )

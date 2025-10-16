@@ -1,14 +1,26 @@
 import { useMemo } from 'react'
 import ReactECharts from 'echarts-for-react'
 import { useMonitoringStore } from '../../stores/monitoringStore'
+import { Cpu } from 'lucide-react'
 
 interface CpuChartProps {
   serverId: string
+  currentMetrics?: {
+    cpus: {
+      cpus: Array<{ name: string; usage: number }>
+    }
+  }
 }
 
-export default function CpuChart({ serverId }: CpuChartProps) {
+export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
   const { metricsHistory, timeWindowSeconds } = useMonitoringStore()
   const metrics = metricsHistory.get(serverId) || []
+
+  const getCpuColor = (usage: number) => {
+    if (usage >= 80) return { from: '#ef4444', to: '#dc2626', light: '#fca5a5' }
+    if (usage >= 60) return { from: '#f59e0b', to: '#d97706', light: '#fcd34d' }
+    return { from: '#3b82f6', to: '#2563eb', light: '#93c5fd' }
+  }
 
   const chartOption = useMemo(() => {
     if (metrics.length === 0) {
@@ -257,12 +269,63 @@ export default function CpuChart({ serverId }: CpuChartProps) {
   }, [metrics, timeWindowSeconds])
 
   return (
-    <div key={`cpu-chart-${serverId}`} className="card-premium" style={{ height: '450px' }}>
-      <ReactECharts
-        option={chartOption}
-        style={{ height: '100%' }}
-        opts={{ renderer: 'canvas' }}
-      />
+    <div className="card-premium relative overflow-hidden">
+      {/* CPU Core Status Overlay */}
+      {currentMetrics && (
+        <div className="absolute top-6 right-6 z-10 max-w-xs">
+          <div className="backdrop-blur-xl bg-gray-900/90 rounded-xl border border-gray-700/50 p-4 shadow-2xl">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="rounded-lg bg-gradient-to-br from-blue-500/30 to-cyan-500/30 p-1.5 border border-blue-500/40">
+                <Cpu className="h-4 w-4 text-blue-400" />
+              </div>
+              <span className="text-sm font-bold text-gray-300">Live CPU Cores</span>
+            </div>
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+              {currentMetrics.cpus.cpus.map((cpu, idx) => {
+                const colors = getCpuColor(cpu.usage)
+                return (
+                  <div key={idx} className="group">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-gray-400 font-medium truncate max-w-[120px]" title={cpu.name}>
+                        {cpu.name}
+                      </span>
+                      <span 
+                        className="text-xs font-bold px-2 py-0.5 rounded-md transition-all"
+                        style={{ 
+                          background: `linear-gradient(90deg, ${colors.from}33, ${colors.to}33)`,
+                          color: colors.light,
+                          border: `1px solid ${colors.from}55`
+                        }}
+                      >
+                        {cpu.usage.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-gray-800/50 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500 ease-out"
+                        style={{
+                          width: `${cpu.usage}%`,
+                          background: `linear-gradient(90deg, ${colors.from}, ${colors.to})`,
+                          boxShadow: `0 0 8px ${colors.from}88`
+                        }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Chart */}
+      <div key={`cpu-chart-${serverId}`} style={{ height: '450px' }}>
+        <ReactECharts
+          option={chartOption}
+          style={{ height: '100%' }}
+          opts={{ renderer: 'canvas' }}
+        />
+      </div>
     </div>
   )
 }
