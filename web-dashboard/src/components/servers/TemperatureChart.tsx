@@ -4,6 +4,7 @@ import { useMonitoringStore } from '../../stores/monitoringStore'
 
 interface TemperatureChartProps {
   serverId: string
+  currentMetrics?: any
 }
 
 export default function TemperatureChart({ serverId }: TemperatureChartProps) {
@@ -116,19 +117,8 @@ export default function TemperatureChart({ serverId }: TemperatureChartProps) {
     return {
       backgroundColor: 'transparent',
       textStyle: { color: '#9ca3af', fontFamily: 'system-ui, -apple-system, sans-serif' },
-      title: {
-        text: 'Temperature Monitoring',
-        textStyle: { 
-          color: '#f3f4f6', 
-          fontSize: 16, 
-          fontWeight: 'bold',
-          fontFamily: 'system-ui, -apple-system, sans-serif'
-        },
-        left: 'center',
-        top: 10,
-      },
       grid: {
-        top: 60,
+        top: 30,
         right: 60,
         bottom: 80,
         left: 60,
@@ -215,7 +205,7 @@ export default function TemperatureChart({ serverId }: TemperatureChartProps) {
   }, [metrics, timeWindowSeconds])
 
   return (
-    <div key={`temp-chart-${serverId}`} className="card-premium" style={{ height: '450px' }}>
+    <div key={`temp-chart-${serverId}`} style={{ height: '350px' }}>
       <ReactECharts
         option={chartOption}
         style={{ height: '100%' }}
