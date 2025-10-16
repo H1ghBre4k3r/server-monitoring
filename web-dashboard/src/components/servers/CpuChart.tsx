@@ -117,34 +117,39 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
       ['#6366f1', '#4f46e5'], // Indigo
     ]
 
+    // Detect mobile viewport
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
+    const isTablet = typeof window !== 'undefined' && window.innerWidth < 1024
+
     return {
       backgroundColor: 'transparent',
       textStyle: { color: '#9ca3af', fontFamily: 'system-ui, -apple-system, sans-serif' },
       title: {
-        text: 'CPU Usage Over Time',
+        text: isMobile ? 'CPU Usage' : 'CPU Usage Over Time',
         textStyle: { 
           color: '#f3f4f6', 
-          fontSize: 16, 
+          fontSize: isMobile ? 13 : 16, 
           fontWeight: 'bold',
           fontFamily: 'system-ui, -apple-system, sans-serif'
         },
         left: 'center',
-        top: 10,
+        top: isMobile ? 5 : 10,
       },
       grid: {
-        top: 60,
-        right: 60,
-        bottom: 80,
-        left: 60,
+        top: isMobile ? 40 : 60,
+        right: isMobile ? 15 : isTablet ? 30 : 60,
+        bottom: isMobile ? 50 : 80,
+        left: isMobile ? 10 : isTablet ? 30 : 60,
         containLabel: true,
       },
       tooltip: {
         trigger: 'axis',
-        backgroundColor: 'rgba(17, 24, 39, 0.95)',
+        backgroundColor: 'rgba(17, 24, 39, 0.98)',
         borderColor: '#4b5563',
         borderWidth: 1,
-        textStyle: { color: '#fff', fontSize: 12 },
-        padding: [10, 15],
+        textStyle: { color: '#fff', fontSize: isMobile ? 10 : 12 },
+        padding: isMobile ? [8, 10] : [10, 15],
+        confine: true, // Keep tooltip within chart bounds on mobile
         axisPointer: {
           type: 'cross',
           lineStyle: { color: '#6366f1', width: 1, opacity: 0.5 },
@@ -153,15 +158,24 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
         formatter: (params: any) => {
           if (!params || params.length === 0) return ''
           const date = new Date(params[0].value[0])
-          let html = `<div style="font-weight: bold; margin-bottom: 8px; color: #a5b4fc;">${date.toLocaleTimeString()}</div>`
-          params.forEach((param: any) => {
+          let html = `<div style="font-weight: bold; margin-bottom: ${isMobile ? 4 : 8}px; color: #a5b4fc; font-size: ${isMobile ? 10 : 12}px;">${date.toLocaleTimeString()}</div>`
+          
+          // Limit to top 3 cores on mobile
+          const displayParams = isMobile ? params.slice(0, 4) : params
+          
+          displayParams.forEach((param: any) => {
             const color = param.color?.colorStops?.[0]?.color || param.color
-            html += `<div style="display: flex; align-items: center; margin: 4px 0;">
-              <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${color}; margin-right: 8px;"></span>
-              <span style="flex: 1;">${param.seriesName}:</span>
-              <span style="font-weight: bold; margin-left: 12px;">${param.value[1].toFixed(2)}%</span>
+            html += `<div style="display: flex; align-items: center; margin: ${isMobile ? 2 : 4}px 0;">
+              <span style="display: inline-block; width: ${isMobile ? 6 : 10}px; height: ${isMobile ? 6 : 10}px; border-radius: 50%; background: ${color}; margin-right: ${isMobile ? 4 : 8}px;"></span>
+              <span style="flex: 1; font-size: ${isMobile ? 9 : 11}px;">${param.seriesName}:</span>
+              <span style="font-weight: bold; margin-left: ${isMobile ? 6 : 12}px; font-size: ${isMobile ? 10 : 12}px;">${param.value[1].toFixed(1)}%</span>
             </div>`
           })
+          
+          if (isMobile && params.length > 4) {
+            html += `<div style="margin-top: 4px; color: #9ca3af; font-size: 9px; text-align: center;">+${params.length - 4} more</div>`
+          }
+          
           return html
         },
       },
@@ -173,6 +187,10 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
         axisLabel: {
           formatter: (value: number) => {
             const date = new Date(value)
+            if (isMobile) {
+              // Mobile: show only time without seconds
+              return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }
             if (timeWindowSeconds <= 300) {
               return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
             } else if (timeWindowSeconds <= 3600) {
@@ -182,37 +200,44 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
             }
           },
           color: '#6b7280',
-          fontSize: 11,
+          fontSize: isMobile ? 9 : 11,
+          rotate: isMobile ? 45 : 0,
+          hideOverlap: true,
         },
         axisLine: { lineStyle: { color: '#374151', width: 1 } },
-        axisTick: { lineStyle: { color: '#4b5563' } },
+        axisTick: { lineStyle: { color: '#4b5563' }, show: !isMobile },
         splitLine: { 
           lineStyle: { color: '#1f2937', type: 'dashed', opacity: 0.5 },
-          interval: timeWindowSeconds <= 300 ? 'auto' : timeWindowSeconds <= 900 ? 0 : 1,
+          show: !isMobile,
         },
       },
       yAxis: {
         type: 'value',
         min: 0,
         max: maxCpu,
-        name: 'Usage (%)',
-        nameTextStyle: { color: '#9ca3af', fontSize: 12, padding: [0, 0, 0, -10] },
-        axisLabel: { color: '#6b7280', formatter: (value: number) => `${value}%`, fontSize: 11 },
+        name: isMobile ? '' : 'Usage (%)',
+        nameTextStyle: { color: '#9ca3af', fontSize: isMobile ? 10 : 12, padding: [0, 0, 0, -10] },
+        axisLabel: { 
+          color: '#6b7280', 
+          formatter: (value: number) => isMobile ? `${value}` : `${value}%`, 
+          fontSize: isMobile ? 9 : 11 
+        },
         axisLine: { show: false },
         axisTick: { show: false },
-        splitLine: { lineStyle: { color: '#1f2937', type: 'dashed', opacity: 0.5 } },
+        splitLine: { lineStyle: { color: '#1f2937', type: 'dashed', opacity: 0.3 } },
       },
       legend: {
+        show: !isMobile, // Hide legend on mobile
         bottom: 10,
         left: 'center',
-        textStyle: { color: '#9ca3af', fontSize: 11 },
+        textStyle: { color: '#9ca3af', fontSize: isTablet ? 10 : 11 },
         icon: 'circle',
-        itemWidth: 12,
-        itemHeight: 12,
-        itemGap: 20,
+        itemWidth: isTablet ? 10 : 12,
+        itemHeight: isTablet ? 10 : 12,
+        itemGap: isTablet ? 12 : 20,
         backgroundColor: 'rgba(31, 41, 55, 0.5)',
         borderRadius: 8,
-        padding: [8, 20],
+        padding: isTablet ? [6, 15] : [8, 20],
       },
       series: series.map((s, idx) => ({
         ...s,
@@ -270,27 +295,27 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
 
   return (
     <div className="card-premium relative overflow-hidden">
-      {/* CPU Core Status Overlay */}
+      {/* CPU Core Status - Responsive Layout */}
       {currentMetrics && (
-        <div className="absolute top-6 right-6 z-10 max-w-xs">
-          <div className="backdrop-blur-xl bg-gray-900/90 rounded-xl border border-gray-700/50 p-4 shadow-2xl">
+        <div className="lg:absolute lg:top-6 lg:right-6 lg:z-10 lg:max-w-xs mb-4 lg:mb-0">
+          <div className="backdrop-blur-xl bg-gray-900/90 rounded-xl border border-gray-700/50 p-3 sm:p-4 shadow-2xl">
             <div className="flex items-center gap-2 mb-3">
               <div className="rounded-lg bg-gradient-to-br from-blue-500/30 to-cyan-500/30 p-1.5 border border-blue-500/40">
-                <Cpu className="h-4 w-4 text-blue-400" />
+                <Cpu className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-400" />
               </div>
-              <span className="text-sm font-bold text-gray-300">Live CPU Cores</span>
+              <span className="text-xs sm:text-sm font-bold text-gray-300">Live CPU Cores</span>
             </div>
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+            <div className="grid grid-cols-2 sm:grid-cols-1 gap-2 lg:space-y-2 lg:grid-cols-1 max-h-none sm:max-h-48 overflow-y-auto pr-2 custom-scrollbar">
               {currentMetrics.cpus.cpus.map((cpu, idx) => {
                 const colors = getCpuColor(cpu.usage)
                 return (
                   <div key={idx} className="group">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-400 font-medium truncate max-w-[120px]" title={cpu.name}>
+                      <span className="text-[10px] sm:text-xs text-gray-400 font-medium truncate max-w-[80px] sm:max-w-[120px]" title={cpu.name}>
                         {cpu.name}
                       </span>
                       <span 
-                        className="text-xs font-bold px-2 py-0.5 rounded-md transition-all"
+                        className="text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-md transition-all"
                         style={{ 
                           background: `linear-gradient(90deg, ${colors.from}33, ${colors.to}33)`,
                           color: colors.light,
@@ -300,7 +325,7 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
                         {cpu.usage.toFixed(1)}%
                       </span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-gray-800/50 overflow-hidden">
+                    <div className="h-1 sm:h-1.5 rounded-full bg-gray-800/50 overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-500 ease-out"
                         style={{
@@ -318,8 +343,8 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
         </div>
       )}
       
-      {/* Chart */}
-      <div key={`cpu-chart-${serverId}`} style={{ height: '450px' }}>
+      {/* Chart - Responsive Height */}
+      <div key={`cpu-chart-${serverId}`} className="h-[300px] sm:h-[350px] lg:h-[450px]">
         <ReactECharts
           option={chartOption}
           style={{ height: '100%' }}

@@ -114,23 +114,28 @@ export default function TemperatureChart({ serverId }: TemperatureChartProps) {
       }
     })
 
+    // Detect mobile viewport
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
+    const isTablet = typeof window !== 'undefined' && window.innerWidth < 1024
+
     return {
       backgroundColor: 'transparent',
       textStyle: { color: '#9ca3af', fontFamily: 'system-ui, -apple-system, sans-serif' },
       grid: {
-        top: 30,
-        right: 60,
-        bottom: 80,
-        left: 60,
+        top: isMobile ? 20 : 30,
+        right: isMobile ? 15 : isTablet ? 30 : 60,
+        bottom: isMobile ? 45 : 80,
+        left: isMobile ? 10 : isTablet ? 30 : 60,
         containLabel: true,
       },
       tooltip: {
         trigger: 'axis',
-        backgroundColor: 'rgba(17, 24, 39, 0.95)',
+        backgroundColor: 'rgba(17, 24, 39, 0.98)',
         borderColor: '#4b5563',
         borderWidth: 1,
-        textStyle: { color: '#fff', fontSize: 12 },
-        padding: [10, 15],
+        textStyle: { color: '#fff', fontSize: isMobile ? 10 : 12 },
+        padding: isMobile ? [8, 10] : [10, 15],
+        confine: true,
         axisPointer: {
           type: 'cross',
           lineStyle: { color: '#f97316', width: 1, opacity: 0.5 },
@@ -139,17 +144,26 @@ export default function TemperatureChart({ serverId }: TemperatureChartProps) {
         formatter: (params: any) => {
           if (!params || params.length === 0) return ''
           const date = new Date(params[0].value[0])
-          let html = `<div style="font-weight: bold; margin-bottom: 8px; color: #fdba74;">${date.toLocaleTimeString()}</div>`
-          params.forEach((param: any) => {
+          let html = `<div style="font-weight: bold; margin-bottom: ${isMobile ? 4 : 8}px; color: #fdba74; font-size: ${isMobile ? 10 : 12}px;">${date.toLocaleTimeString()}</div>`
+          
+          // Limit displayed items on mobile
+          const displayParams = isMobile ? params.slice(0, 3) : params
+          
+          displayParams.forEach((param: any) => {
             const temp = param.value[1]
             const color = param.color?.colorStops?.[0]?.color || param.color
             const tempClass = temp >= 70 ? '#ef4444' : temp >= 50 ? '#f59e0b' : '#22c55e'
-            html += `<div style="display: flex; align-items: center; margin: 4px 0;">
-              <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${color}; margin-right: 8px;"></span>
-              <span style="flex: 1;">${param.seriesName}:</span>
-              <span style="font-weight: bold; margin-left: 12px; color: ${tempClass};">${temp.toFixed(1)}°C</span>
+            html += `<div style="display: flex; align-items: center; margin: ${isMobile ? 2 : 4}px 0;">
+              <span style="display: inline-block; width: ${isMobile ? 6 : 10}px; height: ${isMobile ? 6 : 10}px; border-radius: 50%; background: ${color}; margin-right: ${isMobile ? 4 : 8}px;"></span>
+              <span style="flex: 1; font-size: ${isMobile ? 9 : 11}px;">${param.seriesName}:</span>
+              <span style="font-weight: bold; margin-left: ${isMobile ? 6 : 12}px; color: ${tempClass}; font-size: ${isMobile ? 10 : 12}px;">${temp.toFixed(1)}°C</span>
             </div>`
           })
+          
+          if (isMobile && params.length > 3) {
+            html += `<div style="margin-top: 4px; color: #9ca3af; font-size: 9px; text-align: center;">+${params.length - 3} more</div>`
+          }
+          
           return html
         },
       },
@@ -161,6 +175,9 @@ export default function TemperatureChart({ serverId }: TemperatureChartProps) {
         axisLabel: {
           formatter: (value: number) => {
             const date = new Date(value)
+            if (isMobile) {
+              return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }
             if (timeWindowSeconds <= 300) {
               return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
             } else if (timeWindowSeconds <= 3600) {
@@ -170,42 +187,49 @@ export default function TemperatureChart({ serverId }: TemperatureChartProps) {
             }
           },
           color: '#6b7280',
-          fontSize: 11,
+          fontSize: isMobile ? 9 : 11,
+          rotate: isMobile ? 45 : 0,
+          hideOverlap: true,
         },
         axisLine: { lineStyle: { color: '#374151', width: 1 } },
-        axisTick: { lineStyle: { color: '#4b5563' } },
+        axisTick: { lineStyle: { color: '#4b5563' }, show: !isMobile },
         splitLine: { 
           lineStyle: { color: '#1f2937', type: 'dashed', opacity: 0.5 },
-          interval: timeWindowSeconds <= 300 ? 'auto' : timeWindowSeconds <= 900 ? 0 : 1,
+          show: !isMobile,
         },
       },
       yAxis: {
         type: 'value',
-        name: 'Temperature (°C)',
-        nameTextStyle: { color: '#9ca3af', fontSize: 12, padding: [0, 0, 0, -10] },
-        axisLabel: { color: '#6b7280', formatter: '{value}°C', fontSize: 11 },
+        name: isMobile ? '' : 'Temperature (°C)',
+        nameTextStyle: { color: '#9ca3af', fontSize: isMobile ? 10 : 12, padding: [0, 0, 0, -10] },
+        axisLabel: { 
+          color: '#6b7280', 
+          formatter: (value: number) => isMobile ? `${value}°` : `${value}°C`, 
+          fontSize: isMobile ? 9 : 11 
+        },
         axisLine: { show: false },
         axisTick: { show: false },
-        splitLine: { lineStyle: { color: '#1f2937', type: 'dashed', opacity: 0.5 } },
+        splitLine: { lineStyle: { color: '#1f2937', type: 'dashed', opacity: 0.3 } },
       },
       legend: {
+        show: !isMobile,
         bottom: 10,
         left: 'center',
-        textStyle: { color: '#9ca3af', fontSize: 11 },
+        textStyle: { color: '#9ca3af', fontSize: isTablet ? 10 : 11 },
         icon: 'circle',
-        itemWidth: 12,
-        itemHeight: 12,
-        itemGap: 20,
+        itemWidth: isTablet ? 10 : 12,
+        itemHeight: isTablet ? 10 : 12,
+        itemGap: isTablet ? 12 : 20,
         backgroundColor: 'rgba(31, 41, 55, 0.5)',
         borderRadius: 8,
-        padding: [8, 20],
+        padding: isTablet ? [6, 15] : [8, 20],
       },
       series,
     }
   }, [metrics, timeWindowSeconds])
 
   return (
-    <div key={`temp-chart-${serverId}`} style={{ height: '350px' }}>
+    <div key={`temp-chart-${serverId}`} className="h-[250px] sm:h-[300px] lg:h-[350px]">
       <ReactECharts
         option={chartOption}
         style={{ height: '100%' }}
