@@ -3,6 +3,7 @@ import { Server, AlertCircle, Bell } from 'lucide-react'
 interface SidebarProps {
   currentTab: 'servers' | 'services' | 'alerts'
   onTabChange: (tab: 'servers' | 'services' | 'alerts') => void
+  isMobile?: boolean
 }
 
 const TABS = [
@@ -11,10 +12,12 @@ const TABS = [
   { id: 'alerts' as const, label: 'Alerts', icon: Bell, gradient: 'from-orange-500 to-red-500' },
 ]
 
-export default function Sidebar({ currentTab, onTabChange }: SidebarProps) {
+export default function Sidebar({ currentTab, onTabChange, isMobile = false }: SidebarProps) {
   return (
-    <aside className="w-72 border-r border-gray-800/50 bg-gradient-to-b from-gray-900/95 to-gray-900/80 p-6 backdrop-blur-xl">
-      <nav className="space-y-3">
+    <aside className={`border-r border-gray-800/50 bg-gradient-to-b from-gray-900/95 to-gray-900/80 backdrop-blur-xl ${
+      isMobile ? 'h-full w-full p-6' : 'w-72 h-full p-6'
+    }`}>
+      <nav className={`space-y-3 ${isMobile ? 'h-full flex flex-col' : ''}`}>
         {TABS.map(({ id, label, icon: Icon, gradient }) => {
           const isActive = currentTab === id
           
@@ -62,10 +65,18 @@ export default function Sidebar({ currentTab, onTabChange }: SidebarProps) {
             </button>
           )
         })}
+        
+        {/* Decorative gradient orb - only show on desktop or push to bottom on mobile */}
+        {!isMobile && (
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-32 h-32 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
+        )}
+        
+        {isMobile && (
+          <div className="flex-1 flex items-end justify-center pb-8">
+            <div className="w-32 h-32 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
+          </div>
+        )}
       </nav>
-      
-      {/* Decorative gradient orb */}
-      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-32 h-32 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
     </aside>
   )
 }

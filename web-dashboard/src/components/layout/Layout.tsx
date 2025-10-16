@@ -38,7 +38,7 @@ export default function Layout({
       <div className="flex flex-1 overflow-hidden relative">
         {/* Desktop Sidebar */}
         <div className="hidden lg:block">
-          <Sidebar currentTab={currentTab} onTabChange={handleTabChange} />
+          <Sidebar currentTab={currentTab} onTabChange={handleTabChange} isMobile={false} />
         </div>
         
         {/* Mobile Sidebar Overlay */}
@@ -50,9 +50,9 @@ export default function Layout({
               onClick={() => setIsMobileMenuOpen(false)}
             />
             
-            {/* Sidebar */}
-            <div className="fixed inset-y-0 left-0 w-64 z-50 lg:hidden animate-slide-in-left">
-              <Sidebar currentTab={currentTab} onTabChange={handleTabChange} />
+            {/* Sidebar - Full height on mobile */}
+            <div className="fixed inset-0 z-50 lg:hidden animate-slide-in-left">
+              <Sidebar currentTab={currentTab} onTabChange={handleTabChange} isMobile={true} />
             </div>
           </>
         )}
