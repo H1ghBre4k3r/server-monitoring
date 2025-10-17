@@ -2,7 +2,30 @@
 
 ARG RUST_VERSION=nightly
 ARG ALPINE_VERSION=3.22
+ARG NODE_VERSION=20
 
+################################################################################
+# Web Dashboard Builder - Build React/TypeScript frontend
+################################################################################
+FROM node:${NODE_VERSION}-alpine AS web-builder
+
+WORKDIR /app/web-dashboard
+
+# Copy package files for dependency installation
+COPY web-dashboard/package.json web-dashboard/package-lock.json ./
+
+# Install dependencies including devDependencies (needed for build)
+RUN npm ci
+
+# Copy web dashboard source code
+COPY web-dashboard/ ./
+
+# Build production bundle (outputs to dist/)
+RUN npm run build
+
+################################################################################
+# Rust Builder - Build hub binary
+################################################################################
 FROM rustlang/rust:${RUST_VERSION}-alpine AS builder
 
 WORKDIR /app
@@ -55,14 +78,17 @@ RUN apk add --no-cache \
     --uid "10001" \
     guardia
 
-# Create directories for config and data
-RUN mkdir -p /app/config /app/data && \
+# Create directories for config, data, and web dashboard
+RUN mkdir -p /app/config /app/data /app/web-dashboard && \
     chown -R guardia:guardia /app
 
 WORKDIR /app
 
 # Copy binary from builder
 COPY --from=builder --chown=guardia:guardia /guardia-hub /usr/local/bin/guardia-hub
+
+# Copy web dashboard static files from web-builder
+COPY --from=web-builder --chown=guardia:guardia /app/web-dashboard/dist /app/web-dashboard/dist
 
 # Switch to non-root user
 USER guardia
