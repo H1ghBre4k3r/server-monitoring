@@ -15,7 +15,9 @@ WORKDIR /app/web-dashboard
 COPY web-dashboard/package.json web-dashboard/package-lock.json ./
 
 # Install dependencies including devDependencies (needed for build)
-RUN npm ci
+# Cache npm downloads for faster builds
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 
 # Copy web dashboard source code
 COPY web-dashboard/ ./
@@ -24,15 +26,29 @@ COPY web-dashboard/ ./
 RUN npm run build
 
 ################################################################################
-# Rust Chef - Prepare dependency recipe
+# Rust Chef Installer - Install cargo-chef once and cache
+################################################################################
+FROM rustlang/rust:${RUST_VERSION}-alpine AS chef-installer
+
+# Install build dependencies and cargo-chef
+# This layer is cached and only rebuilds when RUST_VERSION changes
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    apk add --no-cache musl-dev && \
+    cargo install cargo-chef --locked
+
+################################################################################
+# Rust Chef Base - Reuse pre-built cargo-chef
 ################################################################################
 FROM rustlang/rust:${RUST_VERSION}-alpine AS chef
 
 WORKDIR /app
 
-# Install cargo-chef for dependency caching
-RUN apk add --no-cache musl-dev && \
-    cargo install cargo-chef
+# Copy pre-built cargo-chef binary from installer stage
+COPY --from=chef-installer /usr/local/cargo/bin/cargo-chef /usr/local/cargo/bin/cargo-chef
+
+# Install musl-dev needed for builds
+RUN apk add --no-cache musl-dev
 
 ################################################################################
 # Planner - Generate dependency recipe
@@ -71,7 +87,9 @@ ENV OPENSSL_DIR=/usr \
 
 # Build dependencies only (cached layer)
 COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    cargo chef cook --release --recipe-path recipe.json
 
 # Copy source code and migrations
 COPY Cargo.toml Cargo.lock ./
@@ -80,7 +98,9 @@ COPY migrations ./migrations
 
 # Build only the hub binary (dependencies already built)
 # Strip debug symbols for smaller binary
-RUN cargo build --bin guardia-hub --locked --release && \
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    cargo build --bin guardia-hub --locked --release && \
     strip target/release/guardia-hub && \
     mv target/release/guardia-hub /guardia-hub
 
