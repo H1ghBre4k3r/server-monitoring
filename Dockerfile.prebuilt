@@ -1,0 +1,73 @@
+# syntax=docker/dockerfile:1
+#
+# Dockerfile for using pre-built binaries from CI
+# This skips Rust compilation entirely, only builds web dashboard
+#
+
+ARG ALPINE_VERSION=3.22
+ARG NODE_VERSION=20
+
+################################################################################
+# Web Dashboard Builder - Build React/TypeScript frontend
+################################################################################
+FROM node:${NODE_VERSION}-alpine AS web-builder
+
+WORKDIR /app/web-dashboard
+
+# Copy package files for dependency installation
+COPY web-dashboard/package.json web-dashboard/package-lock.json ./
+
+# Install dependencies including devDependencies (needed for build)
+# Cache npm downloads for faster builds
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
+
+# Copy web dashboard source code
+COPY web-dashboard/ ./
+
+# Build production bundle (outputs to dist/)
+RUN npm run build
+
+################################################################################
+# Runtime stage - minimal Alpine image with prebuilt binary
+################################################################################
+FROM alpine:${ALPINE_VERSION}
+
+# Install runtime dependencies only
+RUN apk add --no-cache \
+    ca-certificates \
+    libgcc \
+    && adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/app" \
+    --shell "/sbin/nologin" \
+    --no-create-home \
+    --uid "10001" \
+    guardia
+
+# Create directories for config, data, and web dashboard
+RUN mkdir -p /app/config /app/data /app/web-dashboard && \
+    chown -R guardia:guardia /app
+
+WORKDIR /app
+
+# Copy prebuilt binary from build context
+# The binary is copied into the build context by the workflow
+COPY --chown=guardia:guardia guardia-hub /usr/local/bin/guardia-hub
+RUN chmod +x /usr/local/bin/guardia-hub
+
+# Copy web dashboard static files from web-builder
+COPY --from=web-builder --chown=guardia:guardia /app/web-dashboard/dist /app/web-dashboard/dist
+
+# Switch to non-root user
+USER guardia
+
+# API server port
+EXPOSE 8080
+
+# Volume for persistent data (metrics.db, config)
+VOLUME ["/app/data", "/app/config"]
+
+# Default command - expects config at /app/config/config.json
+CMD ["guardia-hub", "-f", "/app/config/config.json"]
