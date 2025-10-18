@@ -63,8 +63,8 @@ pub async fn list_servers(State(state): State<ApiState>) -> ApiResult<Json<Serve
         // Get polling status for this server
         let polling_status = state.polling_store.get_status(&server_id).await;
 
-        // Query latest metric to determine health
-        let (health_status, last_seen) =
+        // Query latest metric to determine health and get metrics data
+        let (health_status, last_seen, latest_metrics) =
             match state.storage.query_latest(server_id.clone(), 1).await {
                 Ok(metrics) if !metrics.is_empty() => {
                     let metric = &metrics[0];
@@ -74,7 +74,11 @@ pub async fn list_servers(State(state): State<ApiState>) -> ApiResult<Json<Serve
                         polling_status.last_success_timestamp,
                         polling_status.last_error_timestamp,
                     );
-                    (health_status, Some(timestamp))
+                    (
+                        health_status,
+                        Some(timestamp),
+                        Some(metric.metadata.clone()),
+                    )
                 }
                 _ => {
                     // No metrics available - use shared utility
@@ -83,7 +87,7 @@ pub async fn list_servers(State(state): State<ApiState>) -> ApiResult<Json<Serve
                         polling_status.last_success_timestamp,
                         polling_status.last_error_timestamp,
                     );
-                    (health_status, None)
+                    (health_status, None, None)
                 }
             };
 
@@ -95,6 +99,7 @@ pub async fn list_servers(State(state): State<ApiState>) -> ApiResult<Json<Serve
             last_seen,
             last_poll_success: polling_status.last_success,
             last_poll_error: polling_status.last_error,
+            latest_metrics,
         });
     }
 

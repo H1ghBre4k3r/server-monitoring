@@ -96,7 +96,8 @@ fn init() {
             tracing_subscriber::fmt::layer()
                 .with_writer(std::io::stderr)
                 .compact()
-                .with_ansi(false),
+                .pretty()
+                .with_ansi(true),
         )
         .with(filter::LevelFilter::DEBUG)
         .init();

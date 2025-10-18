@@ -54,10 +54,11 @@ utoipa = { version = "5", features = ["axum_extras"], optional = true }
 utoipa-swagger-ui = { version = "8", features = ["axum"], optional = true }
 
 [features]
-default = ["storage-sqlite", "api", "dashboard"]
+default = ["storage-sqlite", "api", "dashboard", "web-dashboard"]
 storage-sqlite = ["sqlx"]
 api = ["axum", "tower", "tower-http", "utoipa", "utoipa-swagger-ui"]
 dashboard = ["ratatui", "crossterm", "toml", "dirs", "tokio-tungstenite", "reqwest/cookies"]
+web-dashboard = ["api"]
 
 [dev-dependencies]
 # Mock HTTP server for testing agent endpoints

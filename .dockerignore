@@ -46,3 +46,10 @@ tests/
 # Exclude install scripts
 install.sh
 *.example.*
+
+# Web dashboard build artifacts (will be built in Docker)
+node_modules/
+**/node_modules/
+web-dashboard/dist/
+web-dashboard/.vite/
+web-dashboard/.turbo/

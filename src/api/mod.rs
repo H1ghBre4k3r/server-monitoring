@@ -110,6 +110,31 @@ pub async fn spawn_api_server(config: ApiConfig, state: ApiState) -> anyhow::Res
         .with_state(state)
         .layer(TraceLayer::new_for_http());
 
+    // Add web dashboard static files if feature enabled
+    #[cfg(feature = "web-dashboard")]
+    {
+        use std::path::Path;
+        use tower_http::services::ServeDir;
+
+        // Try to serve from dist directory (if it exists)
+        let dist_path = Path::new("web-dashboard/dist");
+        if dist_path.exists() {
+            info!("serving web dashboard from {}", dist_path.display());
+            let serve_dir = ServeDir::new(dist_path)
+                .precompressed_br()
+                .precompressed_deflate()
+                .precompressed_gzip();
+
+            app = app.nest_service("/", serve_dir);
+        } else {
+            info!(
+                "web dashboard dist directory not found at {}",
+                dist_path.display()
+            );
+            info!("run 'npm run build' in web-dashboard directory to build the dashboard");
+        }
+    }
+
     // Add CORS if enabled
     if config.enable_cors {
         let cors = CorsLayer::new()
