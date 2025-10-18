@@ -2,6 +2,7 @@ name: CI Checks
 
 permissions:
   contents: read
+  packages: write
 
 on:
   push:
@@ -84,3 +85,9 @@ jobs:
           toolchain: stable
           components: rustfmt
       - run: cargo fmt -- --check
+
+  docker:
+    name: Docker Build & Publish
+    needs: [building, testing, linting, formatting]
+    uses: ./.github/workflows/docker-publish.yml
+    secrets: inherit
