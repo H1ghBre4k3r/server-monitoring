@@ -31,7 +31,9 @@ FROM rustlang/rust:${RUST_VERSION}-alpine AS chef
 WORKDIR /app
 
 # Install cargo-chef for dependency caching
-RUN apk add --no-cache musl-dev && \
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    apk add --no-cache musl-dev && \
     cargo install cargo-chef
 
 ################################################################################
@@ -71,7 +73,9 @@ ENV OPENSSL_DIR=/usr \
 
 # Build dependencies only (cached layer)
 COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    cargo chef cook --release --recipe-path recipe.json
 
 # Copy source code and migrations
 COPY Cargo.toml Cargo.lock ./
@@ -80,7 +84,9 @@ COPY migrations ./migrations
 
 # Build only the hub binary (dependencies already built)
 # Strip debug symbols for smaller binary
-RUN cargo build --bin guardia-hub --locked --release && \
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    cargo build --bin guardia-hub --locked --release && \
     strip target/release/guardia-hub && \
     mv target/release/guardia-hub /guardia-hub
 
