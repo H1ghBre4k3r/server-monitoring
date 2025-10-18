@@ -10,6 +10,8 @@ on:
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 1
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/guardia
 
 jobs:
   building:
@@ -133,8 +135,222 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-  docker:
-    name: Docker Build & Publish
+  build-release-binaries:
+    name: Build Release Binaries
+    runs-on: ubuntu-latest
     needs: [building, testing, linting, formatting]
-    uses: ./.github/workflows/docker-publish.yml
-    secrets: inherit
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            use_cross: false
+            artifact: guardia-hub-amd64
+          - target: aarch64-unknown-linux-musl
+            use_cross: true
+            artifact: guardia-hub-arm64
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: release-${{ matrix.target }}
+          cache-on-failure: true
+
+      - name: Install musl tools (for native x86_64 build)
+        if: "!matrix.use_cross"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          rustup target add ${{ matrix.target }}
+
+      - name: Install cross (for arm64 cross-compilation)
+        if: matrix.use_cross
+        uses: taiki-e/install-action@cross
+
+      - name: Build release binary (native)
+        if: "!matrix.use_cross"
+        run: |
+          cargo build --bin guardia-hub --release --locked --target ${{ matrix.target }}
+          strip target/${{ matrix.target }}/release/guardia-hub
+
+      - name: Build release binary (cross-compilation)
+        if: matrix.use_cross
+        run: |
+          cross build --bin guardia-hub --release --locked --target ${{ matrix.target }}
+
+      - name: Strip binary (cross-compiled)
+        if: matrix.use_cross
+        run: |
+          docker run --rm -v $(pwd):/project \
+            ghcr.io/cross-rs/aarch64-unknown-linux-musl:latest \
+            aarch64-linux-musl-strip /project/target/${{ matrix.target }}/release/guardia-hub
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: target/${{ matrix.target }}/release/guardia-hub
+          if-no-files-found: error
+          retention-days: 1
+
+  build-and-push-docker:
+    name: Build Docker Image (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+    needs: [build-release-binaries]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare platform name
+        id: platform
+        run: |
+          platform=${{ matrix.platform }}
+          echo "platform-short=${platform//\//-}" >> $GITHUB_OUTPUT
+          # Determine artifact name based on platform
+          if [ "$platform" = "linux/amd64" ]; then
+            echo "artifact-name=guardia-hub-amd64" >> $GITHUB_OUTPUT
+          else
+            echo "artifact-name=guardia-hub-arm64" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download prebuilt binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.platform.outputs.artifact-name }}
+          path: ./prebuilt
+
+      - name: Prepare binary for Docker build
+        run: |
+          mv ./prebuilt/guardia-hub ./guardia-hub
+          chmod +x ./guardia-hub
+          ls -lh ./guardia-hub
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # Tag with 'latest' on main branch pushes
+            type=raw,value=latest,enable={{is_default_branch}}
+            # Tag with version on git tags (v1.0.0 -> 1.0.0, 1.0, 1)
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            # Tag with PR number on pull requests
+            type=ref,event=pr,prefix=pr-
+            # Always tag with short SHA
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.prebuilt
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=build-${{ steps.platform.outputs.platform-short }}
+          cache-to: type=gha,scope=build-${{ steps.platform.outputs.platform-short }},mode=max
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ steps.platform.outputs.platform-short }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge-docker:
+    name: Merge Docker Manifests
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+    needs: [build-and-push-docker]
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # Tag with 'latest' on main branch pushes
+            type=raw,value=latest,enable={{is_default_branch}}
+            # Tag with version on git tags (v1.0.0 -> 1.0.0, 1.0, 1)
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            # Tag with PR number on pull requests
+            type=ref,event=pr,prefix=pr-
+            # Always tag with short SHA
+            type=sha,prefix=sha-,format=short
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+
+      - name: Generate build summary
+        run: |
+          echo "## Docker Image Published :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** \`${{ env.REGISTRY }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Platforms:** \`linux/amd64\`, \`linux/arm64\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Tags" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
