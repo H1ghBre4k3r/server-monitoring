@@ -9,6 +9,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 1
 
 jobs:
   building:
@@ -16,30 +17,49 @@ jobs:
     continue-on-error: ${{ matrix.experimental || false }}
     strategy:
       matrix:
-        # All generated code should be running on stable now
-        rust: [nightly, stable]
         include:
-          # Nightly is only for reference and allowed to fail
-          - rust: nightly
+          # Debug builds on all platforms (compatibility check)
+          - os: ubuntu-latest
+            rust: stable
+            profile: dev
+          - os: macOS-latest
+            rust: stable
+            profile: dev
+          - os: windows-latest
+            rust: stable
+            profile: dev
+          # Release build only on Linux (used by Docker, fastest runner)
+          - os: ubuntu-latest
+            rust: stable
+            profile: release
+          # Nightly build on Linux only (allowed to fail)
+          - os: ubuntu-latest
+            rust: nightly
+            profile: dev
             experimental: true
-        os:
-          # Check compilation works on common OSes
-          # (i.e. no path issues)
-          - ubuntu-latest
-          - macOS-latest
-          - windows-latest
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
-      - uses: actions-rs/toolchain@v1
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
-      - run: cargo build --all
-        env:
-          RUST_BACKTRACE: 1
-      - run: cargo build --all --release
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ${{ matrix.os }}-${{ matrix.rust }}-${{ matrix.profile }}
+          cache-on-failure: true
+
+      - name: Build ${{ matrix.profile }}
+        run: |
+          if [ "${{ matrix.profile }}" = "release" ]; then
+            cargo build --all --release
+          else
+            cargo build --all
+          fi
+        shell: bash
         env:
           RUST_BACKTRACE: 1
   testing:
@@ -47,18 +67,33 @@ jobs:
     strategy:
       matrix:
         os:
-          # Check compilation works on common OSes
-          # (i.e. no path issues)
+          # Check tests pass on common OSes
           - ubuntu-latest
           - macOS-latest
           - windows-latest
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
-      - uses: actions-rs/toolchain@v1
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
         with:
-          toolchain: stable
-      - run: cargo test --workspace
+          shared-key: ${{ matrix.os }}-stable-test
+          cache-on-failure: true
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Run tests with nextest
+        run: cargo nextest run --workspace --all-features
+        env:
+          RUST_BACKTRACE: 1
+
+      - name: Run doctests (not supported by nextest)
+        run: cargo test --workspace --doc
         env:
           RUST_BACKTRACE: 1
   linting:
@@ -68,11 +103,20 @@ jobs:
       - uses: actions/checkout@v5
         with:
           submodules: true
-      - uses: actions-rs/toolchain@v1
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
           components: clippy
-      - run: cargo clippy --all-targets --workspace
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ubuntu-latest-stable-clippy
+          cache-on-failure: true
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --workspace --all-features
   formatting:
     name: Formatting
     runs-on: ubuntu-latest
@@ -80,11 +124,14 @@ jobs:
       - uses: actions/checkout@v5
         with:
           submodules: true
-      - uses: actions-rs/toolchain@v1
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
           components: rustfmt
-      - run: cargo fmt -- --check
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
   docker:
     name: Docker Build & Publish

@@ -24,11 +24,33 @@ COPY web-dashboard/ ./
 RUN npm run build
 
 ################################################################################
-# Rust Builder - Build hub binary
+# Rust Chef - Prepare dependency recipe
 ################################################################################
-FROM rustlang/rust:${RUST_VERSION}-alpine AS builder
+FROM rustlang/rust:${RUST_VERSION}-alpine AS chef
 
 WORKDIR /app
+
+# Install cargo-chef for dependency caching
+RUN apk add --no-cache musl-dev && \
+    cargo install cargo-chef
+
+################################################################################
+# Planner - Generate dependency recipe
+################################################################################
+FROM chef AS planner
+
+# Copy manifests and source to analyze dependencies
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+COPY migrations ./migrations
+
+# Generate recipe.json with all dependencies
+RUN cargo chef prepare --recipe-path recipe.json
+
+################################################################################
+# Rust Builder - Build hub binary with cached dependencies
+################################################################################
+FROM chef AS builder
 
 # Install build dependencies
 RUN apk add --no-cache \
@@ -47,15 +69,17 @@ ENV OPENSSL_DIR=/usr \
     PKG_CONFIG_ALLOW_CROSS=1 \
     RUSTFLAGS="-C target-feature=-crt-static"
 
-# Copy manifests
-COPY Cargo.toml Cargo.lock ./
+# Build dependencies only (cached layer)
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
 
 # Copy source code and migrations
+COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY migrations ./migrations
 
-# Build only the hub binary with optimizations
-# Strip debug symbols and enable LTO for smaller binary
+# Build only the hub binary (dependencies already built)
+# Strip debug symbols for smaller binary
 RUN cargo build --bin guardia-hub --locked --release && \
     strip target/release/guardia-hub && \
     mv target/release/guardia-hub /guardia-hub
