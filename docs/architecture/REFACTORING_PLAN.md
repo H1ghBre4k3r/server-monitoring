@@ -8,7 +8,7 @@ This document outlines the plan to refactor the current hub architecture from a 
 
 ## Current Architecture Analysis
 
-### Code Structure (as of v0.1.0)
+### Code Structure (as of v0.5.0)
 
 ```
 src/
@@ -339,7 +339,7 @@ impl MyActorHandle {
 
 **Steps:**
 1. End-to-end testing with real agents
-2. Performance benchmarking vs v0.1.0
+2. Performance benchmarking vs v0.5.0
 3. Fix any regressions
 4. Update documentation
 5. Remove dead code
@@ -542,7 +542,7 @@ async fn main() -> anyhow::Result<()> {
 
 If the refactoring introduces critical issues:
 
-1. **Immediate:** Revert to tagged `v0.1.0` release
+1. **Immediate:** Revert to tagged `v0.5.0` release
 2. **Short-term:** Run old and new systems in parallel, compare outputs
 3. **Investigation:** Use profiling and logging to identify root cause
 4. **Fix-forward:** Apply targeted fixes rather than abandoning refactor
@@ -565,7 +565,7 @@ If the refactoring introduces critical issues:
 
 - [ ] All 12 existing integration tests pass
 - [ ] New architecture code coverage >80%
-- [ ] Performance within 5% of v0.1.0 baseline
+- [ ] Performance within 5% of v0.5.0 baseline
 - [ ] Memory usage stable over 24hr run
 - [ ] Clean shutdown in <5 seconds
 - [ ] Code complexity reduced (measured by cyclomatic complexity)
