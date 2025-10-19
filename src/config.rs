@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::net::IpAddr;
 use std::path::PathBuf;
 
@@ -95,6 +96,12 @@ fn default_cleanup_interval_hours() -> u32 {
 
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct Config {
+    /// Named alert configurations (registry of reusable alerts)
+    pub alerts: Option<HashMap<String, Alert>>,
+
+    /// Default configurations for servers and services
+    pub defaults: Option<DefaultConfig>,
+
     pub servers: Option<Vec<ServerConfig>>,
 
     /// Storage configuration (optional - defaults to in-memory)
@@ -106,6 +113,42 @@ pub struct Config {
     /// API server configuration (optional - API disabled if not specified)
     #[cfg(feature = "api")]
     pub api: Option<ApiConfig>,
+}
+
+/// Default configuration values for servers and services
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct DefaultConfig {
+    /// Default server configuration
+    pub server: Option<DefaultServerConfig>,
+
+    /// Default service configuration
+    pub service: Option<DefaultServiceConfig>,
+}
+
+/// Default configuration for servers
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct DefaultServerConfig {
+    /// Default polling interval in seconds
+    pub interval: Option<usize>,
+
+    /// Default limits configuration
+    pub limits: Option<Limits>,
+}
+
+/// Default configuration for services
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct DefaultServiceConfig {
+    /// Default check interval in seconds
+    pub interval: Option<usize>,
+
+    /// Default request timeout in seconds
+    pub timeout: Option<usize>,
+
+    /// Default grace period (consecutive failures before alerting)
+    pub grace: Option<usize>,
+
+    /// Default alert configuration (alert name reference)
+    pub alert: Option<String>,
 }
 
 /// API server configuration
@@ -183,7 +226,8 @@ pub struct Discord {
 pub struct Limit {
     pub limit: usize,
     pub grace: Option<usize>,
-    pub alert: Option<Alert>,
+    /// Alert name reference (looks up in Config.alerts registry)
+    pub alert: Option<String>,
 }
 
 /// HTTP method for service checks
@@ -227,8 +271,8 @@ pub struct ServiceConfig {
     /// Consecutive failures before alerting
     pub grace: Option<usize>,
 
-    /// Alert configuration
-    pub alert: Option<Alert>,
+    /// Alert name reference (looks up in Config.alerts registry)
+    pub alert: Option<String>,
 }
 
 fn default_service_interval() -> usize {
@@ -248,4 +292,233 @@ pub fn read_config_file(path: &str) -> anyhow::Result<Config> {
     serde_json::from_str(&file_content)
         .map_err(|_| anyhow::anyhow!("Invalid configuration file provided!"))
         .inspect(|config| trace!("loaded config: {config:?}"))
+}
+
+/// Resolved configuration with alert references replaced by actual Alert objects
+#[derive(Debug, Clone)]
+pub struct ResolvedConfig {
+    pub servers: Vec<ResolvedServerConfig>,
+    pub services: Vec<ResolvedServiceConfig>,
+    pub storage: Option<StorageConfig>,
+    #[cfg(feature = "api")]
+    pub api: Option<ApiConfig>,
+}
+
+/// Resolved server configuration with actual Alert objects
+#[derive(Debug, Clone)]
+pub struct ResolvedServerConfig {
+    pub ip: IpAddr,
+    pub display: Option<String>,
+    pub port: u16,
+    pub interval: usize,
+    pub token: Option<String>,
+    pub limits: Option<ResolvedLimits>,
+}
+
+/// Resolved limits configuration
+#[derive(Debug, Clone)]
+pub struct ResolvedLimits {
+    pub temperature: Option<ResolvedLimit>,
+    pub usage: Option<ResolvedLimit>,
+}
+
+/// Resolved limit with actual Alert object
+#[derive(Debug, Clone)]
+pub struct ResolvedLimit {
+    pub limit: usize,
+    pub grace: Option<usize>,
+    pub alert: Option<Alert>,
+}
+
+/// Resolved service configuration with actual Alert object
+#[derive(Debug, Clone)]
+pub struct ResolvedServiceConfig {
+    pub name: String,
+    pub url: String,
+    pub interval: usize,
+    pub timeout: usize,
+    pub method: HttpMethod,
+    pub expected_status: Option<Vec<u16>>,
+    pub body_pattern: Option<String>,
+    pub grace: Option<usize>,
+    pub alert: Option<Alert>,
+}
+
+impl Config {
+    /// Resolve configuration by merging defaults and replacing alert name references
+    /// with actual Alert objects from the registry
+    pub fn resolve(self) -> anyhow::Result<ResolvedConfig> {
+        let alert_registry = self.alerts.as_ref();
+
+        // Helper to resolve alert name to Alert object
+        let resolve_alert = |alert_name: &Option<String>| -> anyhow::Result<Option<Alert>> {
+            match alert_name {
+                None => Ok(None),
+                Some(name) => {
+                    let alert_registry = alert_registry.ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "Alert '{}' referenced but no alerts registry defined",
+                            name
+                        )
+                    })?;
+                    alert_registry
+                        .get(name)
+                        .cloned()
+                        .ok_or_else(|| anyhow::anyhow!("Alert '{}' not found in registry", name))
+                        .map(Some)
+                }
+            }
+        };
+
+        // Get default configurations
+        let default_server = self.defaults.as_ref().and_then(|d| d.server.as_ref());
+        let default_service = self.defaults.as_ref().and_then(|d| d.service.as_ref());
+
+        // Resolve servers
+        let servers = self
+            .servers
+            .unwrap_or_default()
+            .into_iter()
+            .map(|server| {
+                // Merge limits with defaults
+                let limits = match (server.limits, default_server.and_then(|d| d.limits.clone())) {
+                    (Some(server_limits), Some(default_limits)) => {
+                        // Server has limits - merge with defaults
+                        Some(ResolvedLimits {
+                            temperature: match (server_limits.temperature, default_limits.temperature) {
+                                (Some(server_temp), Some(default_temp)) => {
+                                    Some(ResolvedLimit {
+                                        limit: server_temp.limit,
+                                        grace: server_temp.grace.or(default_temp.grace),
+                                        alert: resolve_alert(&server_temp.alert.or(default_temp.alert))?,
+                                    })
+                                }
+                                (Some(server_temp), None) => {
+                                    Some(ResolvedLimit {
+                                        limit: server_temp.limit,
+                                        grace: server_temp.grace,
+                                        alert: resolve_alert(&server_temp.alert)?,
+                                    })
+                                }
+                                (None, Some(default_temp)) => {
+                                    Some(ResolvedLimit {
+                                        limit: default_temp.limit,
+                                        grace: default_temp.grace,
+                                        alert: resolve_alert(&default_temp.alert)?,
+                                    })
+                                }
+                                (None, None) => None,
+                            },
+                            usage: match (server_limits.usage, default_limits.usage) {
+                                (Some(server_usage), Some(default_usage)) => {
+                                    Some(ResolvedLimit {
+                                        limit: server_usage.limit,
+                                        grace: server_usage.grace.or(default_usage.grace),
+                                        alert: resolve_alert(&server_usage.alert.or(default_usage.alert))?,
+                                    })
+                                }
+                                (Some(server_usage), None) => {
+                                    Some(ResolvedLimit {
+                                        limit: server_usage.limit,
+                                        grace: server_usage.grace,
+                                        alert: resolve_alert(&server_usage.alert)?,
+                                    })
+                                }
+                                (None, Some(default_usage)) => {
+                                    Some(ResolvedLimit {
+                                        limit: default_usage.limit,
+                                        grace: default_usage.grace,
+                                        alert: resolve_alert(&default_usage.alert)?,
+                                    })
+                                }
+                                (None, None) => None,
+                            },
+                        })
+                    }
+                    (Some(server_limits), None) => {
+                        // Server has limits but no defaults
+                        Some(ResolvedLimits {
+                            temperature: server_limits.temperature.map(|temp| {
+                                Ok::<_, anyhow::Error>(ResolvedLimit {
+                                    limit: temp.limit,
+                                    grace: temp.grace,
+                                    alert: resolve_alert(&temp.alert)?,
+                                })
+                            }).transpose()?,
+                            usage: server_limits.usage.map(|usage| {
+                                Ok::<_, anyhow::Error>(ResolvedLimit {
+                                    limit: usage.limit,
+                                    grace: usage.grace,
+                                    alert: resolve_alert(&usage.alert)?,
+                                })
+                            }).transpose()?,
+                        })
+                    }
+                    (None, Some(default_limits)) => {
+                        // No server limits - use defaults
+                        Some(ResolvedLimits {
+                            temperature: default_limits.temperature.map(|temp| {
+                                Ok::<_, anyhow::Error>(ResolvedLimit {
+                                    limit: temp.limit,
+                                    grace: temp.grace,
+                                    alert: resolve_alert(&temp.alert)?,
+                                })
+                            }).transpose()?,
+                            usage: default_limits.usage.map(|usage| {
+                                Ok::<_, anyhow::Error>(ResolvedLimit {
+                                    limit: usage.limit,
+                                    grace: usage.grace,
+                                    alert: resolve_alert(&usage.alert)?,
+                                })
+                            }).transpose()?,
+                        })
+                    }
+                    (None, None) => None,
+                };
+
+                Ok(ResolvedServerConfig {
+                    ip: server.ip,
+                    display: server.display,
+                    port: server.port,
+                    interval: server.interval,
+                    token: server.token,
+                    limits,
+                })
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+
+        // Resolve services
+        let services = self
+            .services
+            .unwrap_or_default()
+            .into_iter()
+            .map(|service| {
+                let resolved_alert = resolve_alert(&service.alert.or_else(|| {
+                    default_service.and_then(|d| d.alert.clone())
+                }))?;
+
+                Ok(ResolvedServiceConfig {
+                    name: service.name,
+                    url: service.url,
+                    interval: service.interval,
+                    timeout: service.timeout,
+                    method: service.method,
+                    expected_status: service.expected_status,
+                    body_pattern: service.body_pattern,
+                    grace: service.grace.or_else(|| {
+                        default_service.and_then(|d| d.grace)
+                    }),
+                    alert: resolved_alert,
+                })
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+
+        Ok(ResolvedConfig {
+            servers,
+            services,
+            storage: self.storage,
+            #[cfg(feature = "api")]
+            api: self.api,
+        })
+    }
 }

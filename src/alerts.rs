@@ -4,19 +4,19 @@ use serde_json::json;
 use tracing::{error, info, instrument};
 
 use crate::actors::messages::ServiceStatus;
-use crate::config::{Alert, ServerConfig, Webhook};
+use crate::config::{Alert, ResolvedServerConfig, Webhook};
 use crate::discord::{DiscordManager, MessageBuilder};
 use crate::monitors::resources::ResourceEvaluation;
 
 #[derive(Debug, Clone)]
 pub struct AlertManager {
     client: Client,
-    server_config: ServerConfig,
+    server_config: ResolvedServerConfig,
     discord_manager: DiscordManager,
 }
 
 impl AlertManager {
-    pub fn new(server_config: ServerConfig) -> Self {
+    pub fn new(server_config: ResolvedServerConfig) -> Self {
         Self {
             client: Client::new(),
             discord_manager: DiscordManager::new(server_config.clone()),

@@ -25,7 +25,7 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio::time::interval;
 use tracing::{debug, error, instrument, trace, warn};
 
-use crate::config::{HttpMethod, ServiceConfig};
+use crate::config::{HttpMethod, ResolvedServiceConfig};
 
 use super::messages::{ServiceCheckEvent, ServiceCommand, ServiceStatus};
 
@@ -35,7 +35,7 @@ use super::messages::{ServiceCheckEvent, ServiceCommand, ServiceStatus};
 /// checking the service at the configured interval and publishing results to a broadcast channel.
 pub struct ServiceMonitorActor {
     /// Service configuration
-    config: ServiceConfig,
+    config: ResolvedServiceConfig,
 
     /// HTTP client (reused across requests for efficiency)
     client: reqwest::Client,
@@ -53,7 +53,7 @@ pub struct ServiceMonitorActor {
 impl ServiceMonitorActor {
     /// Create a new service monitor actor
     pub fn new(
-        config: ServiceConfig,
+        config: ResolvedServiceConfig,
         command_rx: mpsc::Receiver<ServiceCommand>,
         event_tx: broadcast::Sender<ServiceCheckEvent>,
     ) -> Self {
@@ -265,7 +265,7 @@ pub struct ServiceHandle {
 
 impl ServiceHandle {
     /// Spawn a new service monitor actor
-    pub fn spawn(config: ServiceConfig, event_tx: broadcast::Sender<ServiceCheckEvent>) -> Self {
+    pub fn spawn(config: ResolvedServiceConfig, event_tx: broadcast::Sender<ServiceCheckEvent>) -> Self {
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
         let service_name = config.name.clone();
         let service_url = config.url.clone();

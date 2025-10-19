@@ -2,7 +2,7 @@
 
 use chrono::Utc;
 use server_monitoring::{
-    config::{Alert, Discord, Limit, Limits, ServerConfig, Webhook},
+    config::{Alert, Discord, Limit, Limits, ResolvedLimit, ResolvedLimits, ResolvedServerConfig, ResolvedServiceConfig, ServerConfig, Webhook},
     ServerMetrics, ComponentOverview, CpuOverview, MemoryInformation, SystemInformation,
     actors::messages::MetricEvent,
 };
@@ -164,4 +164,99 @@ pub async fn wait_for_metric_event(
     .await
     .ok()?
     .ok()
+}
+
+/// Create a test ResolvedServerConfig with sensible defaults
+pub fn create_test_resolved_server_config(ip: &str, port: u16) -> ResolvedServerConfig {
+    ResolvedServerConfig {
+        ip: IpAddr::from_str(ip).unwrap(),
+        port,
+        interval: 5,
+        token: Some("test-token".to_string()),
+        display: Some(format!("Test Server {ip}:{port}")),
+        limits: None,
+    }
+}
+
+/// Create a ResolvedServerConfig with configured limits
+pub fn create_test_resolved_server_with_limits(
+    ip: &str,
+    port: u16,
+    temp_limit: Option<usize>,
+    cpu_limit: Option<usize>,
+    grace: usize,
+) -> ResolvedServerConfig {
+    let mut config = create_test_resolved_server_config(ip, port);
+
+    config.limits = Some(ResolvedLimits {
+        temperature: temp_limit.map(|limit| ResolvedLimit {
+            limit,
+            grace: Some(grace),
+            alert: None,
+        }),
+        usage: cpu_limit.map(|limit| ResolvedLimit {
+            limit,
+            grace: Some(grace),
+            alert: None,
+        }),
+    });
+
+    config
+}
+
+/// Create a ResolvedServerConfig with Discord alerts
+pub fn create_test_resolved_server_with_discord_alert(
+    ip: &str,
+    port: u16,
+    webhook_url: &str,
+) -> ResolvedServerConfig {
+    let mut config = create_test_resolved_server_config(ip, port);
+
+    let discord_alert = Alert::Discord(Discord {
+        url: webhook_url.to_string(),
+        user_id: Some("123456789".to_string()),
+    });
+
+    config.limits = Some(ResolvedLimits {
+        temperature: Some(ResolvedLimit {
+            limit: 70,
+            grace: Some(3),
+            alert: Some(discord_alert.clone()),
+        }),
+        usage: Some(ResolvedLimit {
+            limit: 80,
+            grace: Some(5),
+            alert: Some(discord_alert),
+        }),
+    });
+
+    config
+}
+
+/// Create a ResolvedServerConfig with generic webhook alerts
+pub fn create_test_resolved_server_with_webhook_alert(
+    ip: &str,
+    port: u16,
+    webhook_url: &str,
+) -> ResolvedServerConfig {
+    let mut config = create_test_resolved_server_config(ip, port);
+
+    let webhook_alert = Alert::Webhook(Webhook {
+        url: webhook_url.to_string(),
+    });
+
+    config.limits = Some(ResolvedLimits {
+        temperature: Some(ResolvedLimit {
+            limit: 70,
+            grace: Some(3),
+            alert: Some(webhook_alert.clone()),
+        }),
+        usage: Some(ResolvedLimit {
+            limit: 80,
+            grace: Some(5),
+            alert: Some(webhook_alert),
+        }),
+    });
+
+    config
 }

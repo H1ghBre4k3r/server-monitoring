@@ -25,7 +25,7 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio::time::interval;
 use tracing::{debug, error, instrument, trace, warn};
 
-use crate::{ServerMetrics, config::ServerConfig};
+use crate::{ServerMetrics, config::ResolvedServerConfig};
 
 use super::messages::{CollectorCommand, MetricEvent, PollingStatusEvent};
 
@@ -35,7 +35,7 @@ use super::messages::{CollectorCommand, MetricEvent, PollingStatusEvent};
 /// polling at the configured interval and publishing metrics to a broadcast channel.
 pub struct MetricCollectorActor {
     /// Server configuration
-    config: ServerConfig,
+    config: ResolvedServerConfig,
 
     /// HTTP client (reused across requests for efficiency)
     client: reqwest::Client,
@@ -65,7 +65,7 @@ pub struct MetricCollectorActor {
 impl MetricCollectorActor {
     /// Create a new collector actor
     pub fn new(
-        config: ServerConfig,
+        config: ResolvedServerConfig,
         command_rx: mpsc::Receiver<CollectorCommand>,
         metric_tx: broadcast::Sender<MetricEvent>,
         polling_tx: broadcast::Sender<PollingStatusEvent>,
@@ -290,7 +290,7 @@ impl CollectorHandle {
     ///
     /// This creates the actor, spawns it as a tokio task, and returns a handle.
     pub fn spawn(
-        config: ServerConfig,
+        config: ResolvedServerConfig,
         metric_tx: broadcast::Sender<MetricEvent>,
         polling_tx: broadcast::Sender<PollingStatusEvent>,
     ) -> Self {

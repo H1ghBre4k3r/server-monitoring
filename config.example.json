@@ -1,6 +1,59 @@
 {
-  "_comment": "Server Monitoring Configuration with Discord User Mentions",
-  "_discord_user_id_help": "To find Discord user ID: Enable Developer Mode in Discord Settings > Advanced, then right-click on a user and select 'Copy ID'",
+  "_comment": "Server Monitoring Configuration with Global Alerts",
+  "_new_format": "This example uses global alert definitions and defaults to reduce duplication",
+
+  "_alerts_section": "Define reusable named alert configurations",
+  "alerts": {
+    "prod-critical": {
+      "discord": {
+        "url": "https://discord.com/api/webhooks/YOUR_PROD_WEBHOOK_ID/YOUR_PROD_WEBHOOK_TOKEN",
+        "user_id": "123456789012345678"
+      }
+    },
+    "dev-team": {
+      "discord": {
+        "url": "https://discord.com/api/webhooks/YOUR_DEV_WEBHOOK_ID/YOUR_DEV_WEBHOOK_TOKEN",
+        "user_id": "987654321098765432"
+      }
+    },
+    "ops-team": {
+      "discord": {
+        "url": "https://discord.com/api/webhooks/YOUR_OPS_WEBHOOK_ID/YOUR_OPS_WEBHOOK_TOKEN",
+        "user_id": "&876543210987654321"
+      }
+    },
+    "webhook-monitoring": {
+      "webhook": {
+        "url": "https://monitoring.example.com/webhook"
+      }
+    }
+  },
+
+  "_defaults_section": "Set default values for servers and services",
+  "defaults": {
+    "server": {
+      "interval": 30,
+      "limits": {
+        "temperature": {
+          "limit": 75,
+          "grace": 3,
+          "alert": "prod-critical"
+        },
+        "usage": {
+          "limit": 80,
+          "grace": 5,
+          "alert": "prod-critical"
+        }
+      }
+    },
+    "service": {
+      "interval": 60,
+      "timeout": 10,
+      "grace": 3,
+      "alert": "prod-critical"
+    }
+  },
+
   "_storage_comment": "Storage configuration (optional - defaults to in-memory if omitted)",
   "storage": {
     "backend": "sqlite",
@@ -11,38 +64,18 @@
     "_cleanup_note": "Cleanup runs every cleanup_interval_hours (default: 24, range: 1-720)",
     "_backend_note": "Use 'backend: none' for in-memory storage (no persistence)"
   },
+
+  "_servers_section": "Server configurations - inherit defaults unless overridden",
   "servers": [
     {
+      "_comment": "Production server - uses all defaults",
       "ip": "192.168.1.100",
       "display": "Production Server",
       "port": 3000,
-      "interval": 30,
-      "token": "your-monitoring-secret",
-      "limits": {
-        "temperature": {
-          "limit": 75,
-          "grace": 3,
-          "_comment": "Discord alert with user mention for critical alerts",
-          "alert": {
-            "discord": {
-              "url": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
-              "user_id": "123456789012345678"
-            }
-          }
-        },
-        "usage": {
-          "limit": 80,
-          "grace": 5,
-          "_comment": "Webhook alert without user mentions",
-          "alert": {
-            "webhook": {
-              "url": "https://your-monitoring-service.com/webhook"
-            }
-          }
-        }
-      }
+      "token": "your-monitoring-secret"
     },
     {
+      "_comment": "Development server - override temperature limit and alert",
       "ip": "192.168.1.101",
       "display": "Development Server",
       "port": 3000,
@@ -50,58 +83,38 @@
       "limits": {
         "temperature": {
           "limit": 85,
-          "grace": 2,
-          "_comment": "Discord alert mentioning different user for dev alerts",
-          "alert": {
-            "discord": {
-              "url": "https://discord.com/api/webhooks/YOUR_DEV_WEBHOOK_ID/YOUR_DEV_WEBHOOK_TOKEN",
-              "user_id": "987654321098765432"
-            }
-          }
-        },
-        "usage": {
-          "limit": 90,
-          "grace": 3,
-          "_comment": "Discord alert without user mention (user_id is optional)",
-          "alert": {
-            "discord": {
-              "url": "https://discord.com/api/webhooks/YOUR_DEV_WEBHOOK_ID/YOUR_DEV_WEBHOOK_TOKEN"
-            }
-          }
+          "alert": "dev-team"
         }
       }
     },
     {
+      "_comment": "Database server - override both limits with different alerts",
       "ip": "192.168.1.102",
-      "display": "Database Server", 
+      "display": "Database Server",
       "port": 3000,
       "interval": 15,
-      "_comment": "Example with team role mention instead of individual user",
       "limits": {
         "temperature": {
           "limit": 70,
           "grace": 2,
-          "alert": {
-            "discord": {
-              "url": "https://discord.com/api/webhooks/YOUR_DB_WEBHOOK_ID/YOUR_DB_WEBHOOK_TOKEN",
-              "user_id": "&876543210987654321"
-            }
-          }
+          "alert": "ops-team"
         },
         "usage": {
           "limit": 85,
           "grace": 4,
-          "_comment": "Multiple people can be mentioned by using multiple user IDs separated by space",
-          "alert": {
-            "discord": {
-              "url": "https://discord.com/api/webhooks/YOUR_DB_WEBHOOK_ID/YOUR_DB_WEBHOOK_TOKEN",
-              "user_id": "123456789012345678 987654321098765432"
-            }
-          }
+          "alert": "ops-team"
         }
       }
+    },
+    {
+      "_comment": "Test server - no monitoring (no limits specified)",
+      "ip": "192.168.1.103",
+      "display": "Test Server",
+      "port": 3000,
+      "interval": 120
     }
   ],
+
   "_api_comment": "API server configuration (optional - Phase 4.1)",
   "api": {
     "bind": "127.0.0.1",
@@ -112,53 +125,42 @@
     "_auth_note": "auth_token is optional - if omitted, API will be unauthenticated",
     "_cors_note": "enable_cors allows web dashboards to access the API"
   },
+
   "_services_comment": "Service monitoring configuration (HTTP/HTTPS endpoints) - Phase 3",
   "services": [
     {
+      "_comment": "API health check - uses service defaults",
       "name": "API Health Check",
       "url": "https://api.example.com/health",
-      "interval": 60,
-      "timeout": 10,
       "method": "GET",
-      "expected_status": [200, 204],
-      "_comment": "Discord alert when API goes down",
-      "alert": {
-        "discord": {
-          "url": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
-          "user_id": "123456789012345678"
-        }
-      }
+      "expected_status": [200, 204]
     },
     {
+      "_comment": "Website homepage - override interval and use webhook alert",
       "name": "Website Homepage",
       "url": "https://example.com",
       "interval": 120,
       "timeout": 15,
       "method": "GET",
       "body_pattern": "Welcome to Example",
-      "_comment": "Check homepage loads and contains expected text",
-      "grace": 3,
-      "alert": {
-        "webhook": {
-          "url": "https://monitoring.example.com/webhook"
-        }
-      }
+      "alert": "webhook-monitoring"
     },
     {
+      "_comment": "Critical database service - short interval and ops team alert",
       "name": "Database API",
       "url": "https://db.example.com/api/ping",
       "interval": 30,
       "timeout": 5,
       "method": "POST",
       "expected_status": [200],
-      "_comment": "Critical database service - short interval and grace period",
       "grace": 2,
-      "alert": {
-        "discord": {
-          "url": "https://discord.com/api/webhooks/YOUR_CRITICAL_WEBHOOK_ID/YOUR_CRITICAL_WEBHOOK_TOKEN",
-          "user_id": "&876543210987654321"
-        }
-      }
+      "alert": "ops-team"
+    },
+    {
+      "_comment": "Monitoring service without alerts (alert reference omitted)",
+      "name": "Internal Dashboard",
+      "url": "http://internal.example.com/status",
+      "interval": 300
     }
   ]
 }
