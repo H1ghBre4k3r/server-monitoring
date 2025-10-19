@@ -11,7 +11,7 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 1
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/guardia
+  IMAGE_NAME: h1ghbre4k3r/guardia
 
 jobs:
   building:
