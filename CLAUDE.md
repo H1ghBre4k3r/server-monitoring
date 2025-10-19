@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Rust-based server monitoring solution that uses a hub-agent architecture to monitor server resources (CPU usage and temperature) and send alerts when thresholds are exceeded.
 
-**Current Version:** v0.9.0 (Pre-Release - nearing v1.0.0)
+**Current Version:** v0.5.0
 
 **Architecture:**
 - **Agent (`src/bin/agent.rs`)**: Runs on monitored servers, exposes metrics via Rocket HTTP server on `/metrics` endpoint
@@ -825,7 +825,7 @@ See [ROADMAP.md Phase 3.5](ROADMAP.md#phase-35-alert-architecture-refactoring-) 
 
 ## Current Development Focus (Phase 5: Production Readiness)
 
-**Status:** v0.9.0 (Pre-Release) → Target: v1.0.0 in Q1 2025
+**Status:** v0.5.0 → Target: v1.0.0 in Q1 2025
 
 **What's Complete:**
 - ✅ All core features implemented (Phases 1-4 complete)

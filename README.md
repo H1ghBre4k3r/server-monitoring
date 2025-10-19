@@ -1,10 +1,11 @@
 # Server Monitoring
 
-> A comprehensive Rust-based server monitoring solution with distributed agent architecture, real-time metrics collection, service health checks, and beautiful TUI dashboards.
+> A comprehensive Rust-based server monitoring solution with distributed agent architecture, real-time metrics collection, service health checks, and beautiful dashboards.
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL%203.0-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)]()
+
 
 ## ✨ Features
 
@@ -14,11 +15,11 @@
 - **💾 Time-Series Storage**: SQLite backend with configurable retention and automatic cleanup
 - **🎯 Actor-Based Architecture**: Scalable, maintainable, and testable design using Tokio actors
 - **🔌 REST + WebSocket API**: Remote access with real-time streaming capabilities
-- **📺 TUI Dashboard**: Beautiful terminal UI with time-based charts, memory gauges, and sliding windows
 - **🌐 Web Dashboard**: Modern web interface with ECharts visualizations (React + TypeScript)
+- **📺 TUI Dashboard**: Beautiful terminal UI with time-based charts, memory gauges, and sliding windows
 - **📈 Advanced Visualization**: Time-based charts with HH:MM:SS labels, color-coded memory gauges, historical data loading
 - **🔐 Security**: Token-based authentication for agents and API access
-- **⚙️ Configurable**: JSON-based configuration with extensive customization options
+- **⚙️ Configurable**: JSON-based configuration with global alerts and defaults to reduce duplication
 
 ## 🏗️ Architecture
 
@@ -49,6 +50,11 @@
                                       REST + WebSocket
                                              │
                                     ┌────────▼──────┐
+                                    │  Web Dashboard │
+                                    │  (Browser)     │
+                                    └────────┬──────┘
+                                             │
+                                    ┌────────▼──────┐
                                     │  TUI Viewer   │
                                     │  (Dashboard)  │
                                     └───────────────┘
@@ -56,9 +62,8 @@
 
 **Components:**
 - **Agent** (`guardia-agent`): Runs on each monitored server, exposes metrics via HTTP
-- **Hub** (`guardia-hub`): Central monitoring service with actor-based architecture + API server
+- **Hub** (`guardia-hub`): Central monitoring service with actor-based architecture + API server + Web Dashboard
 - **Viewer** (`guardia-viewer`): TUI dashboard for real-time visualization (Ratatui)
-- **Web Dashboard**: Modern web dashboard served by hub at `http://localhost:8080`
 
 ## 🚀 Quick Start
 
@@ -90,66 +95,96 @@ guardia-agent
 
 ### 3. Configure the Hub
 
-Create `config.json`:
+Create `config.json` using the new format with global alerts and defaults:
 
 ```json
 {
+  "_comment": "Server Monitoring Configuration with Global Alerts",
+  
+  "alerts": {
+    "prod-critical": {
+      "discord": {
+        "url": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
+        "user_id": "123456789012345678"
+      }
+    },
+    "dev-team": {
+      "webhook": {
+        "url": "https://monitoring.example.com/webhook"
+      }
+    }
+  },
+
+  "defaults": {
+    "server": {
+      "interval": 30,
+      "limits": {
+        "temperature": {
+          "limit": 75,
+          "grace": 3,
+          "alert": "prod-critical"
+        },
+        "usage": {
+          "limit": 80,
+          "grace": 5,
+          "alert": "prod-critical"
+        }
+      }
+    },
+    "service": {
+      "interval": 60,
+      "timeout": 10,
+      "grace": 3,
+      "alert": "prod-critical"
+    }
+  },
+
   "storage": {
     "backend": "sqlite",
     "path": "./metrics.db",
     "retention_days": 30,
     "cleanup_interval_hours": 24
   },
+
   "api": {
     "bind": "127.0.0.1",
     "port": 8080,
     "auth_token": "api-secret-token",
     "enable_cors": true
   },
+
   "servers": [
     {
       "ip": "192.168.1.100",
       "display": "Production Server",
       "port": 3000,
-      "interval": 30,
-      "token": "your-secret-token",
+      "token": "your-secret-token"
+      // Inherits all defaults
+    },
+    {
+      "ip": "192.168.1.101",
+      "display": "Development Server",
+      "port": 3000,
       "limits": {
         "temperature": {
-          "limit": 75,
-          "grace": 3,
-          "alert": {
-            "discord": {
-              "url": "https://discord.com/api/webhooks/...",
-              "user_id": "123456789"
-            }
-          }
-        },
-        "usage": {
-          "limit": 80,
-          "grace": 5,
-          "alert": {
-            "webhook": {
-              "url": "https://monitoring.example.com/webhook"
-            }
-          }
+          "limit": 85,
+          "alert": "dev-team"
         }
       }
     }
   ],
+
   "services": [
     {
       "name": "API Health",
-      "url": "https://api.example.com/health",
-      "interval": 60,
-      "timeout": 10,
-      "method": "GET",
-      "expected_status": [200],
-      "grace": 3,
-      "alert": {
-        "discord": {
-          "url": "https://discord.com/api/webhooks/..."
-        }
-      }
+      "url": "https://api.example.com/health"
+      // Uses service defaults
+    },
+    {
+      "name": "Website",
+      "url": "https://example.com",
+      "interval": 120,
+      "alert": "dev-team"
     }
   ]
 }
@@ -173,10 +208,11 @@ http://localhost:8080
 
 Features:
 - Modern, responsive UI built with React and TypeScript
-- Beautiful ECharts visualizations
+- Beautiful ECharts visualizations with per-core CPU charts
 - Real-time updates via WebSocket
 - Works on desktop and tablet
 - Dark theme by default
+- Interactive charts with legends and tooltips
 
 **Option B: TUI Dashboard (Terminal)**
 
@@ -270,6 +306,15 @@ When using Docker, ensure your `config.json` uses container-appropriate paths:
 
 ## 📖 Configuration
 
+### New Configuration Format (v0.5.0+)
+
+The configuration now supports **global alerts** and **defaults** to reduce duplication:
+
+- **`alerts`**: Define reusable named alert configurations (Discord, webhook)
+- **`defaults`**: Set default values for servers and services (intervals, limits, alerts)
+- **Alert References**: Servers and services reference alerts by name instead of inline definitions
+- **Inheritance**: Servers/services inherit defaults unless overridden
+
 ### Storage Options
 
 **SQLite (default):**
@@ -298,10 +343,12 @@ When using Docker, ensure your `config.json` uses container-appropriate paths:
 **Discord with user mentions:**
 ```json
 {
-  "alert": {
-    "discord": {
-      "url": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
-      "user_id": "123456789012345678"
+  "alerts": {
+    "prod-critical": {
+      "discord": {
+        "url": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
+        "user_id": "123456789012345678"
+      }
     }
   }
 }
@@ -310,9 +357,11 @@ When using Docker, ensure your `config.json` uses container-appropriate paths:
 **Generic webhook:**
 ```json
 {
-  "alert": {
-    "webhook": {
-      "url": "https://your-monitoring-service.com/webhook"
+  "alerts": {
+    "webhook-monitoring": {
+      "webhook": {
+        "url": "https://monitoring.example.com/webhook"
+      }
     }
   }
 }
@@ -379,14 +428,32 @@ curl -H "Authorization: Bearer your-api-token" \
 
 ## 🛠️ Development
 
+### Quick Reference with Justfile
+
+This project includes a `justfile` for common development tasks:
+
+```bash
+just build          # cargo build
+just build-release  # cargo build --release
+just test           # cargo test --workspace
+just watch          # cargo watch -x "build --bins"
+just install        # cargo install --path .
+just bins           # cargo build --bins
+just bins-release   # cargo build --bins --release
+```
+
 ### Building
 
 ```bash
 # Development build
 cargo build
+# or
+just build
 
-# Release build
+# Release build (optimized)
 cargo build --release
+# or
+just build-release
 
 # Build specific binary
 cargo build --bin hub
@@ -396,8 +463,10 @@ cargo build --bin agent
 ### Testing
 
 ```bash
-# Run all tests (84 tests: unit + integration + property + doc)
+# Run all tests (84 tests: 29 unit + 43 integration + 9 property + 3 doc)
 cargo test --workspace --all-features
+# or
+just test
 
 # Run specific test suite
 cargo test --lib                    # Unit tests
@@ -504,16 +573,19 @@ This project is licensed under the GPL-3.0 License - see the [LICENSE](LICENSE) 
 
 ## 🗺️ Roadmap
 
-**Completed (v0.9.0):**
+**Current Version: v0.5.0**
+
+**Completed:**
 - ✅ Phase 1: Actor-based architecture with graceful shutdown
 - ✅ Phase 2: SQLite persistence with batching and hybrid schema
 - ✅ Phase 3: Service health monitoring (HTTP/HTTPS with uptime tracking)
 - ✅ Phase 4.0: Automatic retention cleanup with configurable policies
 - ✅ Phase 4.1: REST API + WebSocket streaming
 - ✅ Phase 4.2: TUI Dashboard with time-based charts and historical data loading
+- ✅ Phase 5: Web Dashboard with modern React UI and ECharts visualizations
 
 **Current Focus:**
-- 🎯 Phase 5: Production hardening and performance optimization (target: v1.0.0)
+- 🎯 Production hardening and performance optimization (target: v1.0.0)
 
 **Future Plans:**
 - 📋 Phase 3.5: Alert architecture refactoring (split metric/service alerts)
@@ -525,7 +597,8 @@ See [ROADMAP.md](ROADMAP.md) for detailed plans.
 
 - [CLAUDE.md](CLAUDE.md) - Detailed technical documentation for AI assistants
 - [ROADMAP.md](ROADMAP.md) - Development roadmap and feature plans
-- [config.example.json](config.example.json) - Complete configuration example
+- [TESTING.md](TESTING.md) - Comprehensive testing documentation
+- [config.example.json](config.example.json) - Complete configuration example with new format
 - API Documentation - Coming soon (OpenAPI/Swagger)
 
 ## 🙏 Acknowledgments
@@ -535,6 +608,8 @@ Built with:
 - [Axum](https://github.com/tokio-rs/axum) - Web framework
 - [SQLx](https://github.com/launchbadge/sqlx) - SQL toolkit
 - [Ratatui](https://github.com/ratatui-org/ratatui) - Terminal UI framework
+- [React](https://reactjs.org/) - Web UI framework
+- [Apache ECharts](https://echarts.apache.org/) - Data visualization
 - [Sysinfo](https://github.com/GuillaumeGomez/sysinfo) - System information
 
 ---

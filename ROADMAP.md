@@ -2,7 +2,7 @@
 
 This roadmap outlines the development plan to transform the current basic monitoring system into a comprehensive, production-ready monitoring platform with persistence, visualization, and service health checks.
 
-## Current State (v0.9.0 - Pre-Release)
+## Current State (v0.5.0)
 
 ✅ **Implemented:**
 - Agent-hub architecture for distributed monitoring

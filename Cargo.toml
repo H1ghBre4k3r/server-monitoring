@@ -1,6 +1,6 @@
 [package]
 name = "server-monitoring"
-version = "0.1.0"
+version = "0.5.0"
 edition = "2024"
 authors = ["Louis Meyer (H1ghBre4k3r) <h1ghbe4k3r@dev.bre4k3r.de>"]
 license = "GPL-3.0"
