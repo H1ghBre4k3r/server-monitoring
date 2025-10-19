@@ -1,9 +1,6 @@
 services:
   hub:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: guardia-hub:latest
+    image: ghcr.io/h1ghbre4k3r/guardia:latest
     container_name: guardia-hub
     restart: unless-stopped
     ports:
