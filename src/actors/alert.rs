@@ -26,7 +26,7 @@ use tracing::{debug, instrument, trace, warn};
 
 use crate::{
     alerts::AlertManager,
-    config::{Limit, ServerConfig, ServiceConfig},
+    config::{ResolvedLimit, ResolvedServerConfig, ResolvedServiceConfig},
     monitors::resources::ResourceEvaluation,
 };
 
@@ -36,7 +36,7 @@ use super::messages::{AlertCommand, AlertState, MetricEvent, ServiceCheckEvent, 
 #[derive(Debug, Clone)]
 struct ServerAlertState {
     /// Server configuration
-    config: ServerConfig,
+    config: ResolvedServerConfig,
 
     /// Alert manager for sending notifications
     alert_manager: AlertManager,
@@ -52,7 +52,7 @@ struct ServerAlertState {
 #[derive(Debug, Clone)]
 struct ServiceAlertState {
     /// Service configuration
-    config: ServiceConfig,
+    config: ResolvedServiceConfig,
 
     /// Alert manager for sending notifications
     alert_manager: AlertManager,
@@ -105,7 +105,7 @@ impl AlertActor {
     /// Register a server for monitoring
     ///
     /// This should be called for each server before metrics start flowing.
-    pub fn register_server(&mut self, config: ServerConfig) {
+    pub fn register_server(&mut self, config: ResolvedServerConfig) {
         let server_id = format!("{}:{}", config.ip, config.port);
         let alert_manager = AlertManager::new(config.clone());
 
@@ -123,13 +123,13 @@ impl AlertActor {
     /// Register a service for monitoring (Phase 3)
     ///
     /// This should be called for each service before checks start flowing.
-    pub fn register_service(&mut self, config: ServiceConfig) {
+    pub fn register_service(&mut self, config: ResolvedServiceConfig) {
         let service_name = config.name.clone();
 
-        // TODO: Create AlertManager for service alerts
-        // For now, we'll create a minimal ServerConfig just to initialize AlertManager
+        // Create a pseudo ResolvedServerConfig for AlertManager
+        // This is needed because AlertManager was designed for server alerts
         use std::net::IpAddr;
-        let pseudo_server_config = ServerConfig {
+        let pseudo_server_config = ResolvedServerConfig {
             ip: IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
             port: 0,
             display: Some(service_name.clone()),
@@ -266,7 +266,7 @@ impl AlertActor {
     async fn evaluate_temperature(
         event: &MetricEvent,
         state: &mut ServerAlertState,
-        limit: &Limit,
+        limit: &ResolvedLimit,
     ) {
         let Some(current_temp) = event.metrics.components.average_temperature else {
             return;
@@ -328,7 +328,11 @@ impl AlertActor {
     }
 
     /// Evaluate CPU usage against limit
-    async fn evaluate_cpu_usage(event: &MetricEvent, state: &mut ServerAlertState, limit: &Limit) {
+    async fn evaluate_cpu_usage(
+        event: &MetricEvent,
+        state: &mut ServerAlertState,
+        limit: &ResolvedLimit,
+    ) {
         let current_usage = event.metrics.cpus.average_usage;
         let grace = limit.grace.unwrap_or_default();
 
@@ -484,13 +488,13 @@ impl AlertHandle {
     /// Spawn a new alert actor
     ///
     /// # Arguments
-    /// - `servers`: Initial server configurations to monitor
-    /// - `services`: Initial service configurations to monitor (Phase 3)
+    /// - `servers`: Initial server configurations to monitor (must be resolved)
+    /// - `services`: Initial service configurations to monitor (must be resolved, Phase 3)
     /// - `metric_rx`: Broadcast receiver for metric events
     /// - `service_check_rx`: Broadcast receiver for service check events (Phase 3)
     pub fn spawn(
-        servers: Vec<ServerConfig>,
-        services: Vec<ServiceConfig>,
+        servers: Vec<ResolvedServerConfig>,
+        services: Vec<ResolvedServiceConfig>,
         metric_rx: broadcast::Receiver<MetricEvent>,
         service_check_rx: broadcast::Receiver<ServiceCheckEvent>,
     ) -> Self {
@@ -549,7 +553,7 @@ impl AlertHandle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{Limit, Limits};
+    use crate::config::{ResolvedLimit, ResolvedLimits};
     use crate::{
         ComponentOverview, CpuOverview, MemoryInformation, ServerMetrics, SystemInformation,
     };
@@ -557,23 +561,23 @@ mod tests {
     // Note: ResourceEvaluation tests are in monitors/resources.rs
     // These tests focus on the AlertActor behavior
 
-    fn create_test_server_config(ip: &str, port: u16) -> ServerConfig {
+    fn create_test_server_config(ip: &str, port: u16) -> ResolvedServerConfig {
         use std::net::IpAddr;
         use std::str::FromStr;
 
-        ServerConfig {
+        ResolvedServerConfig {
             ip: IpAddr::from_str(ip).unwrap(),
             port,
             interval: 5,
             token: None,
             display: Some(format!("Test {ip}:{port}")),
-            limits: Some(Limits {
-                temperature: Some(Limit {
+            limits: Some(ResolvedLimits {
+                temperature: Some(ResolvedLimit {
                     limit: 70,
                     grace: Some(3),
                     alert: None,
                 }),
-                usage: Some(Limit {
+                usage: Some(ResolvedLimit {
                     limit: 80,
                     grace: Some(5),
                     alert: None,

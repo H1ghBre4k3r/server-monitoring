@@ -671,15 +671,83 @@ cargo build --bin viewer --no-default-features --features "dashboard"
 
 ## Configuration
 
-The hub requires a JSON config file specifying servers to monitor. Key concepts:
+The hub requires a JSON config file specifying servers to monitor. The configuration system supports **global alert definitions** and **defaults** to reduce duplication.
 
+### Key Configuration Concepts
+
+- **Alert Registry** (`alerts`): Named, reusable alert configurations (Discord, Webhook)
+- **Defaults** (`defaults`): Default settings for servers and services (limits, intervals, alerts)
+- **Alert References**: Servers and services reference alerts by name instead of inline definitions
 - **Storage** (optional): Backend for metric persistence (`sqlite` or `none`/omitted for in-memory)
 - **Grace periods**: Number of consecutive exceeded measurements before alerting
 - **Limits**: Separate thresholds for `temperature` (°C) and `usage` (CPU %)
-- **Alerts**: Support for Discord webhooks (with optional user mentions) and generic webhooks
 - **Tokens**: Optional `X-MONITORING-SECRET` header for agent authentication
 
-See `config.example.json` for a complete configuration example.
+### Configuration Structure
+
+```json
+{
+  "alerts": {
+    "prod-critical": {
+      "discord": {
+        "url": "https://discord.com/api/webhooks/...",
+        "user_id": "123456789"
+      }
+    },
+    "dev-team": {
+      "discord": { "url": "..." }
+    }
+  },
+  "defaults": {
+    "server": {
+      "interval": 30,
+      "limits": {
+        "temperature": { "limit": 75, "grace": 3, "alert": "prod-critical" },
+        "usage": { "limit": 80, "grace": 5, "alert": "prod-critical" }
+      }
+    },
+    "service": {
+      "interval": 60,
+      "timeout": 10,
+      "grace": 3,
+      "alert": "prod-critical"
+    }
+  },
+  "servers": [
+    {
+      "ip": "192.168.1.100",
+      "display": "Production Server",
+      "port": 3000
+      // Inherits all defaults
+    },
+    {
+      "ip": "192.168.1.101",
+      "limits": {
+        "temperature": {
+          "limit": 85,         // Override specific value
+          "alert": "dev-team"  // Override alert
+        }
+      }
+    }
+  ],
+  "services": [
+    { "name": "API", "url": "https://api.example.com" },  // Uses defaults
+    { "name": "Website", "url": "https://example.com", "alert": "dev-team" }
+  ]
+}
+```
+
+### Configuration Resolution
+
+The hub resolves the configuration on startup by:
+1. Loading named alerts from the `alerts` registry
+2. Merging `defaults` with server/service specific overrides
+3. Replacing alert name references with actual `Alert` objects
+4. Validating all alert references exist
+
+This happens via `Config::resolve()` → `ResolvedConfig` before spawning actors.
+
+See `config.example.json` for a complete configuration example with detailed comments.
 
 Agent configuration via environment variables:
 - `AGENT_ADDR`: Bind address (default: 0.0.0.0)

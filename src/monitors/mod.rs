@@ -1,2 +1,3 @@
 pub mod resources;
-pub mod server;
+// Legacy code - replaced by actor-based architecture
+// pub mod server;

@@ -19,7 +19,7 @@ use server_monitoring::{
         storage::StorageHandle,
     },
     api::{ApiConfig, ApiState, spawn_api_server},
-    config::{HttpMethod, ServerConfig, ServiceConfig},
+    config::{HttpMethod, ResolvedServerConfig, ResolvedServiceConfig},
     storage::{StorageBackend, sqlite::SqliteBackend},
 };
 use std::net::SocketAddr;
@@ -174,7 +174,7 @@ async fn test_list_servers_with_no_metrics_shows_unknown() {
     );
 
     // Create a collector
-    let config = ServerConfig {
+    let config = ResolvedServerConfig {
         ip: "192.168.1.100".parse().unwrap(),
         port: 3000,
         interval: 30,
@@ -232,7 +232,7 @@ async fn test_list_servers_with_recent_metrics_shows_up() {
     );
 
     // Create a collector
-    let config = ServerConfig {
+    let config = ResolvedServerConfig {
         ip: "192.168.1.100".parse().unwrap(),
         port: 3000,
         interval: 30,
@@ -299,7 +299,7 @@ async fn test_list_servers_with_stale_metrics_shows_stale() {
     );
 
     // Create a collector
-    let config = ServerConfig {
+    let config = ResolvedServerConfig {
         ip: "192.168.1.100".parse().unwrap(),
         port: 3000,
         interval: 30,
@@ -363,7 +363,7 @@ async fn test_list_services_with_recent_up_check_shows_up() {
     );
 
     // Create a service monitor
-    let config = ServiceConfig {
+    let config = ResolvedServiceConfig {
         name: "Test Service".to_string(),
         url: "http://example.com".to_string(),
         interval: 60,

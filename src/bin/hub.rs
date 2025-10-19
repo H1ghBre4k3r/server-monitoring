@@ -1,10 +1,11 @@
+use axum::routing::trace;
 use clap::Parser;
 use server_monitoring::{
     actors::{
         alert::AlertHandle, collector::CollectorHandle, service_monitor::ServiceHandle,
         storage::StorageHandle,
     },
-    config::{Config, StorageConfig, read_config_file},
+    config::{ResolvedConfig, StorageConfig, read_config_file},
 };
 use tokio::sync::broadcast;
 use tracing::{error, info, level_filters::LevelFilter, trace, warn};
@@ -23,7 +24,7 @@ struct Args {
 fn init() {
     let filter = filter::Targets::new().with_targets(vec![
         ("server_monitoring", LevelFilter::TRACE),
-        ("hub", LevelFilter::TRACE),
+        ("guardia_hub", LevelFilter::TRACE),
     ]);
     tracing_subscriber::registry()
         .with(
@@ -52,22 +53,31 @@ async fn main() -> anyhow::Result<()> {
         return Err(anyhow::anyhow!("Configuration validation failed: {}", e));
     }
 
+    // Resolve configuration (merge defaults and resolve alert references)
+    let resolved_config = config.resolve()?;
+    info!("resolved configuration: {resolved_config:#?}");
+    info!(
+        "configuration resolved: {} servers, {} services",
+        resolved_config.servers.len(),
+        resolved_config.services.len()
+    );
+
     // Run the actor-based monitoring system
-    run_monitoring(config).await?;
+    run_monitoring(resolved_config).await?;
 
     Ok(())
 }
 
 /// Run the actor-based monitoring system
-async fn run_monitoring(config: Config) -> anyhow::Result<()> {
-    let Some(servers) = config.servers else {
+async fn run_monitoring(resolved_config: ResolvedConfig) -> anyhow::Result<()> {
+    if resolved_config.servers.is_empty() {
         warn!("no servers configured");
         return Ok(());
-    };
+    }
 
     info!(
         "starting actor-based monitoring for {} servers",
-        servers.len()
+        resolved_config.servers.len()
     );
 
     // Create broadcast channel for metric events
@@ -80,13 +90,14 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
     // Create broadcast channel for polling status events
     let (polling_tx, _polling_rx) = broadcast::channel(256);
 
-    // Clone services for alert actor registration (needed before storage actor)
-    let services_for_alert = config.services.clone().unwrap_or_default();
+    // Clone servers and services for actor spawning
+    let servers = resolved_config.servers.clone();
+    let services = resolved_config.services.clone();
 
     // Initialize storage backend based on config
     #[cfg(feature = "storage-sqlite")]
     let (backend, retention_days, cleanup_interval_hours) =
-        initialize_storage_backend(&config.storage).await;
+        initialize_storage_backend(&resolved_config.storage).await;
 
     // Spawn storage actor with optional persistent backend
     #[cfg(feature = "storage-sqlite")]
@@ -106,7 +117,7 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
     // Spawn alert actor with all server and service configs
     let alert_handle = AlertHandle::spawn(
         servers.clone(),
-        services_for_alert,
+        services.clone(),
         metric_tx.subscribe(),
         service_tx.subscribe(),
     );
@@ -128,21 +139,19 @@ async fn run_monitoring(config: Config) -> anyhow::Result<()> {
 
     // Spawn service monitor actor for each configured service
     let mut service_handles = Vec::new();
-    if let Some(services) = config.services {
-        for service_config in services {
-            let service_name = service_config.name.clone();
+    for service_config in services {
+        let service_name = service_config.name.clone();
 
-            let handle = ServiceHandle::spawn(service_config, service_tx.clone());
-            info!("service monitor actor started for {service_name}");
-            service_handles.push(handle);
-        }
+        let handle = ServiceHandle::spawn(service_config, service_tx.clone());
+        info!("service monitor actor started for {service_name}");
+        service_handles.push(handle);
     }
 
     info!("all actors started, monitoring active");
 
     // Spawn API server if configured
     #[cfg(feature = "api")]
-    if let Some(api_config) = config.api {
+    if let Some(api_config) = resolved_config.api {
         use server_monitoring::api::{ApiConfig, ApiState, spawn_api_server};
         use std::net::SocketAddr;
 

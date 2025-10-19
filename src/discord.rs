@@ -4,7 +4,7 @@ use serde::Serialize;
 use tracing::{error, info, instrument};
 
 use crate::actors::messages::ServiceStatus;
-use crate::config::{Discord, ServerConfig};
+use crate::config::{Discord, ResolvedServerConfig};
 use crate::monitors::resources::ResourceEvaluation;
 
 #[derive(Debug, Clone, Serialize)]
@@ -76,11 +76,11 @@ impl MessageBuilder {
 #[derive(Debug, Clone)]
 pub struct DiscordManager {
     client: Client,
-    server_config: ServerConfig,
+    server_config: ResolvedServerConfig,
 }
 
 impl DiscordManager {
-    pub fn new(server_config: ServerConfig) -> Self {
+    pub fn new(server_config: ResolvedServerConfig) -> Self {
         Self {
             client: Client::new(),
             server_config,
