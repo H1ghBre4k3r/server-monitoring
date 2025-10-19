@@ -549,7 +549,7 @@ impl AlertHandle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{Limit, Limits};
+    use crate::config::{ResolvedLimit, ResolvedLimits};
     use crate::{
         ComponentOverview, CpuOverview, MemoryInformation, ServerMetrics, SystemInformation,
     };
@@ -557,23 +557,23 @@ mod tests {
     // Note: ResourceEvaluation tests are in monitors/resources.rs
     // These tests focus on the AlertActor behavior
 
-    fn create_test_server_config(ip: &str, port: u16) -> ServerConfig {
+    fn create_test_server_config(ip: &str, port: u16) -> ResolvedServerConfig {
         use std::net::IpAddr;
         use std::str::FromStr;
 
-        ServerConfig {
+        ResolvedServerConfig {
             ip: IpAddr::from_str(ip).unwrap(),
             port,
             interval: 5,
             token: None,
             display: Some(format!("Test {ip}:{port}")),
-            limits: Some(Limits {
-                temperature: Some(Limit {
+            limits: Some(ResolvedLimits {
+                temperature: Some(ResolvedLimit {
                     limit: 70,
                     grace: Some(3),
                     alert: None,
                 }),
-                usage: Some(Limit {
+                usage: Some(ResolvedLimit {
                     limit: 80,
                     grace: Some(5),
                     alert: None,

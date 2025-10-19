@@ -329,7 +329,7 @@ mod tests {
     async fn test_service_handle_creation() {
         let (event_tx, _) = broadcast::channel(16);
 
-        let config = ServiceConfig {
+        let config = ResolvedServiceConfig {
             name: "test-service".to_string(),
             url: "http://example.com".to_string(),
             interval: 60,
@@ -353,7 +353,7 @@ mod tests {
     async fn test_update_interval() {
         let (event_tx, _) = broadcast::channel(16);
 
-        let config = ServiceConfig {
+        let config = ResolvedServiceConfig {
             name: "test-service".to_string(),
             url: "http://example.com".to_string(),
             interval: 60,

@@ -9,7 +9,7 @@
 
 use server_monitoring::actors::messages::ServiceStatus;
 use server_monitoring::actors::service_monitor::ServiceHandle;
-use server_monitoring::config::{HttpMethod, ServiceConfig};
+use server_monitoring::config::{HttpMethod, ResolvedServiceConfig};
 use tokio::sync::broadcast;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -25,7 +25,7 @@ async fn test_service_check_success() {
         .await;
 
     // Create service configuration
-    let config = ServiceConfig {
+    let config = ResolvedServiceConfig {
         name: "test-service".to_string(),
         url: format!("{}/health", mock_server.uri()),
         interval: 60,
@@ -71,7 +71,7 @@ async fn test_service_check_failure() {
         .mount(&mock_server)
         .await;
 
-    let config = ServiceConfig {
+    let config = ResolvedServiceConfig {
         name: "failing-service".to_string(),
         url: format!("{}/health", mock_server.uri()),
         interval: 60,
@@ -112,7 +112,7 @@ async fn test_service_check_timeout() {
         .mount(&mock_server)
         .await;
 
-    let config = ServiceConfig {
+    let config = ResolvedServiceConfig {
         name: "slow-service".to_string(),
         url: format!("{}/slow", mock_server.uri()),
         interval: 60,
@@ -151,7 +151,7 @@ async fn test_service_check_body_pattern_match() {
         .mount(&mock_server)
         .await;
 
-    let config = ServiceConfig {
+    let config = ResolvedServiceConfig {
         name: "api-service".to_string(),
         url: format!("{}/api", mock_server.uri()),
         interval: 60,
@@ -191,7 +191,7 @@ async fn test_service_check_body_pattern_mismatch() {
         .mount(&mock_server)
         .await;
 
-    let config = ServiceConfig {
+    let config = ResolvedServiceConfig {
         name: "api-service-degraded".to_string(),
         url: format!("{}/api", mock_server.uri()),
         interval: 60,
@@ -228,7 +228,7 @@ async fn test_service_check_post_method() {
         .mount(&mock_server)
         .await;
 
-    let config = ServiceConfig {
+    let config = ResolvedServiceConfig {
         name: "webhook-service".to_string(),
         url: format!("{}/webhook", mock_server.uri()),
         interval: 60,

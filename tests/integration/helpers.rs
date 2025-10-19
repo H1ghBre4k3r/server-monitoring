@@ -1,11 +1,11 @@
 //! Helper functions for integration tests
 
-use server_monitoring::config::{Limit, Limits, ServerConfig};
+use server_monitoring::config::{ResolvedLimit, ResolvedLimits, ResolvedServerConfig};
 use std::net::IpAddr;
 use std::str::FromStr;
 
-pub fn create_test_server_config(ip: &str, port: u16) -> ServerConfig {
-    ServerConfig {
+pub fn create_test_server_config(ip: &str, port: u16) -> ResolvedServerConfig {
+    ResolvedServerConfig {
         ip: IpAddr::from_str(ip).unwrap(),
         port,
         interval: 5,
@@ -21,16 +21,16 @@ pub fn create_test_server_with_limits(
     temp_limit: Option<usize>,
     cpu_limit: Option<usize>,
     grace: usize,
-) -> ServerConfig {
+) -> ResolvedServerConfig {
     let mut config = create_test_server_config(ip, port);
 
-    config.limits = Some(Limits {
-        temperature: temp_limit.map(|limit| Limit {
+    config.limits = Some(ResolvedLimits {
+        temperature: temp_limit.map(|limit| ResolvedLimit {
             limit,
             grace: Some(grace),
             alert: None,
         }),
-        usage: cpu_limit.map(|limit| Limit {
+        usage: cpu_limit.map(|limit| ResolvedLimit {
             limit,
             grace: Some(grace),
             alert: None,

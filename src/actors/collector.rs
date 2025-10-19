@@ -352,12 +352,12 @@ impl CollectorHandle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::ServerConfig;
+    use crate::config::ResolvedServerConfig;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    fn create_test_config(ip: &str, port: u16) -> ServerConfig {
-        ServerConfig {
+    fn create_test_config(ip: &str, port: u16) -> ResolvedServerConfig {
+        ResolvedServerConfig {
             ip: ip.parse().unwrap(),
             port,
             interval: 10,
