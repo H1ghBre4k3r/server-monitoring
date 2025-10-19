@@ -1,0 +1,20 @@
+services:
+  hub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: guardia-hub:dev
+    container_name: guardia-hub-dev
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/app/config:ro
+      - guardia-data-dev:/app/data
+    environment:
+      # Optional: Override config file location
+      - RUST_LOG=debug
+
+volumes:
+  guardia-data-dev:
+    driver: local
