@@ -192,8 +192,7 @@ pub struct ServerConfig {
     pub display: Option<String>,
     #[serde(default = "crate::util::get_default_port")]
     pub port: u16,
-    #[serde(default = "default_interval")]
-    pub interval: usize,
+    pub interval: Option<usize>,
     pub token: Option<String>,
     pub limits: Option<Limits>,
 }
@@ -281,10 +280,6 @@ fn default_service_interval() -> usize {
 
 fn default_service_timeout() -> usize {
     10 // 10 second timeout by default
-}
-
-fn default_interval() -> usize {
-    15
 }
 
 pub fn read_config_file(path: &str) -> anyhow::Result<Config> {
@@ -487,7 +482,10 @@ impl Config {
                     ip: server.ip,
                     display: server.display,
                     port: server.port,
-                    interval: server.interval,
+                    interval: server
+                        .interval
+                        .or_else(|| default_server.and_then(|d| d.interval))
+                        .unwrap_or(15), // Fallback to 15 if no default specified
                     token: server.token,
                     limits,
                 })

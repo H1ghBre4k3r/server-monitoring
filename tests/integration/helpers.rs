@@ -8,7 +8,7 @@ pub fn create_test_server_config(ip: &str, port: u16) -> ResolvedServerConfig {
     ResolvedServerConfig {
         ip: IpAddr::from_str(ip).unwrap(),
         port,
-        interval: 5,
+        interval: 5, // Already resolved, so this is usize not Option
         token: Some("test-token".to_string()),
         display: Some(format!("Test {ip}:{port}")),
         limits: None,

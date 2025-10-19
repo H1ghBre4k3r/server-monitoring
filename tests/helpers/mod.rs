@@ -14,7 +14,7 @@ pub fn create_test_server_config(ip: &str, port: u16) -> ServerConfig {
     ServerConfig {
         ip: IpAddr::from_str(ip).unwrap(),
         port,
-        interval: 5,
+        interval: Some(5),
         token: Some("test-token".to_string()),
         display: Some(format!("Test Server {ip}:{port}")),
         limits: None,

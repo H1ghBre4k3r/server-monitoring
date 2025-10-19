@@ -1,3 +1,4 @@
+use axum::routing::trace;
 use clap::Parser;
 use server_monitoring::{
     actors::{
@@ -23,7 +24,7 @@ struct Args {
 fn init() {
     let filter = filter::Targets::new().with_targets(vec![
         ("server_monitoring", LevelFilter::TRACE),
-        ("hub", LevelFilter::TRACE),
+        ("guardia_hub", LevelFilter::TRACE),
     ]);
     tracing_subscriber::registry()
         .with(
@@ -54,6 +55,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Resolve configuration (merge defaults and resolve alert references)
     let resolved_config = config.resolve()?;
+    info!("resolved configuration: {resolved_config:#?}");
     info!(
         "configuration resolved: {} servers, {} services",
         resolved_config.servers.len(),
