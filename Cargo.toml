@@ -51,7 +51,7 @@ tokio-tungstenite = { version = "0.24", optional = true }
 
 # API Documentation (Phase 4.1)
 utoipa = { version = "5", features = ["axum_extras"], optional = true }
-utoipa-swagger-ui = { version = "8", features = ["axum"], optional = true }
+utoipa-swagger-ui = { version = "9", features = ["axum"], optional = true }
 
 [features]
 default = ["storage-sqlite", "api", "dashboard", "web-dashboard"]
