@@ -54,9 +54,11 @@ async fn main() -> anyhow::Result<()> {
 
     // Resolve configuration (merge defaults and resolve alert references)
     let resolved_config = config.resolve()?;
-    info!("configuration resolved: {} servers, {} services",
-          resolved_config.servers.len(),
-          resolved_config.services.len());
+    info!(
+        "configuration resolved: {} servers, {} services",
+        resolved_config.servers.len(),
+        resolved_config.services.len()
+    );
 
     // Run the actor-based monitoring system
     run_monitoring(resolved_config).await?;

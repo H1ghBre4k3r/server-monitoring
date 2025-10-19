@@ -385,52 +385,47 @@ impl Config {
                     (Some(server_limits), Some(default_limits)) => {
                         // Server has limits - merge with defaults
                         Some(ResolvedLimits {
-                            temperature: match (server_limits.temperature, default_limits.temperature) {
-                                (Some(server_temp), Some(default_temp)) => {
-                                    Some(ResolvedLimit {
-                                        limit: server_temp.limit,
-                                        grace: server_temp.grace.or(default_temp.grace),
-                                        alert: resolve_alert(&server_temp.alert.or(default_temp.alert))?,
-                                    })
-                                }
-                                (Some(server_temp), None) => {
-                                    Some(ResolvedLimit {
-                                        limit: server_temp.limit,
-                                        grace: server_temp.grace,
-                                        alert: resolve_alert(&server_temp.alert)?,
-                                    })
-                                }
-                                (None, Some(default_temp)) => {
-                                    Some(ResolvedLimit {
-                                        limit: default_temp.limit,
-                                        grace: default_temp.grace,
-                                        alert: resolve_alert(&default_temp.alert)?,
-                                    })
-                                }
+                            temperature: match (
+                                server_limits.temperature,
+                                default_limits.temperature,
+                            ) {
+                                (Some(server_temp), Some(default_temp)) => Some(ResolvedLimit {
+                                    limit: server_temp.limit,
+                                    grace: server_temp.grace.or(default_temp.grace),
+                                    alert: resolve_alert(
+                                        &server_temp.alert.or(default_temp.alert),
+                                    )?,
+                                }),
+                                (Some(server_temp), None) => Some(ResolvedLimit {
+                                    limit: server_temp.limit,
+                                    grace: server_temp.grace,
+                                    alert: resolve_alert(&server_temp.alert)?,
+                                }),
+                                (None, Some(default_temp)) => Some(ResolvedLimit {
+                                    limit: default_temp.limit,
+                                    grace: default_temp.grace,
+                                    alert: resolve_alert(&default_temp.alert)?,
+                                }),
                                 (None, None) => None,
                             },
                             usage: match (server_limits.usage, default_limits.usage) {
-                                (Some(server_usage), Some(default_usage)) => {
-                                    Some(ResolvedLimit {
-                                        limit: server_usage.limit,
-                                        grace: server_usage.grace.or(default_usage.grace),
-                                        alert: resolve_alert(&server_usage.alert.or(default_usage.alert))?,
-                                    })
-                                }
-                                (Some(server_usage), None) => {
-                                    Some(ResolvedLimit {
-                                        limit: server_usage.limit,
-                                        grace: server_usage.grace,
-                                        alert: resolve_alert(&server_usage.alert)?,
-                                    })
-                                }
-                                (None, Some(default_usage)) => {
-                                    Some(ResolvedLimit {
-                                        limit: default_usage.limit,
-                                        grace: default_usage.grace,
-                                        alert: resolve_alert(&default_usage.alert)?,
-                                    })
-                                }
+                                (Some(server_usage), Some(default_usage)) => Some(ResolvedLimit {
+                                    limit: server_usage.limit,
+                                    grace: server_usage.grace.or(default_usage.grace),
+                                    alert: resolve_alert(
+                                        &server_usage.alert.or(default_usage.alert),
+                                    )?,
+                                }),
+                                (Some(server_usage), None) => Some(ResolvedLimit {
+                                    limit: server_usage.limit,
+                                    grace: server_usage.grace,
+                                    alert: resolve_alert(&server_usage.alert)?,
+                                }),
+                                (None, Some(default_usage)) => Some(ResolvedLimit {
+                                    limit: default_usage.limit,
+                                    grace: default_usage.grace,
+                                    alert: resolve_alert(&default_usage.alert)?,
+                                }),
                                 (None, None) => None,
                             },
                         })
@@ -438,39 +433,51 @@ impl Config {
                     (Some(server_limits), None) => {
                         // Server has limits but no defaults
                         Some(ResolvedLimits {
-                            temperature: server_limits.temperature.map(|temp| {
-                                Ok::<_, anyhow::Error>(ResolvedLimit {
-                                    limit: temp.limit,
-                                    grace: temp.grace,
-                                    alert: resolve_alert(&temp.alert)?,
+                            temperature: server_limits
+                                .temperature
+                                .map(|temp| {
+                                    Ok::<_, anyhow::Error>(ResolvedLimit {
+                                        limit: temp.limit,
+                                        grace: temp.grace,
+                                        alert: resolve_alert(&temp.alert)?,
+                                    })
                                 })
-                            }).transpose()?,
-                            usage: server_limits.usage.map(|usage| {
-                                Ok::<_, anyhow::Error>(ResolvedLimit {
-                                    limit: usage.limit,
-                                    grace: usage.grace,
-                                    alert: resolve_alert(&usage.alert)?,
+                                .transpose()?,
+                            usage: server_limits
+                                .usage
+                                .map(|usage| {
+                                    Ok::<_, anyhow::Error>(ResolvedLimit {
+                                        limit: usage.limit,
+                                        grace: usage.grace,
+                                        alert: resolve_alert(&usage.alert)?,
+                                    })
                                 })
-                            }).transpose()?,
+                                .transpose()?,
                         })
                     }
                     (None, Some(default_limits)) => {
                         // No server limits - use defaults
                         Some(ResolvedLimits {
-                            temperature: default_limits.temperature.map(|temp| {
-                                Ok::<_, anyhow::Error>(ResolvedLimit {
-                                    limit: temp.limit,
-                                    grace: temp.grace,
-                                    alert: resolve_alert(&temp.alert)?,
+                            temperature: default_limits
+                                .temperature
+                                .map(|temp| {
+                                    Ok::<_, anyhow::Error>(ResolvedLimit {
+                                        limit: temp.limit,
+                                        grace: temp.grace,
+                                        alert: resolve_alert(&temp.alert)?,
+                                    })
                                 })
-                            }).transpose()?,
-                            usage: default_limits.usage.map(|usage| {
-                                Ok::<_, anyhow::Error>(ResolvedLimit {
-                                    limit: usage.limit,
-                                    grace: usage.grace,
-                                    alert: resolve_alert(&usage.alert)?,
+                                .transpose()?,
+                            usage: default_limits
+                                .usage
+                                .map(|usage| {
+                                    Ok::<_, anyhow::Error>(ResolvedLimit {
+                                        limit: usage.limit,
+                                        grace: usage.grace,
+                                        alert: resolve_alert(&usage.alert)?,
+                                    })
                                 })
-                            }).transpose()?,
+                                .transpose()?,
                         })
                     }
                     (None, None) => None,
@@ -493,9 +500,11 @@ impl Config {
             .unwrap_or_default()
             .into_iter()
             .map(|service| {
-                let resolved_alert = resolve_alert(&service.alert.or_else(|| {
-                    default_service.and_then(|d| d.alert.clone())
-                }))?;
+                let resolved_alert = resolve_alert(
+                    &service
+                        .alert
+                        .or_else(|| default_service.and_then(|d| d.alert.clone())),
+                )?;
 
                 Ok(ResolvedServiceConfig {
                     name: service.name,
@@ -505,9 +514,9 @@ impl Config {
                     method: service.method,
                     expected_status: service.expected_status,
                     body_pattern: service.body_pattern,
-                    grace: service.grace.or_else(|| {
-                        default_service.and_then(|d| d.grace)
-                    }),
+                    grace: service
+                        .grace
+                        .or_else(|| default_service.and_then(|d| d.grace)),
                     alert: resolved_alert,
                 })
             })

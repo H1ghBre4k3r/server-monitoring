@@ -265,7 +265,10 @@ pub struct ServiceHandle {
 
 impl ServiceHandle {
     /// Spawn a new service monitor actor
-    pub fn spawn(config: ResolvedServiceConfig, event_tx: broadcast::Sender<ServiceCheckEvent>) -> Self {
+    pub fn spawn(
+        config: ResolvedServiceConfig,
+        event_tx: broadcast::Sender<ServiceCheckEvent>,
+    ) -> Self {
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
         let service_name = config.name.clone();
         let service_url = config.url.clone();

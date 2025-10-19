@@ -328,7 +328,11 @@ impl AlertActor {
     }
 
     /// Evaluate CPU usage against limit
-    async fn evaluate_cpu_usage(event: &MetricEvent, state: &mut ServerAlertState, limit: &ResolvedLimit) {
+    async fn evaluate_cpu_usage(
+        event: &MetricEvent,
+        state: &mut ServerAlertState,
+        limit: &ResolvedLimit,
+    ) {
         let current_usage = event.metrics.cpus.average_usage;
         let grace = limit.grace.unwrap_or_default();
 
