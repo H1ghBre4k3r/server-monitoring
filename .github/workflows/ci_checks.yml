@@ -3,6 +3,7 @@ name: CI Checks
 permissions:
   contents: read
   packages: write
+  pull-requests: write
 
 on:
   push:
@@ -361,3 +362,33 @@ jobs:
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment on PR with image tags
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: docker-image-tags
+          message: |
+            ## 🐳 Docker Image Published Successfully!
+
+            Your PR has been built and pushed to the container registry.
+
+            ### 📦 Image Tags
+            ```
+            ${{ steps.meta.outputs.tags }}
+            ```
+
+            ### 💻 Pull Command
+            ```bash
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+            ```
+
+            ### 🏗️ Supported Platforms
+            - `linux/amd64`
+            - `linux/arm64`
+
+            ### 🔗 Registry
+            [View on GitHub Container Registry](https://github.com/${{ github.repository }}/pkgs/container/${{ github.event.repository.name }})
+
+            ---
+            <sub>Built at `${{ github.event.head_commit.timestamp }}` | Commit: `${{ github.sha }}`</sub>
