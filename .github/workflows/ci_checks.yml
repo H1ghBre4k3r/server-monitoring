@@ -388,7 +388,7 @@ jobs:
             - `linux/arm64`
 
             ### 🔗 Registry
-            [View on GitHub Container Registry](https://github.com/${{ github.repository }}/pkgs/container/${{ github.event.repository.name }})
+            [View on GitHub Container Registry](https://github.com/${{ github.repository }}/pkgs/container/guardia)
 
             ---
-            <sub>Built at `${{ github.event.head_commit.timestamp }}` | Commit: `${{ github.sha }}`</sub>
+            <sub>Built at `${{ github.event.pull_request.updated_at }}` | Commit: `${{ github.sha }}`</sub>
