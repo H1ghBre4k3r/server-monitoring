@@ -34,17 +34,18 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-  border-radius: 0.75rem;
-  padding: 1rem 1.25rem;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
   text-align: left;
-  font-weight: 600;
-  color: var(--subtext0);
-  transition: all 300ms ease;
-  transform: scale(1);
+  font-weight: 500;
+  color: var(--subtext1);
+  transition: all 200ms ease;
+  background: transparent;
 }
 
 .navButton:hover {
   color: var(--text);
+  background: rgba(var(--ctp-frappe-surface0-rgb), 0.5);
 }
 
 .navButton:active {
@@ -52,36 +53,33 @@
 }
 
 .navButtonActive {
-  color: var(--text);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  color: var(--base);
+  background: var(--surface2);
+  box-shadow: none;
 }
 
 .navButtonActiveBackground {
   position: absolute;
   inset: 0;
-  border-radius: 0.75rem;
-  opacity: 0.9;
-  transition: opacity 300ms ease;
+  border-radius: 0.5rem;
+  background: var(--surface2);
+  z-index: 0;
 }
 
 .navButtonActiveBackgroundBlur {
-  position: absolute;
-  inset: 0;
-  border-radius: 0.75rem;
-  filter: blur(1.25rem);
-  opacity: 0.5;
+  display: none;
 }
 
 .navButtonServersGradient {
-  background-image: linear-gradient(to right, var(--sky), var(--blue));
+  background: var(--sky);
 }
 
 .navButtonServicesGradient {
-  background-image: linear-gradient(to right, var(--purple), var(--pink));
+  background: var(--purple);
 }
 
 .navButtonAlertsGradient {
-  background-image: linear-gradient(to right, var(--peach), var(--red));
+  background: var(--peach);
 }
 
 .navButtonHoverBackground {
@@ -105,17 +103,8 @@
   justify-content: center;
   border-radius: 0.5rem;
   padding: 0.5rem;
-  background-color: rgba(var(--ctp-frappe-surface0-rgb), 0.5);
-  transition: all 300ms ease;
-}
-
-.navButtonActive .iconContainer {
-  background-color: rgba(255, 255, 255, 0.2);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
-.navButton:hover .iconContainer {
-  background-color: rgba(var(--ctp-frappe-surface1-rgb), 0.7);
+  background: transparent;
+  transition: all 200ms ease;
 }
 
 .iconContainer svg {
@@ -123,24 +112,33 @@
   height: 1.25rem;
 }
 
+/* Icon colors for each tab */
+.navButtonServers .iconContainer svg {
+  color: var(--sky);
+}
+
+.navButtonServices .iconContainer svg {
+  color: var(--purple);
+}
+
+.navButtonAlerts .iconContainer svg {
+  color: var(--peach);
+}
+
+.navButtonActive .iconContainer svg {
+  color: var(--base);
+}
+
 .label {
   position: relative;
   z-index: 10;
   font-size: 1rem;
   letter-spacing: 0.025em;
+  font-weight: 500;
 }
 
-.activeIndicator {
-  position: absolute;
-  right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background-color: var(--base);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-  animation: pulse 2s infinite;
+.navButtonActive .label {
+  font-weight: 600;
 }
 
 .orb {
