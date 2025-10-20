@@ -1,0 +1,145 @@
+/* web-dashboard/src/components/services/ServiceList.module.css */
+
+.loadingContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24rem;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+  border-radius: 50%;
+  border-top: 2px solid var(--blue);
+}
+
+.errorContainer {
+  border-radius: 0.5rem;
+  border: 1px solid rgba(var(--ctp-frappe-red-rgb), 0.2);
+  background-color: rgba(var(--ctp-frappe-red-rgb), 0.1);
+  padding: 1rem;
+  color: var(--red);
+}
+
+.noServicesContainer {
+  border-radius: 0.5rem;
+  border: 1px solid var(--surface0);
+  background-color: rgba(var(--ctp-frappe-surface0-rgb), 0.5);
+  padding: 2rem;
+  text-align: center;
+}
+
+.noServicesContainer p {
+  color: var(--subtext0);
+}
+
+.card {
+  border-radius: 1rem;
+  border: 1px solid var(--surface0);
+  background: linear-gradient(to bottom right, var(--mantle), var(--base));
+  padding: 1.5rem;
+}
+
+.card h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+
+.tableContainer {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  font-size: 0.875rem;
+}
+
+.table th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  color: var(--subtext0);
+  font-weight: 500;
+  border-bottom: 1px solid var(--surface0);
+}
+
+.table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--surface1);
+  transition: background-color 150ms ease;
+}
+
+.table tr:hover td {
+  background-color: rgba(var(--ctp-frappe-surface0-rgb), 0.5);
+}
+
+.table .serviceName {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.table .serviceUrl {
+  color: var(--subtext0);
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badgeUp {
+  background-color: rgba(var(--ctp-frappe-green-rgb), 0.2);
+  color: var(--green);
+  border: 1px solid rgba(var(--ctp-frappe-green-rgb), 0.3);
+}
+
+.badgeDown {
+  background-color: rgba(var(--ctp-frappe-red-rgb), 0.2);
+  color: var(--red);
+  border: 1px solid rgba(var(--ctp-frappe-red-rgb), 0.3);
+}
+
+.badgeDegraded {
+  background-color: rgba(var(--ctp-frappe-peach-rgb), 0.2);
+  color: var(--peach);
+  border: 1px solid rgba(var(--ctp-frappe-peach-rgb), 0.3);
+}
+
+.badgeStale {
+  background-color: rgba(var(--ctp-frappe-yellow-rgb), 0.2);
+  color: var(--yellow);
+  border: 1px solid rgba(var(--ctp-frappe-yellow-rgb), 0.3);
+}
+
+.badgeUnknown {
+  background-color: rgba(var(--ctp-frappe-surface1-rgb), 0.2);
+  color: var(--subtext1);
+  border: 1px solid rgba(var(--ctp-frappe-surface1-rgb), 0.3);
+}
+
+.table .responseTime {
+  color: var(--text);
+}
+
+.table .lastCheck {
+  color: var(--subtext0);
+}
+
+/* Keyframes */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

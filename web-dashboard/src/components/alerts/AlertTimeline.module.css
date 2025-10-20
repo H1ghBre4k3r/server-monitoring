@@ -1,0 +1,92 @@
+/* web-dashboard/src/components/alerts/AlertTimeline.module.css */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.container h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+
+.noAlertsContainer {
+  border-radius: 0.5rem;
+  border: 1px solid var(--surface0);
+  background-color: rgba(var(--ctp-frappe-surface0-rgb), 0.5);
+  padding: 2rem;
+  text-align: center;
+}
+
+.noAlertsContainer p {
+  color: var(--subtext0);
+}
+
+.alert {
+  border-radius: 1rem;
+  border: 1px solid var(--surface0);
+  background: linear-gradient(to bottom right, var(--mantle), var(--base));
+  padding: 1rem;
+  border-left-width: 0.25rem;
+}
+
+.alertContent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.alertIcon {
+  font-size: 1.5rem;
+}
+
+.alertDetails {
+  flex: 1;
+}
+
+.alertHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.alertTitle {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.alertTimestamp {
+  font-size: 0.75rem;
+  color: var(--subtext0);
+}
+
+.alertMessage {
+  font-size: 0.875rem;
+  color: var(--subtext1);
+  margin-top: 0.25rem;
+}
+
+/* Severity styles */
+.critical {
+  border-left-color: var(--red);
+  background-color: rgba(var(--ctp-frappe-red-rgb), 0.2);
+  border-color: rgba(var(--ctp-frappe-red-rgb), 0.5);
+  color: var(--red);
+}
+
+.warning {
+  border-left-color: var(--yellow);
+  background-color: rgba(var(--ctp-frappe-yellow-rgb), 0.2);
+  border-color: rgba(var(--ctp-frappe-yellow-rgb), 0.5);
+  color: var(--yellow);
+}
+
+.info {
+  border-left-color: var(--blue);
+  background-color: rgba(var(--ctp-frappe-blue-rgb), 0.2);
+  border-color: rgba(var(--ctp-frappe-blue-rgb), 0.5);
+  color: var(--blue);
+}

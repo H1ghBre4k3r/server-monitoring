@@ -1,0 +1,919 @@
+/* web-dashboard/src/components/servers/ServerDetail.module.css */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container {
+    gap: 1.5rem;
+  }
+}
+
+.systemInfoBanner {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid var(--surface0);
+  background: linear-gradient(to bottom right, var(--mantle), var(--base));
+  padding: 1.5rem;
+}
+
+.decorativeWave {
+  position: absolute;
+  top: 0;
+  right: 0;
+  opacity: 0.05;
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .decorativeWave {
+    display: block;
+  }
+}
+
+.decorativeWave svg {
+  width: 8rem;
+  height: 8rem;
+  color: var(--blue);
+}
+
+.bannerContent {
+  position: relative;
+  z-index: 10;
+}
+
+.bannerHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 640px) {
+  .bannerHeader {
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+}
+
+.bannerIconContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background: linear-gradient(135deg, rgba(var(--ctp-frappe-blue-rgb), 0.3), rgba(var(--ctp-frappe-purple-rgb), 0.3));
+  padding: 0.5rem;
+  border: 1px solid rgba(var(--ctp-frappe-blue-rgb), 0.4);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), 0 0 20px rgba(var(--ctp-frappe-blue-rgb), 0.2);
+}
+
+@media (min-width: 640px) {
+  .bannerIconContainer {
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+  }
+}
+
+.bannerIcon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--subtext0);
+}
+
+@media (min-width: 640px) {
+  .bannerIcon {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+}
+
+.bannerTitle h3 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  background-image: linear-gradient(to right, var(--blue), var(--purple), var(--pink));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+@media (min-width: 640px) {
+  .bannerTitle h3 {
+    font-size: 1.5rem;
+  }
+}
+
+.bannerTitle p {
+  font-size: 0.75rem;
+  color: var(--subtext0);
+  font-weight: 500;
+  letter-spacing: 0.025em;
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .bannerTitle p {
+    display: block;
+  }
+}
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .statGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .statGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.statCard {
+  display: flex;
+  flex-direction: column;
+  border-radius: 0.75rem;
+  background: linear-gradient(to bottom right, rgba(var(--ctp-frappe-surface0-rgb), 0.5), rgba(var(--ctp-frappe-surface1-rgb), 0.5));
+  padding: 1rem;
+  border: 1px solid var(--surface1);
+  transition: all 150ms ease;
+}
+
+.statCard:hover {
+  transform: scale(1.02);
+}
+
+.statCardHostname:hover {
+  border-color: rgba(var(--ctp-frappe-blue-rgb), 0.4);
+}
+
+.statCardArch:hover {
+  border-color: rgba(var(--ctp-frappe-purple-rgb), 0.4);
+}
+
+.statCardOs:hover {
+  border-color: rgba(var(--ctp-frappe-cyan-rgb), 0.4);
+}
+
+.statCardKernel:hover {
+  border-color: rgba(var(--ctp-frappe-pink-rgb), 0.4);
+}
+
+.statCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-bottom: 0.375rem;
+}
+
+@media (min-width: 640px) {
+  .statCardHeader {
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+}
+
+.statCardIconContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .statCardIconContainer {
+    padding: 0.375rem;
+  }
+}
+
+.statCardHostname .statCardIconContainer {
+  background-color: rgba(var(--ctp-frappe-blue-rgb), 0.1);
+}
+
+.statCardArch .statCardIconContainer {
+  background-color: rgba(var(--ctp-frappe-purple-rgb), 0.1);
+}
+
+.statCardOs .statCardIconContainer {
+  background-color: rgba(var(--ctp-frappe-cyan-rgb), 0.1);
+}
+
+.statCardKernel .statCardIconContainer {
+  background-color: rgba(var(--ctp-frappe-pink-rgb), 0.1);
+}
+
+.statCardIcon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .statCardIcon {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+}
+
+.statCardHostname .statCardIcon {
+  color: var(--blue);
+}
+
+.statCardArch .statCardIcon {
+  color: var(--purple);
+}
+
+.statCardOs .statCardIcon {
+  color: var(--cyan);
+}
+
+.statCardKernel .statCardIcon {
+  color: var(--pink);
+}
+
+.statCardLabel {
+  font-size: 0.625rem;
+  color: var(--subtext0);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+@media (min-width: 640px) {
+  .statCardLabel {
+    font-size: 0.75rem;
+  }
+}
+
+.statCardValue {
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.75rem;
+  transition: color 150ms ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .statCardValue {
+    font-size: 0.875rem;
+  }
+}
+
+.statCardHostname:hover .statCardValue {
+  color: var(--blue);
+}
+
+.statCardArch:hover .statCardValue {
+  color: var(--purple);
+}
+
+.statCardOs:hover .statCardValue {
+  color: var(--cyan);
+}
+
+.statCardKernel:hover .statCardValue {
+  color: var(--pink);
+}
+
+.chartSection {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.memorySection {
+  border-radius: 1rem;
+  border: 1px solid var(--surface0);
+  background: linear-gradient(to bottom right, var(--mantle), var(--base));
+  padding: 1.5rem;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.memoryHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 640px) {
+  .memoryHeader {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0;
+    margin-bottom: 1.5rem;
+  }
+}
+
+.memoryHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .memoryHeaderLeft {
+    gap: 0.75rem;
+  }
+}
+
+.memoryIconContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background: linear-gradient(135deg, rgba(var(--ctp-frappe-green-rgb), 0.3), rgba(var(--ctp-frappe-teal-rgb), 0.3));
+  padding: 0.5rem;
+  border: 1px solid rgba(var(--ctp-frappe-green-rgb), 0.4);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), 0 0 20px rgba(var(--ctp-frappe-green-rgb), 0.2);
+}
+
+@media (min-width: 640px) {
+  .memoryIconContainer {
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+  }
+}
+
+.memoryIcon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--subtext0);
+}
+
+@media (min-width: 640px) {
+  .memoryIcon {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+}
+
+.memoryTitle h3 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  background-image: linear-gradient(to right, var(--green), var(--teal), var(--sky));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+@media (min-width: 640px) {
+  .memoryTitle h3 {
+    font-size: 1.5rem;
+  }
+}
+
+.memoryTitle p {
+  font-size: 0.75rem;
+  color: var(--subtext0);
+  font-weight: 500;
+  letter-spacing: 0.025em;
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .memoryTitle p {
+    display: block;
+  }
+}
+
+.totalMemoryBadge {
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.5rem;
+  background: linear-gradient(to right, rgba(var(--ctp-frappe-green-rgb), 0.1), rgba(var(--ctp-frappe-teal-rgb), 0.1));
+  border: 1px solid rgba(var(--ctp-frappe-green-rgb), 0.3);
+}
+
+@media (min-width: 640px) {
+  .totalMemoryBadge {
+    padding: 0.5rem 1rem;
+    border-radius: 0.75rem;
+  }
+}
+
+.totalMemoryLabel {
+  font-size: 0.625rem;
+  color: var(--subtext0);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@media (min-width: 640px) {
+  .totalMemoryLabel {
+    font-size: 0.75rem;
+  }
+}
+
+.totalMemoryValue {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--green);
+}
+
+@media (min-width: 640px) {
+  .totalMemoryValue {
+    font-size: 1.125rem;
+  }
+}
+
+.gaugeGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 640px) {
+  .gaugeGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+}
+
+.gaugeContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(to bottom right, rgba(var(--ctp-frappe-surface0-rgb), 0.4), rgba(var(--ctp-frappe-surface1-rgb), 0.4));
+  border: 1px solid var(--surface1);
+  transition: all 150ms ease;
+}
+
+@media (min-width: 640px) {
+  .gaugeContainer {
+    padding: 1.5rem;
+    border-radius: 1rem;
+  }
+}
+
+.gaugeContainer:hover {
+  transform: scale(1.02);
+}
+
+.gaugeContainerRam:hover {
+  border-color: rgba(var(--ctp-frappe-green-rgb), 0.3);
+}
+
+.gaugeContainerSwap:hover {
+  border-color: rgba(var(--ctp-frappe-teal-rgb), 0.3);
+}
+
+.memoryBars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--surface0);
+}
+
+@media (min-width: 640px) {
+  .memoryBars {
+    gap: 1rem;
+    padding-top: 1.5rem;
+  }
+}
+
+.memoryBarGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.memoryBarHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.memoryBarLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+@media (min-width: 640px) {
+  .memoryBarLabel {
+    gap: 0.5rem;
+  }
+}
+
+.memoryBarIndicator {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  animation: pulse-glow 2s infinite alternate;
+}
+
+@media (min-width: 640px) {
+  .memoryBarIndicator {
+    width: 0.5rem;
+    height: 0.5rem;
+  }
+}
+
+.memoryBarRam .memoryBarIndicator {
+  background-color: var(--green);
+}
+
+.memoryBarSwap .memoryBarIndicator {
+  background-color: var(--teal);
+  animation-delay: 0.5s;
+}
+
+.memoryBarLabelText {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--subtext1);
+  transition: color 150ms ease;
+}
+
+@media (min-width: 640px) {
+  .memoryBarLabelText {
+    font-size: 0.875rem;
+  }
+}
+
+.memoryBarGroup:hover .memoryBarLabelText {
+  color: var(--text);
+}
+
+.memoryBarValue {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--green);
+  background-color: rgba(var(--ctp-frappe-green-rgb), 0.1);
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .memoryBarValue {
+    font-size: 0.875rem;
+    padding: 0.25rem 0.75rem;
+  }
+}
+
+.memoryBarSwap .memoryBarValue {
+  color: var(--teal);
+  background-color: rgba(var(--ctp-frappe-teal-rgb), 0.1);
+}
+
+.progressBar {
+  height: 0.5rem;
+  border-radius: 9999px;
+  background-color: rgba(var(--ctp-frappe-surface0-rgb), 0.5);
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+@media (min-width: 640px) {
+  .progressBar {
+    height: 0.75rem;
+  }
+}
+
+.progressFill {
+  height: 100%;
+  transition: all 500ms ease-out;
+  border-radius: 9999px;
+  background-image: linear-gradient(90deg, var(--progress-from), var(--progress-to));
+  box-shadow: 0 0 10px var(--progress-glow);
+}
+
+.temperatureSection {
+  border-radius: 1rem;
+  border: 1px solid var(--surface0);
+  background: linear-gradient(to bottom right, var(--mantle), var(--base));
+  padding: 1.5rem;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.tempHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 640px) {
+  .tempHeader {
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+}
+
+.tempIconContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background: linear-gradient(135deg, rgba(var(--ctp-frappe-peach-rgb), 0.3), rgba(var(--ctp-frappe-red-rgb), 0.3));
+  padding: 0.5rem;
+  border: 1px solid rgba(var(--ctp-frappe-peach-rgb), 0.4);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), 0 0 20px rgba(var(--ctp-frappe-peach-rgb), 0.2);
+}
+
+@media (min-width: 640px) {
+  .tempIconContainer {
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+  }
+}
+
+.tempIcon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--subtext0);
+}
+
+@media (min-width: 640px) {
+  .tempIcon {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+}
+
+.tempTitle h3 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  background-image: linear-gradient(to right, var(--peach), var(--red), var(--pink));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+@media (min-width: 640px) {
+  .tempTitle h3 {
+    font-size: 1.5rem;
+  }
+}
+
+.tempTitle p {
+  font-size: 0.75rem;
+  color: var(--subtext0);
+  font-weight: 500;
+  letter-spacing: 0.025em;
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .tempTitle p {
+    display: block;
+  }
+}
+
+.currentReadings {
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 640px) {
+  .currentReadings {
+    margin-bottom: 1.5rem;
+  }
+}
+
+.readingsHeader {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--subtext0);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+@media (min-width: 640px) {
+  .readingsHeader {
+    font-size: 0.875rem;
+    margin-bottom: 0.75rem;
+    gap: 0.5rem;
+  }
+}
+
+.readingsHeaderIndicator {
+  width: 0.125rem;
+  height: 0.75rem;
+  background-image: linear-gradient(to bottom, var(--peach), var(--red));
+  border-radius: 9999px;
+}
+
+@media (min-width: 640px) {
+  .readingsHeaderIndicator {
+    width: 0.25rem;
+    height: 1rem;
+  }
+}
+
+.sensorGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .sensorGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+  }
+}
+
+.sensorCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--surface0);
+  transition: all 300ms ease;
+  transform: scale(1);
+}
+
+.sensorCard:hover {
+  transform: scale(1.05);
+}
+
+.sensorCardContent {
+  flex: 1;
+}
+
+.sensorCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.sensorIndicator {
+  width: 0.25rem;
+  height: 0.25rem;
+  border-radius: 50%;
+  animation: pulse-glow 2s infinite alternate;
+}
+
+@media (min-width: 640px) {
+  .sensorIndicator {
+    width: 0.375rem;
+    height: 0.375rem;
+  }
+}
+
+.sensorIndicatorCritical {
+  background-color: var(--red);
+}
+
+.sensorIndicatorWarning {
+  background-color: var(--peach);
+}
+
+.sensorIndicatorCaution {
+  background-color: var(--yellow);
+}
+
+.sensorIndicatorNormal {
+  background-color: var(--green);
+}
+
+.sensorLabel {
+  font-size: 0.625rem;
+  color: var(--subtext0);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .sensorLabel {
+    font-size: 0.75rem;
+  }
+}
+
+.sensorTemp {
+  font-size: 1.25rem;
+  font-weight: 700;
+  transition: transform 150ms ease;
+  display: inline-block;
+}
+
+@media (min-width: 640px) {
+  .sensorTemp {
+    font-size: 1.5rem;
+  }
+}
+
+.sensorCard:hover .sensorTemp {
+  transform: scale(1.1);
+}
+
+.tempChartSection {
+  padding-top: 1rem;
+  border-top: 1px solid var(--surface0);
+}
+
+@media (min-width: 640px) {
+  .tempChartSection {
+    padding-top: 1.5rem;
+  }
+}
+
+.tempChartHeader {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--subtext0);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+@media (min-width: 640px) {
+  .tempChartHeader {
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+    gap: 0.5rem;
+  }
+}
+
+/* Temperature color classes */
+.tempCritical {
+  color: var(--red);
+}
+
+.tempWarning {
+  color: var(--peach);
+}
+
+.tempCaution {
+  color: var(--yellow);
+}
+
+.tempNormal {
+  color: var(--green);
+}
+
+.tempBgCritical {
+  background-color: rgba(var(--ctp-frappe-red-rgb), 0.1);
+  border-color: rgba(var(--ctp-frappe-red-rgb), 0.3);
+}
+
+.tempBgWarning {
+  background-color: rgba(var(--ctp-frappe-peach-rgb), 0.1);
+  border-color: rgba(var(--ctp-frappe-peach-rgb), 0.3);
+}
+
+.tempBgCaution {
+  background-color: rgba(var(--ctp-frappe-yellow-rgb), 0.1);
+  border-color: rgba(var(--ctp-frappe-yellow-rgb), 0.3);
+}
+
+.tempBgNormal {
+  background-color: rgba(var(--ctp-frappe-green-rgb), 0.1);
+  border-color: rgba(var(--ctp-frappe-green-rgb), 0.3);
+}
+
+/* Keyframes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-glow {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}

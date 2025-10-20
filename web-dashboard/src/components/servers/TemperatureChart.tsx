@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import ReactECharts from 'echarts-for-react'
 import { useMonitoringStore } from '../../stores/monitoringStore'
+import styles from './TemperatureChart.module.css'
 
 interface TemperatureChartProps {
   serverId: string
@@ -229,7 +230,7 @@ export default function TemperatureChart({ serverId }: TemperatureChartProps) {
   }, [metrics, timeWindowSeconds])
 
   return (
-    <div key={`temp-chart-${serverId}`} className="h-[250px] sm:h-[300px] lg:h-[350px]">
+    <div key={`temp-chart-${serverId}`} className={styles.chartContainer}>
       <ReactECharts
         option={chartOption}
         style={{ height: '100%' }}

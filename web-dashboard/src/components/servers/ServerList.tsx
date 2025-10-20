@@ -4,6 +4,7 @@ import { apiClient } from '../../api/client'
 import ServerDetail from './ServerDetail'
 import ServerSelector from './ServerSelector'
 import { Activity, Server as ServerIcon } from 'lucide-react'
+import styles from './ServerList.module.css'
 
 export default function ServerList() {
   const { servers, setServers, selectedServerId, setSelectedServer } = useMonitoringStore()
@@ -38,10 +39,10 @@ export default function ServerList() {
 
   if (loading && servers.length === 0) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-gray-800 border-t-blue-500 rounded-full animate-spin"></div>
-          <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-purple-500 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1s' }}></div>
+      <div className={styles.loadingContainer}>
+        <div className={styles.spinner}>
+          <div className={`${styles.spinnerRing} ${styles.spinnerRing1}`}></div>
+          <div className={`${styles.spinnerRing} ${styles.spinnerRing2}`}></div>
         </div>
       </div>
     )
@@ -49,12 +50,12 @@ export default function ServerList() {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-500/30 bg-gradient-to-br from-red-500/10 to-red-600/5 p-6 text-red-400 backdrop-blur-sm">
-        <div className="flex items-start gap-3">
+      <div className={styles.errorContainer}>
+        <div className={styles.errorContent}>
           <Activity className="h-5 w-5 mt-0.5 flex-shrink-0" />
           <div>
-            <h3 className="font-semibold mb-1">Connection Error</h3>
-            <p className="text-sm text-red-400/80">{error}</p>
+            <h3>Connection Error</h3>
+            <p>{error}</p>
           </div>
         </div>
       </div>
@@ -63,32 +64,28 @@ export default function ServerList() {
 
   if (servers.length === 0) {
     return (
-      <div className="rounded-2xl border border-gray-700/50 bg-gradient-to-br from-gray-800/50 to-gray-900/50 p-12 text-center backdrop-blur-sm">
-        <ServerIcon className="h-16 w-16 text-gray-600 mx-auto mb-4" />
-        <p className="text-lg text-gray-400 font-medium">No servers configured</p>
-        <p className="text-sm text-gray-500 mt-2">Add servers to your monitoring configuration to get started</p>
+      <div className={styles.noServersContainer}>
+        <ServerIcon className="h-16 w-16 mx-auto mb-4" />
+        <p>No servers configured</p>
+        <p>Add servers to your monitoring configuration to get started</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 animate-slide-up">
-      {/* Elegant server selector */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+    <div className={styles.container}>
+      <div className={styles.headerSection}>
         <ServerSelector />
-        
-        {/* Server count badge */}
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-700/50 bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-sm">
-          <ServerIcon className="h-4 w-4 text-gray-400" />
-          <span className="text-sm font-medium text-gray-400">
+        <div className={styles.serverCountBadge}>
+          <ServerIcon />
+          <span>
             {servers.length} {servers.length === 1 ? 'Server' : 'Servers'}
           </span>
         </div>
       </div>
 
-      {/* Server detail */}
       {selectedServer && (
-        <div className="animate-scale-in">
+        <div className={styles.serverDetailContainer}>
           <ServerDetail server={selectedServer} />
         </div>
       )}

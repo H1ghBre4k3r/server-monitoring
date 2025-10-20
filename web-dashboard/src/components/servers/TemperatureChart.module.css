@@ -1,0 +1,17 @@
+/* web-dashboard/src/components/servers/TemperatureChart.module.css */
+
+.chartContainer {
+  height: 15.625rem;
+}
+
+@media (min-width: 640px) {
+  .chartContainer {
+    height: 18.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .chartContainer {
+    height: 21.875rem;
+  }
+}

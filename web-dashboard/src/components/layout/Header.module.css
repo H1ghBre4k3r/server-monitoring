@@ -1,0 +1,419 @@
+/* web-dashboard/src/components/layout/Header.module.css */
+
+.header {
+  border-bottom: 1px solid var(--surface0);
+  background-color: var(--mantle);
+  padding: 0.75rem 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .header {
+    padding: 1rem 1.5rem;
+  }
+}
+
+.sparklesBackground {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: none;
+}
+
+.sparkle {
+  position: absolute;
+  opacity: 0.3;
+  animation: pulse 2s infinite;
+}
+
+.sparkle1 {
+  top: 0.5rem;
+  right: 25%;
+  animation-delay: 0s;
+}
+
+.sparkle2 {
+  bottom: 0.75rem;
+  left: 33.33%;
+  animation-delay: 1s;
+}
+
+.sparkle3 {
+  top: 1rem;
+  left: 50%;
+  animation-delay: 2s;
+}
+
+@media (min-width: 640px) {
+  .sparklesBackground {
+    display: block;
+  }
+}
+
+.headerContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 10;
+}
+
+.leftSection {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .leftSection {
+    gap: 1rem;
+  }
+}
+
+.menuButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background-color: rgba(var(--ctp-frappe-surface0-rgb), 0.5);
+  padding: 0.5rem;
+  color: var(--subtext0);
+  transition: all 150ms ease;
+  transform: scale(1);
+}
+
+.menuButton:hover {
+  color: var(--text);
+  background-color: rgba(var(--ctp-frappe-surface1-rgb), 0.7);
+}
+
+.menuButton:active {
+  transform: scale(0.95);
+}
+
+@media (min-width: 1024px) {
+  .menuButton {
+    display: none;
+  }
+}
+
+.logoSection {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .logoSection {
+    gap: 1rem;
+  }
+}
+
+.logoContainer {
+  position: relative;
+}
+
+.logoGlow {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.75rem;
+  background-color: var(--blue);
+  opacity: 0.75;
+  filter: blur(0.75rem);
+  animation: pulse-glow 4s infinite alternate;
+}
+
+.logo {
+  position: relative;
+  border-radius: 0.75rem;
+  background-color: var(--blue);
+  padding: 0.375rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+@media (min-width: 640px) {
+  .logo {
+    padding: 0.625rem;
+  }
+}
+
+.logo svg {
+  color: var(--base);
+  width: 1rem;
+  height: 1rem;
+}
+
+@media (min-width: 640px) {
+  .logo svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+}
+
+.titleText h1 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  background-image: linear-gradient(to right, var(--sky), var(--blue), var(--lavender));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+@media (min-width: 640px) {
+  .titleText h1 {
+    font-size: 1.5rem;
+  }
+}
+
+.titleText p {
+  font-size: 0.75rem;
+  color: var(--subtext0);
+  font-weight: 500;
+  letter-spacing: 0.025em;
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .titleText p {
+    display: block;
+  }
+}
+
+.rightSection {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .rightSection {
+    gap: 0.75rem;
+  }
+}
+
+.timeWindowSelector {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 0.75rem;
+  background-color: rgba(var(--ctp-frappe-surface0-rgb), 0.5);
+  border: 1px solid var(--surface1);
+  padding: 0.375rem 0.5rem;
+  transition: all 150ms ease;
+}
+
+@media (min-width: 640px) {
+  .timeWindowSelector {
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+  }
+}
+
+.timeWindowSelector:hover {
+  border-color: var(--surface2);
+  background-color: rgba(var(--ctp-frappe-surface0-rgb), 0.7);
+}
+
+.timeWindowSelector svg {
+  color: var(--blue);
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .timeWindowSelector svg {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+.timeWindowSelector select {
+  background-color: transparent;
+  color: var(--subtext1);
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: none;
+  outline: none;
+  cursor: pointer;
+}
+
+@media (min-width: 640px) {
+  .timeWindowSelector select {
+    font-size: 0.875rem;
+  }
+}
+
+.statusIndicator {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 0.75rem;
+  padding: 0.375rem 0.5rem;
+  transition: all 150ms ease;
+}
+
+@media (min-width: 640px) {
+  .statusIndicator {
+    gap: 0.625rem;
+    padding: 0.625rem 1rem;
+  }
+}
+
+.statusIndicator.connected {
+  background-color: rgba(var(--ctp-frappe-green-rgb), 0.1);
+  border: 1px solid rgba(var(--ctp-frappe-green-rgb), 0.3);
+}
+
+.statusIndicator.disconnected {
+  background-color: rgba(var(--ctp-frappe-red-rgb), 0.1);
+  border: 1px solid rgba(var(--ctp-frappe-red-rgb), 0.3);
+}
+
+.statusIconWrapper {
+  position: relative;
+}
+
+.statusIcon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .statusIcon {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+.statusIconWrapper.connected .statusIcon {
+  color: var(--green);
+}
+
+.statusIconWrapper.disconnected .statusIcon {
+  color: var(--red);
+}
+
+.statusPing {
+  position: absolute;
+  top: -0.125rem;
+  right: -0.125rem;
+  display: flex;
+  width: 0.5rem;
+  height: 0.5rem;
+}
+
+.statusPing .pingRing {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-color: var(--green);
+  opacity: 0.75;
+  animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.statusPing .pingDot {
+  position: relative;
+  display: inline-flex;
+  border-radius: 50%;
+  width: 0.5rem;
+  height: 0.5rem;
+  background-color: var(--green);
+}
+
+.statusText {
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .statusText {
+    display: inline;
+  }
+}
+
+.statusIconWrapper.connected .statusText {
+  color: var(--green);
+}
+
+.statusIconWrapper.disconnected .statusText {
+  color: var(--red);
+}
+
+.refreshButton {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background-color: rgba(var(--ctp-frappe-surface0-rgb), 0.5);
+  border: 1px solid var(--surface1);
+  padding: 0.375rem;
+  color: var(--subtext0);
+  transition: all 150ms ease;
+  transform: scale(1);
+}
+
+.refreshButton:hover {
+  border-color: rgba(var(--ctp-frappe-blue-rgb), 0.5);
+  background-color: rgba(var(--ctp-frappe-blue-rgb), 0.1);
+  color: var(--blue);
+}
+
+.refreshButton:hover svg {
+  transform: rotate(180deg);
+}
+
+.refreshButton:active {
+  transform: scale(0.95);
+}
+
+@media (min-width: 640px) {
+  .refreshButton {
+    padding: 0.625rem;
+  }
+}
+
+.refreshButton svg {
+  width: 1rem;
+  height: 1rem;
+  transition: transform 500ms ease;
+}
+
+@media (min-width: 640px) {
+  .refreshButton svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
+
+/* Keyframes */
+@keyframes pulse-glow {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}

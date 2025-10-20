@@ -7,6 +7,8 @@ interface CircularProgressProps {
   value: string
 }
 
+import styles from './CircularProgress.module.css'
+
 export default function CircularProgress({
   percentage,
   size = 160,
@@ -20,15 +22,15 @@ export default function CircularProgress({
   const offset = circumference - (percentage / 100) * circumference
 
   return (
-    <div className="relative inline-flex items-center justify-center">
+    <div className={styles.container}>
       {/* SVG Circle */}
-      <svg width={size} height={size} className="transform -rotate-90">
+      <svg width={size} height={size} className={styles.svg}>
         {/* Background circle */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="rgba(55, 65, 81, 0.3)"
+          stroke="rgba(var(--ctp-frappe-surface1-rgb), 0.3)"
           strokeWidth={strokeWidth}
           fill="none"
         />
@@ -56,22 +58,22 @@ export default function CircularProgress({
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           strokeLinecap="round"
-          className="transition-all duration-1000 ease-out"
+          className={styles.progressCircle}
           filter={`url(#glow-${label})`}
           style={{ opacity: 0.9 }}
         />
       </svg>
       
       {/* Center content */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center px-2">
-        <div className="text-center">
-          <div className="text-xl sm:text-2xl font-bold text-white mb-0.5 sm:mb-1">
+      <div className={styles.centerContent}>
+        <div className={styles.textContent}>
+          <div className={styles.percentage}>
             {percentage.toFixed(1)}%
           </div>
-          <div className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider font-semibold mb-0.5 sm:mb-1">
+          <div className={styles.label}>
             {label}
           </div>
-          <div className="text-[10px] sm:text-xs font-medium text-gray-300 truncate">
+          <div className={styles.value}>
             {value}
           </div>
         </div>
