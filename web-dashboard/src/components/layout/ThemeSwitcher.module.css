@@ -5,6 +5,11 @@
   z-index: 50;
 }
 
+/* Sidebar variant specific positioning */
+.themeSwitcher.sidebar {
+  position: relative;
+}
+
 .themeButton {
   display: flex;
   align-items: center;
@@ -54,7 +59,7 @@
   background: rgba(var(--ctp-frappe-crust-rgb), 0.8);
   backdrop-filter: blur(8px);
   z-index: 40;
-  animation: fadeIn 150ms var(--ease-out-cubic);
+  animation: fadeIn 200ms var(--ease-out-cubic);
 }
 
 /* Dropdown - Header variant (centered modal) */
@@ -66,6 +71,7 @@
   min-width: 320px;
   max-width: 90vw;
   max-height: 80vh;
+  animation: scaleIn 200ms var(--ease-out-cubic);
 }
 
 /* Dropdown - Sidebar variant (absolute positioned) */
@@ -77,6 +83,28 @@
   min-width: 280px;
   max-width: 300px;
   max-height: 70vh;
+  animation: scaleInSidebar 200ms var(--ease-out-cubic);
+}
+
+/* Mobile adjustments for sidebar dropdown */
+@media (max-width: 768px) {
+  .dropdown.sidebar {
+    min-width: 260px;
+    max-width: 85vw;
+    max-height: 60vh;
+    bottom: calc(100% + 0.25rem);
+  }
+}
+
+/* Small mobile adjustments */
+@media (max-width: 480px) {
+  .dropdown.sidebar {
+    min-width: 240px;
+    max-width: 90vw;
+    left: 1rem;
+    right: 1rem;
+    transform: none;
+  }
 }
 
 /* Common dropdown styles */
@@ -87,7 +115,6 @@
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(20px);
   z-index: 50;
-  animation: scaleIn 200ms var(--ease-out-cubic);
   overflow: hidden;
 }
 
@@ -347,11 +374,22 @@
 
 @keyframes scaleIn {
   from {
-    transform: scale(0.95);
+    transform: translate(-50%, -50%) scale(0.95);
     opacity: 0;
   }
   to {
-    transform: scale(1);
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes scaleInSidebar {
+  from {
+    transform: translateX(-50%) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) scale(1);
     opacity: 1;
   }
 }

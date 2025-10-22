@@ -59,17 +59,15 @@ export default function Sidebar({ currentTab, onTabChange, isMobile = false }: S
         })}
       </nav>
       
-      {/* Theme Switcher at bottom of sidebar (only desktop) */}
-      {!isMobile && (
-        <div className={styles.sidebarFooter}>
-          <ThemeSwitcher variant="sidebar" />
-          {isMobile && (
-            <div className={styles.mobileOrbContainer}>
-              <div className={`${styles.orb} ${styles.mobileOrb}`}></div>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Theme Switcher at bottom of sidebar */}
+      <div className={styles.sidebarFooter}>
+        <ThemeSwitcher variant="sidebar" />
+        {isMobile && (
+          <div className={styles.mobileOrbContainer}>
+            <div className={`${styles.orb} ${styles.mobileOrb}`}></div>
+          </div>
+        )}
+      </div>
       
       {/* Mobile orb */}
       {isMobile && (

@@ -312,6 +312,17 @@
   background: linear-gradient(135deg, rgba(var(--ctp-frappe-surface0-rgb), 0.6), rgba(var(--ctp-frappe-surface1-rgb), 0.5));
 }
 
+/* Mobile adjustments for sidebar footer */
+@media (max-width: 768px) {
+  .sidebarFooter {
+    padding-top: 1rem;
+  }
+  
+  .sidebarFooter .themeButton {
+    padding: 0.75rem 1rem;
+  }
+}
+
 /* Enhanced icon interactions */
 .navButton:hover .iconContainer {
   background: rgba(var(--ctp-frappe-surface1-rgb), 0.7);
