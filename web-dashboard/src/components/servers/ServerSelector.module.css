@@ -9,11 +9,17 @@
   align-items: center;
   gap: 0.75rem;
   border-radius: 0.75rem;
-  border: 1px solid var(--surface0);
-  background: linear-gradient(to bottom right, rgba(var(--ctp-frappe-surface0-rgb), 0.5), rgba(var(--ctp-frappe-surface1-rgb), 0.5));
+  border: 1px solid var(--border-color);
+  background: linear-gradient(135deg, rgba(var(--ctp-frappe-surface0-rgb), 0.6), rgba(var(--ctp-frappe-surface1-rgb), 0.4));
   padding: 1rem;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
   color: var(--subtext0);
+  transition: all 150ms var(--ease-out-cubic);
+}
+
+.noServersContainer:hover {
+  border-color: var(--border-hover);
+  background: linear-gradient(135deg, rgba(var(--ctp-frappe-surface0-rgb), 0.7), rgba(var(--ctp-frappe-surface1-rgb), 0.5));
 }
 
 .noServersContainer svg {
@@ -32,11 +38,12 @@
   text-align: left;
   padding: 1rem;
   border-radius: 0.75rem;
-  border: 1px solid var(--surface1);
-  background: linear-gradient(to bottom right, var(--mantle), var(--base));
-  transition: all 300ms ease;
+  border: 1px solid var(--border-color);
+  background: linear-gradient(135deg, var(--mantle), var(--base));
+  transition: all 300ms var(--ease-out-cubic);
   transform: scale(1);
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(4px);
 }
 
 @media (min-width: 768px) {
@@ -46,9 +53,9 @@
 }
 
 .selectedButton:hover {
-  border-color: var(--blue);
-  transform: scale(1.01);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-color: var(--color-accent);
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08);
 }
 
 .selectedButtonContent {
@@ -87,19 +94,19 @@
 }
 
 .statusUp {
-  background-color: var(--green);
+  background-color: var(--status-up);
 }
 
 .statusDown {
-  background-color: var(--red);
+  background-color: var(--status-down);
 }
 
 .statusStale {
-  background-color: var(--yellow);
+  background-color: var(--status-stale);
 }
 
 .statusUnknown {
-  background-color: var(--subtext0);
+  background-color: var(--status-unknown);
 }
 
 .serverInfo {
@@ -141,7 +148,7 @@
   width: 1.25rem;
   height: 1.25rem;
   color: var(--subtext0);
-  transition: transform 300ms ease;
+  transition: transform 300ms var(--ease-out-cubic);
   flex-shrink: 0;
   margin-left: 0.5rem;
 }
@@ -158,10 +165,11 @@
   max-height: 70vh;
   overflow-y: auto;
   border-radius: 0.75rem;
-  border: 1px solid var(--surface1);
-  background: linear-gradient(to bottom right, var(--mantle), var(--base));
+  border: 1px solid var(--border-color);
+  background: linear-gradient(135deg, var(--mantle), var(--base));
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  animation: scaleIn 0.2s ease-out;
+  animation: scaleIn 0.2s var(--ease-out-cubic);
+  backdrop-filter: blur(12px);
 }
 
 @media (min-width: 768px) {
@@ -184,19 +192,20 @@
   padding: 0.75rem;
   border-radius: 0.5rem;
   border: 1px solid transparent;
-  transition: all 200ms ease;
+  transition: all 200ms var(--ease-out-cubic);
   overflow: hidden;
   background: transparent;
 }
 
 .dropdownItem.selected {
-  border-color: var(--blue);
-  background: linear-gradient(to bottom right, rgba(var(--ctp-frappe-blue-rgb), 0.2), rgba(var(--ctp-frappe-sapphire-rgb), 0.1));
+  border-color: var(--color-accent);
+  background: linear-gradient(135deg, rgba(var(--ctp-frappe-blue-rgb), 0.2), rgba(var(--ctp-frappe-sapphire-rgb), 0.1));
 }
 
 .dropdownItem:not(.selected):hover {
-  border-color: var(--surface1);
-  background-color: rgba(var(--ctp-frappe-surface0-rgb), 0.3);
+  border-color: var(--border-hover);
+  background-color: var(--hover-bg);
+  transform: translateX(2px);
 }
 
 .dropdownItemContent {
@@ -260,7 +269,7 @@
 .checkmark {
   width: 1rem;
   height: 1rem;
-  color: var(--blue);
+  color: var(--color-accent);
   flex-shrink: 0;
   margin-left: 0.5rem;
 }

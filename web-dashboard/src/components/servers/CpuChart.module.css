@@ -50,9 +50,16 @@
   align-items: center;
   justify-content: center;
   border-radius: 0.5rem;
-  background: linear-gradient(135deg, rgba(var(--ctp-frappe-blue-rgb), 0.3), rgba(var(--ctp-frappe-cyan-rgb), 0.3));
+  background: linear-gradient(135deg, rgba(var(--ctp-frappe-blue-rgb), 0.3), rgba(var(--ctp-frappe-sapphire-rgb), 0.3));
   padding: 0.375rem;
   border: 1px solid rgba(var(--ctp-frappe-blue-rgb), 0.4);
+  transition: all 150ms var(--ease-out-cubic);
+}
+
+.coreStatusIconContainer:hover {
+  background: linear-gradient(135deg, rgba(var(--ctp-frappe-blue-rgb), 0.4), rgba(var(--ctp-frappe-sapphire-rgb), 0.4));
+  border-color: rgba(var(--ctp-frappe-blue-rgb), 0.6);
+  transform: translateY(-1px);
 }
 
 .coreStatusIcon {
@@ -165,7 +172,25 @@
 .coreProgressFill {
   height: 100%;
   border-radius: 9999px;
-  transition: all 500ms ease-out;
+  transition: all 500ms var(--ease-out-cubic);
+  position: relative;
+  overflow: hidden;
+}
+
+.coreProgressFill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .chartContainer {

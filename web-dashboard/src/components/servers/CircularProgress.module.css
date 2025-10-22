@@ -12,8 +12,14 @@
 }
 
 .progressCircle {
-  transition: all 1000ms ease-out;
+  transition: all 1000ms var(--ease-out-cubic);
   opacity: 0.9;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.progressCircle:hover {
+  opacity: 1;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
 }
 
 .centerContent {
@@ -35,6 +41,8 @@
   font-weight: 700;
   color: var(--text);
   margin-bottom: 0.125rem;
+  transition: color 150ms var(--ease-out-cubic);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 @media (min-width: 640px) {
@@ -51,6 +59,7 @@
   letter-spacing: 0.05em;
   font-weight: 600;
   margin-bottom: 0.125rem;
+  transition: color 150ms var(--ease-out-cubic);
 }
 
 @media (min-width: 640px) {
@@ -67,6 +76,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: color 150ms var(--ease-out-cubic);
 }
 
 @media (min-width: 640px) {

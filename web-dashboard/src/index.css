@@ -345,6 +345,30 @@
   --base: var(--ctp-frappe-base);
   --mantle: var(--ctp-frappe-mantle);
   --crust: var(--ctp-frappe-crust);
+
+  /* Semantic color mappings */
+  --color-success: var(--green);
+  --color-warning: var(--yellow);
+  --color-error: var(--red);
+  --color-info: var(--blue);
+  --color-accent: var(--blue);
+  
+  /* Status colors */
+  --status-up: var(--green);
+  --status-down: var(--red);
+  --status-degraded: var(--peach);
+  --status-stale: var(--yellow);
+  --status-unknown: var(--subtext1);
+  
+  /* Component-specific colors */
+  --hover-bg: rgba(var(--ctp-frappe-surface0-rgb), 0.5);
+  --active-bg: rgba(var(--ctp-frappe-surface1-rgb), 0.7);
+  --border-color: var(--surface0);
+  --border-hover: var(--surface1);
+  
+  /* Animation easing */
+  --ease-out-cubic: cubic-bezier(0.33, 1, 0.68, 1);
+  --ease-in-out-cubic: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 /* Simple CSS Reset */
@@ -410,13 +434,44 @@ h6 {
 
 ::-webkit-scrollbar-track {
   background-color: var(--mantle);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
   background-color: var(--surface1);
   border-radius: 4px;
+  transition: background-color 150ms ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background-color: var(--surface2);
+}
+
+::-webkit-scrollbar-corner {
+  background-color: var(--mantle);
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background-color: rgba(var(--ctp-frappe-blue-rgb), 0.3);
+  color: var(--text);
+}
+
+/* Custom utilities */
+.glass-effect {
+  backdrop-filter: blur(12px);
+  background-color: rgba(var(--ctp-frappe-mantle-rgb), 0.8);
+  border: 1px solid var(--surface0);
+}
+
+.glass-effect-subtle {
+  backdrop-filter: blur(8px);
+  background-color: rgba(var(--ctp-frappe-surface0-rgb), 0.6);
+  border: 1px solid var(--surface0);
 }
