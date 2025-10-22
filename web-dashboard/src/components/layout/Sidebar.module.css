@@ -319,7 +319,18 @@
   }
   
   .sidebarFooter .themeButton {
-    padding: 0.75rem 1rem;
+    padding: 1rem;
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebarFooter .themeButton {
+    padding: 0.875rem;
+  }
+  
+  .sidebarFooter .themeLabel {
+    display: none;
   }
 }
 
