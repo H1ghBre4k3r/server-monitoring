@@ -1,4 +1,5 @@
 import { Server, AlertCircle, Bell } from 'lucide-react'
+import { ThemeSwitcher } from './ThemeSwitcher'
 import styles from './Sidebar.module.css'
 
 interface SidebarProps {
@@ -16,6 +17,22 @@ const TABS = [
 export default function Sidebar({ currentTab, onTabChange, isMobile = false }: SidebarProps) {
   return (
     <aside className={`${styles.sidebar} ${isMobile ? styles.sidebarMobile : styles.sidebarDesktop}`}>
+      {/* Sidebar Header with Logo */}
+      {!isMobile && (
+        <div className={styles.sidebarHeader}>
+          <div className={styles.sidebarLogo}>
+            <svg viewBox="0 0 24 24" fill="none" strokeWidth={2.5}>
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <div className={styles.sidebarTitle}>Guardia</div>
+          <div className={styles.sidebarSubtitle}>Monitoring</div>
+        </div>
+      )}
+      
+      {/* Separator */}
+      {!isMobile && <div className={styles.sidebarSeparator}></div>}
+      
       <nav className={`${styles.nav} ${isMobile ? styles.navMobile : ''}`}>
         {TABS.map(({ id, label, icon: Icon, gradientClass, tabClass }) => {
           const isActive = currentTab === id
@@ -40,17 +57,26 @@ export default function Sidebar({ currentTab, onTabChange, isMobile = false }: S
             </button>
           )
         })}
-        
-        {!isMobile && (
-          <div className={`${styles.orb} ${styles.desktopOrb}`}></div>
-        )}
-        
-        {isMobile && (
-          <div className={styles.mobileOrbContainer}>
-            <div className={`${styles.orb} ${styles.mobileOrb}`}></div>
-          </div>
-        )}
       </nav>
+      
+      {/* Theme Switcher at bottom of sidebar (only desktop) */}
+      {!isMobile && (
+        <div className={styles.sidebarFooter}>
+          <ThemeSwitcher variant="sidebar" />
+          {isMobile && (
+            <div className={styles.mobileOrbContainer}>
+              <div className={`${styles.orb} ${styles.mobileOrb}`}></div>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Mobile orb */}
+      {isMobile && (
+        <div className={styles.mobileOrbContainer}>
+          <div className={`${styles.orb} ${styles.mobileOrb}`}></div>
+        </div>
+      )}
     </aside>
   )
 }

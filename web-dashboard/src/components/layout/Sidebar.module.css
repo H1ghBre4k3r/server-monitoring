@@ -290,6 +290,28 @@
   opacity: 0.5;
 }
 
+/* Sidebar footer */
+.sidebarFooter {
+  margin-top: auto;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border-color);
+  background: linear-gradient(90deg, transparent, rgba(var(--ctp-frappe-surface0-rgb), 0.3), transparent);
+}
+
+.sidebarFooter .themeSwitcher {
+  width: 100%;
+}
+
+.sidebarFooter .themeButton {
+  width: 100%;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(var(--ctp-frappe-surface0-rgb), 0.4), rgba(var(--ctp-frappe-surface1-rgb), 0.3));
+}
+
+.sidebarFooter .themeButton:hover {
+  background: linear-gradient(135deg, rgba(var(--ctp-frappe-surface0-rgb), 0.6), rgba(var(--ctp-frappe-surface1-rgb), 0.5));
+}
+
 /* Enhanced icon interactions */
 .navButton:hover .iconContainer {
   background: rgba(var(--ctp-frappe-surface1-rgb), 0.7);
