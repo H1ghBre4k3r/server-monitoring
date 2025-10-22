@@ -70,12 +70,12 @@
   color: var(--text);
   background: linear-gradient(135deg, rgba(var(--ctp-frappe-surface0-rgb), 0.8), rgba(var(--ctp-frappe-surface1-rgb), 0.6));
   border-color: var(--border-hover);
-  transform: translateX(4px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateX(2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .navButton:active {
-  transform: translateX(4px) scale(0.98);
+  transform: translateX(2px) scale(0.99);
   transition: all 100ms var(--ease-out-cubic);
 }
 
@@ -83,8 +83,8 @@
   color: var(--base);
   background: linear-gradient(135deg, var(--color-accent), var(--sapphire));
   border-color: var(--color-accent);
-  box-shadow: 0 8px 24px rgba(var(--ctp-frappe-blue-rgb), 0.3), 0 4px 12px rgba(0, 0, 0, 0.15);
-  transform: translateX(8px);
+  box-shadow: 0 4px 16px rgba(var(--ctp-frappe-blue-rgb), 0.25), 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateX(4px);
 }
 
 .navButtonActive::before {
@@ -254,8 +254,8 @@
 }
 
 .sidebarLogo:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 12px 32px rgba(var(--ctp-frappe-blue-rgb), 0.4);
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(var(--ctp-frappe-blue-rgb), 0.35);
 }
 
 .sidebarLogo svg {
@@ -294,13 +294,13 @@
 .navButton:hover .iconContainer {
   background: rgba(var(--ctp-frappe-surface1-rgb), 0.7);
   border-color: var(--border-hover);
-  transform: scale(1.05);
+  transform: scale(1.02);
 }
 
 .navButtonActive .iconContainer {
   background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 /* Keyframes */

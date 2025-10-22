@@ -165,12 +165,8 @@
 }
 
 .statCard:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-}
-
-.statCard:hover {
-  transform: scale(1.02);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .statCardHostname:hover {
@@ -502,8 +498,8 @@
 }
 
 .gaugeContainer:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 @media (min-width: 640px) {
@@ -829,12 +825,8 @@
 }
 
 .sensorCard:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-}
-
-.sensorCard:hover {
-  transform: scale(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .sensorCardContent {

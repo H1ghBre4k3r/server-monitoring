@@ -137,7 +137,7 @@
   border-color: var(--border-hover);
   background: linear-gradient(135deg, rgba(var(--ctp-frappe-surface0-rgb), 0.7), rgba(var(--ctp-frappe-surface1-rgb), 0.5));
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 .serverCountBadge svg {
