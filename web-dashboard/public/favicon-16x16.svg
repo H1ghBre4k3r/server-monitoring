@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <defs>
+    <linearGradient id="shieldGradient16" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8caaee;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#85c1dc;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <circle cx="8" cy="8" r="7.5" fill="#303446" stroke="#414559" stroke-width="0.5"/>
+
+  <!-- Shield -->
+  <path d="M8 2 C8 2, 5 3, 5 3 L5 6.5 C5 9, 6.5 11, 8 13 C9.5 11, 11 9, 11 6.5 L11 3 C11 3, 8 2, 8 2 Z"
+        fill="url(#shieldGradient16)"
+        stroke="#99d1db"
+        stroke-width="0.3"
+        opacity="0.95"/>
+
+  <!-- Simplified server stack -->
+  <g transform="translate(8, 6.5)">
+    <rect x="-2" y="-2" width="4" height="0.9" rx="0.2" fill="#a6d189"/>
+    <rect x="-2" y="-0.7" width="4" height="0.9" rx="0.2" fill="#8caaee"/>
+    <rect x="-2" y="0.6" width="4" height="0.9" rx="0.2" fill="#81c8be"/>
+  </g>
+
+  <!-- Pulse -->
+  <path d="M3 13 L4 12.5 L4.5 13.5 L5.5 11.5 L6.5 13.5 L7 12.5 L8 13"
+        stroke="#a6d189"
+        stroke-width="0.5"
+        fill="none"
+        stroke-linecap="round"
+        opacity="0.8"/>
+  <path d="M8 13 L9 12.5 L9.5 13.5 L10.5 11.5 L11.5 13.5 L12 12.5 L13 13"
+        stroke="#a6d189"
+        stroke-width="0.5"
+        fill="none"
+        stroke-linecap="round"
+        opacity="0.8"/>
+</svg>
