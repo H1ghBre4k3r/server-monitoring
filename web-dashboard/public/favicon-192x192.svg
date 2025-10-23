@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="shieldGradient192" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8caaee;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#8ca9ee;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#85c1dc;stop-opacity:1" />
+    </linearGradient>
+
+    <radialGradient id="glowGradient192" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#99d1db;stop-opacity:0.5" />
+      <stop offset="50%" style="stop-color:#8caaee;stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:#303446;stop-opacity:0" />
+    </radialGradient>
+
+    <filter id="shadow192" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.35"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="innerGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.4"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="96" cy="96" r="92" fill="#303446" stroke="#414559" stroke-width="4"/>
+
+  <!-- Glow effects -->
+  <circle cx="96" cy="96" r="85" fill="url(#glowGradient192)" opacity="0.7"/>
+
+  <!-- Shield shape -->
+  <path d="M96 24 C96 24, 60 36, 60 36 L60 78 C60 108, 78 132, 96 156 C114 132, 132 108, 132 78 L132 36 C132 36, 96 24, 96 24 Z"
+        fill="url(#shieldGradient192)"
+        stroke="#99d1db"
+        stroke-width="2.5"
+        opacity="0.95"
+        filter="url(#shadow192)"/>
+
+  <!-- Inner shield accent (double line) -->
+  <path d="M96 36 C96 36, 70 46, 70 46 L70 78 C70 102, 84 120, 96 138 C108 120, 122 102, 122 78 L122 46 C122 46, 96 36, 96 36 Z"
+        fill="none"
+        stroke="#c6d0f5"
+        stroke-width="1.5"
+        opacity="0.35"/>
+  <path d="M96 30 C96 30, 65 41, 65 41 L65 78 C65 105, 81 126, 96 147 C111 126, 127 105, 127 78 L127 41 C127 41, 96 30, 96 30 Z"
+        fill="none"
+        stroke="#babbf1"
+        stroke-width="0.8"
+        opacity="0.2"/>
+
+  <!-- Server stack with detailed design -->
+  <g transform="translate(96, 78)">
+    <!-- Server 1 (top) - Green -->
+    <rect x="-24" y="-24" width="48" height="11" rx="2.5" fill="#a6d189" stroke="#81c8be" stroke-width="1"/>
+    <!-- Status LED -->
+    <circle cx="15" cy="-18.5" r="2.2" fill="#c6d0f5" opacity="0.95"/>
+    <circle cx="15" cy="-18.5" r="1.5" fill="#a6d189" filter="url(#innerGlow)"/>
+    <!-- Server display -->
+    <rect x="-21" y="-20.5" width="27" height="3.5" rx="0.6" fill="#303446" opacity="0.7"/>
+    <rect x="-21" y="-20.5" width="18" height="3.5" rx="0.6" fill="#81c8be" opacity="0.3"/>
+    <!-- Ventilation slots -->
+    <rect x="-20" y="-15.5" width="1.5" height="2" rx="0.3" fill="#303446" opacity="0.4"/>
+    <rect x="-17" y="-15.5" width="1.5" height="2" rx="0.3" fill="#303446" opacity="0.4"/>
+    <rect x="-14" y="-15.5" width="1.5" height="2" rx="0.3" fill="#303446" opacity="0.4"/>
+
+    <!-- Server 2 (middle) - Blue -->
+    <rect x="-24" y="-8.5" width="48" height="11" rx="2.5" fill="#8caaee" stroke="#85c1dc" stroke-width="1"/>
+    <circle cx="15" cy="-3" r="2.2" fill="#c6d0f5" opacity="0.95"/>
+    <circle cx="15" cy="-3" r="1.5" fill="#8caaee" filter="url(#innerGlow)"/>
+    <rect x="-21" y="-5" width="27" height="3.5" rx="0.6" fill="#303446" opacity="0.7"/>
+    <rect x="-21" y="-5" width="22" height="3.5" rx="0.6" fill="#85c1dc" opacity="0.3"/>
+    <rect x="-20" y="0" width="1.5" height="2" rx="0.3" fill="#303446" opacity="0.4"/>
+    <rect x="-17" y="0" width="1.5" height="2" rx="0.3" fill="#303446" opacity="0.4"/>
+    <rect x="-14" y="0" width="1.5" height="2" rx="0.3" fill="#303446" opacity="0.4"/>
+
+    <!-- Server 3 (bottom) - Teal -->
+    <rect x="-24" y="7" width="48" height="11" rx="2.5" fill="#81c8be" stroke="#99d1db" stroke-width="1"/>
+    <circle cx="15" cy="12.5" r="2.2" fill="#c6d0f5" opacity="0.95"/>
+    <circle cx="15" cy="12.5" r="1.5" fill="#e5c890" filter="url(#innerGlow)"/>
+    <rect x="-21" y="10.5" width="27" height="3.5" rx="0.6" fill="#303446" opacity="0.7"/>
+    <rect x="-21" y="10.5" width="15" height="3.5" rx="0.6" fill="#99d1db" opacity="0.3"/>
+    <rect x="-20" y="15.5" width="1.5" height="2" rx="0.3" fill="#303446" opacity="0.4"/>
+    <rect x="-17" y="15.5" width="1.5" height="2" rx="0.3" fill="#303446" opacity="0.4"/>
+    <rect x="-14" y="15.5" width="1.5" height="2" rx="0.3" fill="#303446" opacity="0.4"/>
+  </g>
+
+  <!-- Monitoring pulse/heartbeat -->
+  <g transform="translate(0, 6)">
+    <path d="M36 162 L48 156 L54 168 L63 144 L72 168 L78 156 L90 162"
+          stroke="#a6d189"
+          stroke-width="4"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          opacity="0.9"/>
+    <path d="M102 162 L114 156 L120 168 L129 144 L138 168 L144 156 L156 162"
+          stroke="#a6d189"
+          stroke-width="4"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          opacity="0.9"/>
+  </g>
+
+  <!-- Decorative corner accents -->
+  <circle cx="36" cy="36" r="4" fill="#babbf1" opacity="0.45"/>
+  <circle cx="156" cy="36" r="4" fill="#babbf1" opacity="0.45"/>
+  <circle cx="36" cy="156" r="4" fill="#babbf1" opacity="0.35"/>
+  <circle cx="156" cy="156" r="4" fill="#babbf1" opacity="0.35"/>
+
+  <!-- Subtle corner glows -->
+  <circle cx="36" cy="36" r="8" fill="#8caaee" opacity="0.1"/>
+  <circle cx="156" cy="36" r="8" fill="#8caaee" opacity="0.1"/>
+</svg>
