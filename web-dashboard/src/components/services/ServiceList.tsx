@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMonitoringStore } from '../../stores/monitoringStore'
 import { apiClient } from '../../api/client'
+import styles from './ServiceList.module.css'
 
 export default function ServiceList() {
   const { services, setServices } = useMonitoringStore()
@@ -29,29 +30,29 @@ export default function ServiceList() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'up':
-        return 'badge-up'
+        return styles.badgeUp
       case 'down':
-        return 'badge-down'
+        return styles.badgeDown
       case 'degraded':
-        return 'badge-degraded'
+        return styles.badgeDegraded
       case 'stale':
-        return 'badge-stale'
+        return styles.badgeStale
       default:
-        return 'badge-unknown'
+        return styles.badgeUnknown
     }
   }
 
   if (loading && services.length === 0) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-500"></div>
+      <div className={styles.loadingContainer}>
+        <div className={`${styles.spinner} w-8 h-8`}></div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-400">
+      <div className={styles.errorContainer}>
         {error}
       </div>
     )
@@ -59,40 +60,40 @@ export default function ServiceList() {
 
   if (services.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-8 text-center">
-        <p className="text-gray-400">No services configured</p>
+      <div className={styles.noServicesContainer}>
+        <p>No services configured</p>
       </div>
     )
   }
 
   return (
-    <div className="card">
-      <h2 className="text-2xl font-bold text-white mb-4">Services</h2>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+    <div className={styles.card}>
+      <h2>Services</h2>
+      <div className={styles.tableContainer}>
+        <table className={styles.table}>
           <thead>
-            <tr className="border-b border-gray-700">
-              <th className="px-4 py-3 text-left text-gray-400 font-medium">Service</th>
-              <th className="px-4 py-3 text-left text-gray-400 font-medium">URL</th>
-              <th className="px-4 py-3 text-left text-gray-400 font-medium">Status</th>
-              <th className="px-4 py-3 text-left text-gray-400 font-medium">Response Time</th>
-              <th className="px-4 py-3 text-left text-gray-400 font-medium">Last Check</th>
+            <tr>
+              <th>Service</th>
+              <th>URL</th>
+              <th>Status</th>
+              <th>Response Time</th>
+              <th>Last Check</th>
             </tr>
           </thead>
           <tbody>
             {services.map((service) => (
-              <tr key={service.name} className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors">
-                <td className="px-4 py-3 text-white font-medium">{service.name}</td>
-                <td className="px-4 py-3 text-gray-400 text-xs break-all">{service.url}</td>
-                <td className="px-4 py-3">
-                  <span className={`badge ${getStatusColor(service.health_status)}`}>
+              <tr key={service.name}>
+                <td className={styles.serviceName}>{service.name}</td>
+                <td className={styles.serviceUrl}>{service.url}</td>
+                <td>
+                  <span className={`${styles.badge} ${getStatusColor(service.health_status)}`}>
                     {service.health_status.toUpperCase()}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-white">
+                <td className={styles.responseTime}>
                   {service.response_time_ms !== null ? `${service.response_time_ms}ms` : 'N/A'}
                 </td>
-                <td className="px-4 py-3 text-gray-400">
+                <td className={styles.lastCheck}>
                   {service.last_check ? new Date(service.last_check).toLocaleTimeString() : 'Never'}
                 </td>
               </tr>

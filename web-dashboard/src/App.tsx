@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMonitoringStore } from './stores/monitoringStore'
 import { useWebSocket } from './hooks/useWebSocket'
 import { useMonitoring } from './hooks/useMonitoring'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import Layout from './components/layout/Layout'
 import ServerList from './components/servers/ServerList'
 import ServiceList from './components/services/ServiceList'
@@ -18,6 +19,9 @@ export default function App() {
 
   // Connect WebSocket for real-time updates
   useWebSocket({ autoConnect: true, reconnectInterval: 3000 })
+
+  // Initialize keyboard shortcuts
+  useKeyboardShortcuts()
 
   return (
     <Layout currentTab={currentTab} onTabChange={setCurrentTab} isConnected={isConnected}>

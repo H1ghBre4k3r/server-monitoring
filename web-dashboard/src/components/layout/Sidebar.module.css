@@ -1,0 +1,379 @@
+/* web-dashboard/src/components/layout/Sidebar.module.css */
+
+.sidebar {
+  border-right: 1px solid var(--border-color);
+  background: linear-gradient(180deg, var(--mantle) 0%, rgba(var(--ctp-frappe-mantle-rgb), 0.95) 100%);
+  backdrop-filter: blur(20px);
+  position: relative;
+  overflow: hidden;
+}
+
+.sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--surface1), transparent);
+  opacity: 0.5;
+}
+
+.sidebarDesktop {
+  width: 20rem;
+  height: 100%;
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebarMobile {
+  height: 100%;
+  width: 100%;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.navMobile {
+  height: 100%;
+  flex: 1;
+}
+
+.navButton {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  text-align: left;
+  font-weight: 500;
+  color: var(--subtext0);
+  transition: all 250ms var(--ease-out-cubic);
+  background: transparent;
+  border: 1px solid transparent;
+  overflow: hidden;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.navButton:hover {
+  color: var(--text);
+  background: linear-gradient(135deg, rgba(var(--ctp-frappe-surface0-rgb), 0.8), rgba(var(--ctp-frappe-surface1-rgb), 0.6));
+  border-color: var(--border-hover);
+  transform: translateX(2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.navButton:active {
+  transform: translateX(2px) scale(0.99);
+  transition: all 100ms var(--ease-out-cubic);
+}
+
+.navButtonActive {
+  color: var(--base);
+  background: linear-gradient(135deg, var(--color-accent), var(--sapphire));
+  border-color: var(--color-accent);
+  box-shadow: 0 4px 16px rgba(var(--ctp-frappe-blue-rgb), 0.25), 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateX(4px);
+}
+
+.navButtonActive::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
+  pointer-events: none;
+}
+
+.navButtonActive::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+  pointer-events: none;
+}
+
+.navButtonActive:hover::after {
+  left: 100%;
+}
+
+.navButtonActiveBackground {
+  position: absolute;
+  inset: 0;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, var(--color-accent), var(--sapphire));
+  z-index: 0;
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.1);
+}
+
+.navButtonActiveBackgroundBlur {
+  display: none;
+}
+
+.navButtonServersGradient {
+  background: var(--sky);
+}
+
+.navButtonServicesGradient {
+  background: var(--mauve);
+}
+
+.navButtonAlertsGradient {
+  background: var(--peach);
+}
+
+.navButtonHoverBackground {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.75rem;
+  background-color: rgba(var(--ctp-frappe-surface0-rgb), 0);
+  transition: background-color 300ms ease;
+  backdrop-filter: blur(4px);
+}
+
+.navButton:hover .navButtonHoverBackground {
+  background-color: rgba(var(--ctp-frappe-surface0-rgb), 0.5);
+}
+
+.iconContainer {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  padding: 0.625rem;
+  background: rgba(var(--ctp-frappe-surface0-rgb), 0.5);
+  transition: all 250ms var(--ease-out-cubic);
+  flex-shrink: 0;
+  border: 1px solid rgba(var(--ctp-frappe-surface1-rgb), 0.3);
+}
+
+.iconContainer svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  transition: all 250ms var(--ease-out-cubic);
+}
+
+/* Icon colors for each tab */
+.navButtonServers .iconContainer svg {
+  color: var(--sky);
+}
+
+.navButtonServices .iconContainer svg {
+  color: var(--mauve);
+}
+
+.navButtonAlerts .iconContainer svg {
+  color: var(--peach);
+}
+
+.navButtonActive .iconContainer svg {
+  color: var(--base);
+}
+
+.label {
+  position: relative;
+  z-index: 10;
+  font-size: 0.95rem;
+  letter-spacing: 0.025em;
+  font-weight: 600;
+  transition: all 250ms var(--ease-out-cubic);
+}
+
+.navButtonActive .label {
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.orb {
+  position: absolute;
+  width: 12rem;
+  height: 12rem;
+  border-radius: 50%;
+  filter: blur(4rem);
+  opacity: 0.15;
+  pointer-events: none;
+  animation: float 8s ease-in-out infinite;
+}
+
+.desktopOrb {
+  bottom: -2rem;
+  right: -4rem;
+  background: radial-gradient(circle, var(--color-accent), transparent);
+}
+
+.mobileOrbContainer {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 2rem;
+}
+
+.mobileOrb {
+  background: radial-gradient(circle, var(--color-accent), transparent);
+  bottom: -2rem;
+  right: -2rem;
+}
+
+/* Add a subtle header/branding area */
+.sidebarHeader {
+  margin-bottom: 2rem;
+  text-align: center;
+  position: relative;
+  z-index: 10;
+}
+
+.sidebarLogo {
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto 1rem;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, var(--color-accent), var(--sapphire));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(var(--ctp-frappe-blue-rgb), 0.3);
+  transition: all 250ms var(--ease-out-cubic);
+}
+
+.sidebarLogo:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(var(--ctp-frappe-blue-rgb), 0.35);
+}
+
+.sidebarLogo svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--base);
+}
+
+.sidebarTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+  background: linear-gradient(135deg, var(--text), var(--subtext1));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.sidebarSubtitle {
+  font-size: 0.8rem;
+  color: var(--subtext0);
+  font-weight: 500;
+}
+
+/* Enhanced separator */
+.sidebarSeparator {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--surface1), transparent);
+  margin: 1.5rem 0;
+  opacity: 0.5;
+}
+
+/* Sidebar footer */
+.sidebarFooter {
+  margin-top: auto;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border-color);
+  background: linear-gradient(90deg, transparent, rgba(var(--ctp-frappe-surface0-rgb), 0.3), transparent);
+}
+
+.sidebarFooter .themeSwitcher {
+  width: 100%;
+}
+
+.sidebarFooter .themeButton {
+  width: 100%;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(var(--ctp-frappe-surface0-rgb), 0.4), rgba(var(--ctp-frappe-surface1-rgb), 0.3));
+}
+
+.sidebarFooter .themeButton:hover {
+  background: linear-gradient(135deg, rgba(var(--ctp-frappe-surface0-rgb), 0.6), rgba(var(--ctp-frappe-surface1-rgb), 0.5));
+}
+
+/* Mobile adjustments for sidebar footer */
+@media (max-width: 768px) {
+  .sidebarFooter {
+    padding-top: 1rem;
+  }
+  
+  .sidebarFooter .themeButton {
+    padding: 1rem;
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebarFooter .themeButton {
+    padding: 0.875rem;
+  }
+  
+  .sidebarFooter .themeLabel {
+    display: none;
+  }
+}
+
+/* Enhanced icon interactions */
+.navButton:hover .iconContainer {
+  background: rgba(var(--ctp-frappe-surface1-rgb), 0.7);
+  border-color: var(--border-hover);
+  transform: scale(1.02);
+}
+
+.navButtonActive .iconContainer {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Keyframes */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  33% {
+    transform: translateY(-8px) scale(1.05);
+  }
+  66% {
+    transform: translateY(4px) scale(0.95);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}

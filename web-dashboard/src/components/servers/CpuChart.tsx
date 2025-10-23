@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import ReactECharts from 'echarts-for-react'
 import { useMonitoringStore } from '../../stores/monitoringStore'
 import { Cpu } from 'lucide-react'
+import styles from './CpuChart.module.css'
 
 interface CpuChartProps {
   serverId: string
@@ -17,9 +18,9 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
   const metrics = metricsHistory.get(serverId) || []
 
   const getCpuColor = (usage: number) => {
-    if (usage >= 80) return { from: '#ef4444', to: '#dc2626', light: '#fca5a5' }
-    if (usage >= 60) return { from: '#f59e0b', to: '#d97706', light: '#fcd34d' }
-    return { from: '#3b82f6', to: '#2563eb', light: '#93c5fd' }
+    if (usage >= 80) return { from: '#e78284', to: '#ea999c', light: '#b5bfe2' }
+    if (usage >= 60) return { from: '#ef9f76', to: '#f5a97f', light: '#b5bfe2' }
+    return { from: '#8caaee', to: '#85c1dc', light: '#b5bfe2' }
   }
 
   const chartOption = useMemo(() => {
@@ -105,16 +106,16 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
       .flatMap(point => point.data?.cpus?.cpus?.map(cpu => cpu.usage) || [])
     const maxCpu = Math.max(100, ...allValues, 0)
 
-    // Color palette for cores
+    // Color palette for cores using Catppuccin colors
     const colorPalette = [
-      ['#3b82f6', '#2563eb'], // Blue
-      ['#8b5cf6', '#7c3aed'], // Purple
-      ['#06b6d4', '#0891b2'], // Cyan
-      ['#10b981', '#059669'], // Green
-      ['#f59e0b', '#d97706'], // Amber
-      ['#ef4444', '#dc2626'], // Red
-      ['#ec4899', '#db2777'], // Pink
-      ['#6366f1', '#4f46e5'], // Indigo
+      [ '#8caaee', '#85c1dc' ], // Blue
+      [ '#ca9ee6', '#f4b8e4' ], // Mauve
+      [ '#81c8be', '#99d1db' ], // Teal
+      [ '#a6d189', '#a6da95' ], // Green
+      [ '#e5c890', '#eed49f' ], // Yellow
+      [ '#e78284', '#ea999c' ], // Red
+      [ '#f4b8e4', '#f2d5cf' ], // Pink
+      [ '#babbf1', '#b7bdf8' ], // Lavender
     ]
 
     // Detect mobile viewport
@@ -123,11 +124,11 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
 
     return {
       backgroundColor: 'transparent',
-      textStyle: { color: '#9ca3af', fontFamily: 'system-ui, -apple-system, sans-serif' },
+      textStyle: { color: '#b5bfe2', fontFamily: 'system-ui, -apple-system, sans-serif' },
       title: {
         text: isMobile ? 'CPU Usage' : 'CPU Usage Over Time',
         textStyle: { 
-          color: '#f3f4f6', 
+          color: '#c6d0f5', 
           fontSize: isMobile ? 13 : 16, 
           fontWeight: 'bold',
           fontFamily: 'system-ui, -apple-system, sans-serif'
@@ -144,21 +145,21 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
       },
       tooltip: {
         trigger: 'axis',
-        backgroundColor: 'rgba(17, 24, 39, 0.98)',
-        borderColor: '#4b5563',
+        backgroundColor: 'rgba(41, 44, 60, 0.98)',
+        borderColor: '#838ba7',
         borderWidth: 1,
-        textStyle: { color: '#fff', fontSize: isMobile ? 10 : 12 },
+        textStyle: { color: '#c6d0f5', fontSize: isMobile ? 10 : 12 },
         padding: isMobile ? [8, 10] : [10, 15],
         confine: true, // Keep tooltip within chart bounds on mobile
         axisPointer: {
           type: 'cross',
-          lineStyle: { color: '#6366f1', width: 1, opacity: 0.5 },
-          crossStyle: { color: '#6366f1', width: 1, opacity: 0.5 },
+          lineStyle: { color: '#babbf1', width: 1, opacity: 0.5 },
+          crossStyle: { color: '#babbf1', width: 1, opacity: 0.5 },
         },
         formatter: (params: any) => {
           if (!params || params.length === 0) return ''
           const date = new Date(params[0].value[0])
-          let html = `<div style="font-weight: bold; margin-bottom: ${isMobile ? 4 : 8}px; color: #a5b4fc; font-size: ${isMobile ? 10 : 12}px;">${date.toLocaleTimeString()}</div>`
+          let html = `<div style="font-weight: bold; margin-bottom: ${isMobile ? 4 : 8}px; color: #babbf1; font-size: ${isMobile ? 10 : 12}px;">${date.toLocaleTimeString()}</div>`
           
           // Limit to top 3 cores on mobile
           const displayParams = isMobile ? params.slice(0, 4) : params
@@ -173,7 +174,7 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
           })
           
           if (isMobile && params.length > 4) {
-            html += `<div style="margin-top: 4px; color: #9ca3af; font-size: 9px; text-align: center;">+${params.length - 4} more</div>`
+            html += `<div style="margin-top: 4px; color: #b5bfe2; font-size: 9px; text-align: center;">+${params.length - 4} more</div>`
           }
           
           return html
@@ -199,15 +200,15 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
               return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }
           },
-          color: '#6b7280',
+          color: '#838ba7',
           fontSize: isMobile ? 9 : 11,
           rotate: isMobile ? 45 : 0,
           hideOverlap: true,
         },
-        axisLine: { lineStyle: { color: '#374151', width: 1 } },
-        axisTick: { lineStyle: { color: '#4b5563' }, show: !isMobile },
+        axisLine: { lineStyle: { color: '#414559', width: 1 } },
+        axisTick: { lineStyle: { color: '#838ba7' }, show: !isMobile },
         splitLine: { 
-          lineStyle: { color: '#1f2937', type: 'dashed', opacity: 0.5 },
+          lineStyle: { color: '#414559', type: 'dashed', opacity: 0.5 },
           show: !isMobile,
         },
       },
@@ -216,26 +217,26 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
         min: 0,
         max: maxCpu,
         name: isMobile ? '' : 'Usage (%)',
-        nameTextStyle: { color: '#9ca3af', fontSize: isMobile ? 10 : 12, padding: [0, 0, 0, -10] },
+        nameTextStyle: { color: '#b5bfe2', fontSize: isMobile ? 10 : 12, padding: [0, 0, 0, -10] },
         axisLabel: { 
-          color: '#6b7280', 
+          color: '#838ba7', 
           formatter: (value: number) => isMobile ? `${value}` : `${value}%`, 
           fontSize: isMobile ? 9 : 11 
         },
         axisLine: { show: false },
         axisTick: { show: false },
-        splitLine: { lineStyle: { color: '#1f2937', type: 'dashed', opacity: 0.3 } },
+        splitLine: { lineStyle: { color: '#414559', type: 'dashed', opacity: 0.3 } },
       },
       legend: {
         show: !isMobile, // Hide legend on mobile
         bottom: 10,
         left: 'center',
-        textStyle: { color: '#9ca3af', fontSize: isTablet ? 10 : 11 },
+        textStyle: { color: '#b5bfe2', fontSize: isTablet ? 10 : 11 },
         icon: 'circle',
         itemWidth: isTablet ? 10 : 12,
         itemHeight: isTablet ? 10 : 12,
         itemGap: isTablet ? 12 : 20,
-        backgroundColor: 'rgba(31, 41, 55, 0.5)',
+        backgroundColor: 'rgba(65, 69, 89, 0.5)',
         borderRadius: 8,
         padding: isTablet ? [6, 15] : [8, 20],
       },
@@ -256,8 +257,8 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
               type: 'linear',
               x: 0, y: 0, x2: 1, y2: 0,
               colorStops: [
-                { offset: 0, color: '#a855f7' },
-                { offset: 1, color: '#ec4899' }
+                { offset: 0, color: '#ca9ee6' },
+                { offset: 1, color: '#f4b8e4' }
               ]
             }
           : {
@@ -274,8 +275,8 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
                 type: 'linear',
                 x: 0, y: 0, x2: 0, y2: 1,
                 colorStops: [
-                  { offset: 0, color: 'rgba(168, 85, 247, 0.15)' },
-                  { offset: 1, color: 'rgba(168, 85, 247, 0.01)' }
+                  { offset: 0, color: 'rgba(202, 158, 230, 0.15)' },
+                  { offset: 1, color: 'rgba(202, 158, 230, 0.01)' }
                 ]
               }
             }
@@ -294,28 +295,28 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
   }, [metrics, timeWindowSeconds])
 
   return (
-    <div className="card-premium relative overflow-hidden">
+    <div className={styles.container}>
       {/* CPU Core Status - Responsive Layout */}
       {currentMetrics && (
-        <div className="lg:absolute lg:top-6 lg:right-6 lg:z-10 lg:max-w-xs mb-4 lg:mb-0">
-          <div className="backdrop-blur-xl bg-gray-900/90 rounded-xl border border-gray-700/50 p-3 sm:p-4 shadow-2xl">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="rounded-lg bg-gradient-to-br from-blue-500/30 to-cyan-500/30 p-1.5 border border-blue-500/40">
-                <Cpu className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-400" />
+        <div className={styles.coreStatusContainer}>
+          <div className={styles.coreStatus}>
+            <div className={styles.coreStatusHeader}>
+              <div className={styles.coreStatusIconContainer}>
+                <Cpu className={styles.coreStatusIcon} />
               </div>
-              <span className="text-xs sm:text-sm font-bold text-gray-300">Live CPU Cores</span>
+              <span className={styles.coreStatusLabel}>Live CPU Cores</span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-1 gap-2 lg:space-y-2 lg:grid-cols-1 max-h-none sm:max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+            <div className={styles.coreList}>
               {currentMetrics.cpus.cpus.map((cpu, idx) => {
                 const colors = getCpuColor(cpu.usage)
                 return (
-                  <div key={idx} className="group">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] sm:text-xs text-gray-400 font-medium truncate max-w-[80px] sm:max-w-[120px]" title={cpu.name}>
+                  <div key={idx} className={styles.coreItem}>
+                    <div className={styles.coreItemHeader}>
+                      <span className={styles.coreItemName} title={cpu.name}>
                         {cpu.name}
                       </span>
                       <span 
-                        className="text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-md transition-all"
+                        className={styles.coreItemValue}
                         style={{ 
                           background: `linear-gradient(90deg, ${colors.from}33, ${colors.to}33)`,
                           color: colors.light,
@@ -325,9 +326,9 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
                         {cpu.usage.toFixed(1)}%
                       </span>
                     </div>
-                    <div className="h-1 sm:h-1.5 rounded-full bg-gray-800/50 overflow-hidden">
+                    <div className={styles.coreProgressBar}>
                       <div
-                        className="h-full rounded-full transition-all duration-500 ease-out"
+                        className={styles.coreProgressFill}
                         style={{
                           width: `${cpu.usage}%`,
                           background: `linear-gradient(90deg, ${colors.from}, ${colors.to})`,
@@ -344,7 +345,7 @@ export default function CpuChart({ serverId, currentMetrics }: CpuChartProps) {
       )}
       
       {/* Chart - Responsive Height */}
-      <div key={`cpu-chart-${serverId}`} className="h-[300px] sm:h-[350px] lg:h-[450px]">
+      <div key={`cpu-chart-${serverId}`} className={styles.chartContainer}>
         <ReactECharts
           option={chartOption}
           style={{ height: '100%' }}

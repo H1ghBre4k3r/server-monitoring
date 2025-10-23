@@ -1,0 +1,30 @@
+/* web-dashboard/src/components/servers/TemperatureChart.module.css */
+
+.chartContainer {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid var(--border-color);
+  background: linear-gradient(135deg, var(--mantle), var(--base));
+  height: 15.625rem;
+  transition: all 150ms var(--ease-out-cubic);
+  backdrop-filter: blur(4px);
+}
+
+.chartContainer:hover {
+  border-color: var(--border-hover);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+@media (min-width: 640px) {
+  .chartContainer {
+    height: 18.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .chartContainer {
+    height: 21.875rem;
+  }
+}

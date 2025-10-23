@@ -1,0 +1,153 @@
+/* web-dashboard/src/components/layout/Layout.module.css */
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+.mainContent {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.sidebarDesktop {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .sidebarDesktop {
+    display: block;
+  }
+}
+
+.mobileBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(var(--ctp-frappe-crust-rgb), 0.8);
+  backdrop-filter: blur(8px);
+  z-index: 40;
+  transition: all 150ms var(--ease-out-cubic);
+}
+
+.mobileSidebar {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  animation: slideInLeft 0.3s var(--ease-out-cubic) forwards;
+}
+
+.contentArea {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+.contentWrapper {
+  padding: 1rem;
+  animation: fadeIn 0.5s var(--ease-out-cubic) forwards;
+  position: relative;
+  z-index: 10;
+}
+
+@media (min-width: 640px) {
+  .contentWrapper {
+    padding: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .contentWrapper {
+    padding: 2rem;
+  }
+}
+
+.backgroundEffects {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(120px);
+  animation: pulse-glow 8s infinite alternate;
+  transition: all 300ms var(--ease-out-cubic);
+}
+
+.orb1 {
+  top: -200px;
+  right: -200px;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(var(--ctp-frappe-blue-rgb), 0.15), rgba(var(--ctp-frappe-sapphire-rgb), 0.05));
+}
+
+.orb2 {
+  bottom: -200px;
+  left: -200px;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(var(--ctp-frappe-mauve-rgb), 0.15), rgba(var(--ctp-frappe-pink-rgb), 0.05));
+  animation-delay: 2s;
+}
+
+.gridOverlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.02;
+  background-image: linear-gradient(90deg, rgba(var(--ctp-frappe-lavender-rgb), 0.5) 1px, transparent 1px),
+    linear-gradient(rgba(var(--ctp-frappe-lavender-rgb), 0.5) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+@media (min-width: 640px) {
+  .orb1,
+  .orb2 {
+    width: 600px;
+    height: 600px;
+  }
+  .gridOverlay {
+    display: block;
+  }
+}
+
+/* Keyframes */
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-glow {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
