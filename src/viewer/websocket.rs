@@ -3,7 +3,10 @@
 use anyhow::{Context, Result};
 use futures::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
-use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tokio_tungstenite::{
+    connect_async,
+    tungstenite::{Message, client::IntoClientRequest, http::Uri},
+};
 
 use crate::api::types::WsEvent;
 
@@ -66,7 +69,21 @@ impl WebSocketClient {
                     tracing::info!("WebSocket disconnected, reconnecting in 5s...");
                 }
                 Err(e) => {
-                    tracing::error!("WebSocket error: {}, reconnecting in 5s...", e);
+                    // Provide detailed error context
+                    let error_str = e.to_string().to_lowercase();
+                    if error_str.contains("tls")
+                        || error_str.contains("ssl")
+                        || error_str.contains("certificate")
+                    {
+                        tracing::error!(
+                            "WebSocket TLS/SSL error: {}. \
+                            If using wss://, ensure TLS features are enabled in Cargo.toml. \
+                            Reconnecting in 5s...",
+                            e
+                        );
+                    } else {
+                        tracing::error!("WebSocket connection error: {}. Reconnecting in 5s...", e);
+                    }
                 }
             }
 
@@ -83,16 +100,71 @@ impl WebSocketClient {
             self.url.clone()
         };
 
-        let (ws_stream, _) = connect_async(&url)
-            .await
-            .context("Failed to connect to WebSocket")?;
+        // Parse URL to extract host and scheme for headers
+        let uri: Uri = url.parse().context("Failed to parse WebSocket URL")?;
+
+        let host = uri
+            .authority()
+            .ok_or_else(|| anyhow::anyhow!("WebSocket URL missing host"))?
+            .as_str();
+
+        let scheme = uri
+            .scheme_str()
+            .ok_or_else(|| anyhow::anyhow!("WebSocket URL missing scheme"))?;
+
+        // Build Origin header (wss -> https, ws -> http)
+        let origin_scheme = if scheme == "wss" { "https" } else { "http" };
+        let origin = format!("{}://{}", origin_scheme, host);
+
+        // Save URL for logging (into_client_request consumes the url)
+        let url_for_logging = url.clone();
+
+        // Create WebSocket request using into_client_request() to preserve TLS/SNI configuration
+        // This is critical for connecting through reverse proxies like Traefik with Let's Encrypt
+        let mut request = url
+            .into_client_request()
+            .context("Failed to create WebSocket request")?;
+
+        // Add custom headers for Traefik/proxy compatibility
+        let headers = request.headers_mut();
+        headers.insert(
+            "Host",
+            host.parse().context("Failed to parse Host header value")?,
+        );
+        headers.insert(
+            "Origin",
+            origin
+                .parse()
+                .context("Failed to parse Origin header value")?,
+        );
+        headers.insert(
+            "User-Agent",
+            "guardia-viewer/0.5.0"
+                .parse()
+                .context("Failed to parse User-Agent header value")?,
+        );
+
+        tracing::debug!(
+            "Connecting to WebSocket: url={}, scheme={}, host={}, origin={}",
+            url_for_logging,
+            scheme,
+            host,
+            origin
+        );
+
+        let (ws_stream, _) = connect_async(request).await.with_context(|| {
+            format!(
+                "Failed to connect to WebSocket at {} (scheme: {}, host: {})",
+                url_for_logging, scheme, host
+            )
+        })?;
 
         tracing::info!("WebSocket connected");
 
         // Send connection established event
         tx.send(WsEvent::ServiceCheck {
             service_name: "Connection".to_string(),
-            url: url.clone(),
+            url: url_for_logging.clone(),
             timestamp: chrono::Utc::now(),
             status: crate::actors::messages::ServiceStatus::Up,
             response_time_ms: None,
@@ -142,7 +214,7 @@ impl WebSocketClient {
                     // Send connection lost event
                     tx.send(WsEvent::ServiceCheck {
                         service_name: "Connection".to_string(),
-                        url: url.clone(),
+                        url: url_for_logging.clone(),
                         timestamp: chrono::Utc::now(),
                         status: crate::actors::messages::ServiceStatus::Down,
                         response_time_ms: None,
@@ -167,7 +239,7 @@ impl WebSocketClient {
         // Send connection lost event for unexpected disconnections
         tx.send(WsEvent::ServiceCheck {
             service_name: "Connection".to_string(),
-            url: url.clone(),
+            url: url_for_logging.clone(),
             timestamp: chrono::Utc::now(),
             status: crate::actors::messages::ServiceStatus::Down,
             response_time_ms: None,
