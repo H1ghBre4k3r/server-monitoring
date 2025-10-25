@@ -7,11 +7,11 @@
 //! - Retention cleanup removes old metrics
 
 use chrono::{Duration, Utc};
-use server_monitoring::ServerMetrics;
-use server_monitoring::actors::messages::MetricEvent;
-use server_monitoring::actors::storage::StorageHandle;
-use server_monitoring::storage::StorageBackend;
-use server_monitoring::storage::sqlite::SqliteBackend;
+use guardia::ServerMetrics;
+use guardia::actors::messages::MetricEvent;
+use guardia::actors::storage::StorageHandle;
+use guardia::storage::StorageBackend;
+use guardia::storage::sqlite::SqliteBackend;
 use tempfile::tempdir;
 use tokio::sync::broadcast;
 
@@ -123,23 +123,19 @@ async fn test_retention_cleanup() {
     let old_timestamp = Utc::now() - Duration::days(35); // 35 days old
     let recent_timestamp = Utc::now() - Duration::hours(1); // 1 hour old
 
-    let old_metrics = vec![
-        server_monitoring::storage::schema::MetricRow::from_server_metrics(
-            server_id.clone(),
-            "Retention Test".to_string(),
-            old_timestamp,
-            &ServerMetrics::default(),
-        ),
-    ];
+    let old_metrics = vec![guardia::storage::schema::MetricRow::from_server_metrics(
+        server_id.clone(),
+        "Retention Test".to_string(),
+        old_timestamp,
+        &ServerMetrics::default(),
+    )];
 
-    let recent_metrics = vec![
-        server_monitoring::storage::schema::MetricRow::from_server_metrics(
-            server_id.clone(),
-            "Retention Test".to_string(),
-            recent_timestamp,
-            &ServerMetrics::default(),
-        ),
-    ];
+    let recent_metrics = vec![guardia::storage::schema::MetricRow::from_server_metrics(
+        server_id.clone(),
+        "Retention Test".to_string(),
+        recent_timestamp,
+        &ServerMetrics::default(),
+    )];
 
     // Insert both old and recent metrics
     backend.insert_batch(old_metrics).await.unwrap();
@@ -253,7 +249,7 @@ async fn test_query_range() {
     // Insert metrics at different times (every hour)
     let mut batch = Vec::new();
     for i in 0..10 {
-        let metric = server_monitoring::storage::schema::MetricRow::from_server_metrics(
+        let metric = guardia::storage::schema::MetricRow::from_server_metrics(
             server_id.clone(),
             "Range Test".to_string(),
             base_time + Duration::hours(i),
@@ -268,7 +264,7 @@ async fn test_query_range() {
     let start = base_time + Duration::hours(2);
     let end = base_time + Duration::hours(6);
 
-    let query = server_monitoring::storage::backend::QueryRange {
+    let query = guardia::storage::backend::QueryRange {
         server_id: server_id.clone(),
         start,
         end,
@@ -302,7 +298,7 @@ async fn test_query_range() {
 #[cfg(feature = "storage-sqlite")]
 #[tokio::test]
 async fn test_service_check_persistence() {
-    use server_monitoring::actors::messages::{ServiceCheckEvent, ServiceStatus};
+    use guardia::actors::messages::{ServiceCheckEvent, ServiceStatus};
 
     // Create temp database
     let temp_dir = tempdir().unwrap();
@@ -408,7 +404,7 @@ async fn test_service_check_persistence() {
 #[cfg(feature = "storage-sqlite")]
 #[tokio::test]
 async fn test_service_uptime_calculation() {
-    use server_monitoring::actors::messages::{ServiceCheckEvent, ServiceStatus};
+    use guardia::actors::messages::{ServiceCheckEvent, ServiceStatus};
 
     // Create temp database
     let temp_dir = tempdir().unwrap();
@@ -518,7 +514,7 @@ async fn test_service_uptime_calculation() {
 #[cfg(feature = "storage-sqlite")]
 #[tokio::test]
 async fn test_service_check_query_range() {
-    use server_monitoring::actors::messages::{ServiceCheckEvent, ServiceStatus};
+    use guardia::actors::messages::{ServiceCheckEvent, ServiceStatus};
 
     // Create temp database
     let temp_dir = tempdir().unwrap();

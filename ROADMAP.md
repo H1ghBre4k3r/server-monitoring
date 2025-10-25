@@ -1,4 +1,4 @@
-# Server Monitoring Roadmap
+# Guardia Roadmap
 
 This roadmap outlines the development plan to transform the current basic monitoring system into a comprehensive, production-ready monitoring platform with persistence, visualization, and service health checks.
 

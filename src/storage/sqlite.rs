@@ -60,7 +60,7 @@ impl SqliteBackend {
     /// ## Example
     ///
     /// ```no_run
-    /// # use server_monitoring::storage::sqlite::SqliteBackend;
+    /// # use guardia::storage::sqlite::SqliteBackend;
     /// # async fn example() -> anyhow::Result<()> {
     /// let backend = SqliteBackend::new("./metrics.db").await?;
     /// # Ok(())

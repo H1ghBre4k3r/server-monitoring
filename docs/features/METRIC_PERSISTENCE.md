@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the design and implementation of metric persistence for the server monitoring system. The goal is to store time-series metrics in a durable, queryable storage backend to enable historical analysis, dashboards, and trend detection.
+This document describes the design and implementation of metric persistence for the guardia system. The goal is to store time-series metrics in a durable, queryable storage backend to enable historical analysis, dashboards, and trend detection.
 
 ---
 

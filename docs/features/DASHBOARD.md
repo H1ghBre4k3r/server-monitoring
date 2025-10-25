@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the design and implementation of a beautiful terminal user interface (TUI) for visualizing server monitoring metrics in real-time. The dashboard will display historical trends, current status, and alerts using graphs, tables, and sparklines.
+This document describes the design and implementation of a beautiful terminal user interface (TUI) for visualizing Guardia metrics in real-time. The dashboard will display historical trends, current status, and alerts using graphs, tables, and sparklines.
 
 ---
 

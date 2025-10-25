@@ -1,4 +1,4 @@
-# Server Monitoring
+# Guardia
 
 > A comprehensive Rust-based server monitoring solution with distributed agent architecture, real-time metrics collection, service health checks, and beautiful dashboards.
 
@@ -99,7 +99,7 @@ Create `config.json` using the new format with global alerts and defaults:
 
 ```json
 {
-  "_comment": "Server Monitoring Configuration with Global Alerts",
+  "_comment": "Guardia Configuration with Global Alerts",
   
   "alerts": {
     "prod-critical": {

@@ -1,5 +1,5 @@
 {
-  "_comment": "Server Monitoring Configuration with Global Alerts",
+  "_comment": "Guardia Configuration with Global Alerts",
   "_new_format": "This example uses global alert definitions and defaults to reduce duplication",
 
   "_alerts_section": "Define reusable named alert configurations",

@@ -6,9 +6,7 @@
 //! - Actor crashes
 //! - Malformed data
 
-use server_monitoring::actors::{
-    alert::AlertHandle, collector::CollectorHandle, storage::StorageHandle,
-};
+use guardia::actors::{alert::AlertHandle, collector::CollectorHandle, storage::StorageHandle};
 use tokio::sync::broadcast;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -129,8 +127,8 @@ async fn test_storage_actor_handles_broadcast_lag() {
     // Send many metrics to overflow buffer
     for i in 0..20 {
         use chrono::Utc;
-        use server_monitoring::actors::messages::MetricEvent;
-        use server_monitoring::{
+        use guardia::actors::messages::MetricEvent;
+        use guardia::{
             ComponentOverview, CpuOverview, MemoryInformation, ServerMetrics, SystemInformation,
         };
 

@@ -19,7 +19,7 @@ The dashboard features a **completely redesigned UI** with:
 
 ## Features
 
-- **Real-time Server Monitoring**: View CPU, memory, and temperature metrics with live charts
+- **Real-time System Monitoring**: View CPU, memory, and temperature metrics with live charts
 - **Service Health Checks**: Monitor HTTP/HTTPS endpoints with uptime tracking
 - **Alert Timeline**: Track critical events and alerts with severity indicators
 - **WebSocket Streaming**: Real-time updates without polling

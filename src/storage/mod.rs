@@ -19,7 +19,7 @@
 //! ## Usage
 //!
 //! ```no_run
-//! use server_monitoring::storage::{StorageBackend, sqlite::SqliteBackend};
+//! use guardia::storage::{StorageBackend, sqlite::SqliteBackend};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {

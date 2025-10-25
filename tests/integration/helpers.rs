@@ -1,6 +1,6 @@
 //! Helper functions for integration tests
 
-use server_monitoring::config::{ResolvedLimit, ResolvedLimits, ResolvedServerConfig};
+use guardia::config::{ResolvedLimit, ResolvedLimits, ResolvedServerConfig};
 use std::net::IpAddr;
 use std::str::FromStr;
 

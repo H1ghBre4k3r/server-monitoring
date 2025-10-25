@@ -9,8 +9,7 @@
 
 use axum::http::StatusCode;
 use chrono::{Duration, Utc};
-use serde_json::Value;
-use server_monitoring::{
+use guardia::{
     ServerMetrics,
     actors::{
         collector::CollectorHandle,
@@ -22,6 +21,7 @@ use server_monitoring::{
     config::{HttpMethod, ResolvedServerConfig, ResolvedServiceConfig},
     storage::{StorageBackend, sqlite::SqliteBackend},
 };
+use serde_json::Value;
 use std::net::SocketAddr;
 use tempfile::tempdir;
 use tokio::sync::broadcast;
@@ -37,7 +37,7 @@ async fn spawn_test_api(
     let state = ApiState::new(
         storage,
         // Create dummy alert handle (not used in these tests)
-        server_monitoring::actors::alert::AlertHandle::spawn(
+        guardia::actors::alert::AlertHandle::spawn(
             vec![],
             vec![],
             metric_tx.subscribe(),
@@ -61,38 +61,38 @@ async fn spawn_test_api(
 // Helper to create test metrics
 fn create_test_metrics() -> ServerMetrics {
     ServerMetrics {
-        system: server_monitoring::SystemInformation {
+        system: guardia::SystemInformation {
             name: Some("Test System".to_string()),
             kernel_version: Some("5.15.0".to_string()),
             os_version: Some("Ubuntu 22.04".to_string()),
             host_name: Some("test-host".to_string()),
         },
-        memory: server_monitoring::MemoryInformation {
+        memory: guardia::MemoryInformation {
             total: 16_000_000_000,
             used: 8_000_000_000,
             total_swap: 4_000_000_000,
             used_swap: 1_000_000_000,
         },
-        cpus: server_monitoring::CpuOverview {
+        cpus: guardia::CpuOverview {
             total: 4,
             arch: "x86_64".to_string(),
             average_usage: 45.5,
             cpus: vec![
-                server_monitoring::CpuInformation {
+                guardia::CpuInformation {
                     name: "CPU 0".to_string(),
                     frequency: 2400,
                     usage: 42.0,
                 },
-                server_monitoring::CpuInformation {
+                guardia::CpuInformation {
                     name: "CPU 1".to_string(),
                     frequency: 2400,
                     usage: 49.0,
                 },
             ],
         },
-        components: server_monitoring::ComponentOverview {
+        components: guardia::ComponentOverview {
             average_temperature: Some(55.0),
-            components: vec![server_monitoring::ComponentInformation {
+            components: vec![guardia::ComponentInformation {
                 name: "CPU".to_string(),
                 temperature: Some(55.0),
             }],

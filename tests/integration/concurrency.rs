@@ -6,9 +6,7 @@
 //! - Race conditions in grace period counters
 //! - Channel backpressure handling
 
-use server_monitoring::actors::{
-    alert::AlertHandle, collector::CollectorHandle, storage::StorageHandle,
-};
+use guardia::actors::{alert::AlertHandle, collector::CollectorHandle, storage::StorageHandle};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::broadcast;
@@ -159,8 +157,8 @@ async fn test_channel_backpressure_handling() {
     // Send many metrics rapidly to test backpressure
     for i in 0..100 {
         use chrono::Utc;
-        use server_monitoring::actors::messages::MetricEvent;
-        use server_monitoring::{
+        use guardia::actors::messages::MetricEvent;
+        use guardia::{
             ComponentOverview, CpuOverview, MemoryInformation, ServerMetrics, SystemInformation,
         };
 

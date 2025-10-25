@@ -1,5 +1,5 @@
 [package]
-name = "server-monitoring"
+name = "guardia"
 version = "0.5.0"
 edition = "2024"
 authors = ["Louis Meyer (H1ghBre4k3r) <h1ghbe4k3r@dev.bre4k3r.de>"]

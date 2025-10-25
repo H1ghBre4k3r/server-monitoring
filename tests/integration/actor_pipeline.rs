@@ -5,9 +5,7 @@
 //! - Multiple collectors to single alert actor
 //! - Graceful shutdown of entire system
 
-use server_monitoring::actors::{
-    alert::AlertHandle, collector::CollectorHandle, storage::StorageHandle,
-};
+use guardia::actors::{alert::AlertHandle, collector::CollectorHandle, storage::StorageHandle};
 use tokio::sync::broadcast;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};

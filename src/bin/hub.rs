@@ -1,6 +1,6 @@
 use axum::routing::trace;
 use clap::Parser;
-use server_monitoring::{
+use guardia::{
     actors::{
         alert::AlertHandle, collector::CollectorHandle, service_monitor::ServiceHandle,
         storage::StorageHandle,
@@ -12,7 +12,7 @@ use tracing::{error, info, level_filters::LevelFilter, trace, warn};
 use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[cfg(feature = "storage-sqlite")]
-use server_monitoring::storage::{StorageBackend, sqlite::SqliteBackend};
+use guardia::storage::{StorageBackend, sqlite::SqliteBackend};
 
 #[derive(Debug, Clone, Parser)]
 struct Args {
@@ -152,7 +152,7 @@ async fn run_monitoring(resolved_config: ResolvedConfig) -> anyhow::Result<()> {
     // Spawn API server if configured
     #[cfg(feature = "api")]
     if let Some(api_config) = resolved_config.api {
-        use server_monitoring::api::{ApiConfig, ApiState, spawn_api_server};
+        use guardia::api::{ApiConfig, ApiState, spawn_api_server};
         use std::net::SocketAddr;
 
         let bind_addr: SocketAddr = format!("{}:{}", api_config.bind, api_config.port)
