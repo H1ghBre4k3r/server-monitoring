@@ -57,7 +57,7 @@ export default function Header({ isConnected, onRefresh, onMenuToggle, isMobileM
             </div>
             <div className={styles.titleText}>
               <h1>Guardia</h1>
-              <p>Server Monitoring Dashboard</p>
+              <p>System Monitoring Dashboard</p>
             </div>
           </div>
         </div>

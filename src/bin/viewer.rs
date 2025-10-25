@@ -8,7 +8,7 @@ use clap::Parser;
 use std::path::PathBuf;
 
 #[cfg(feature = "dashboard")]
-use server_monitoring::viewer::App;
+use guardia::viewer::App;
 
 #[derive(Parser, Debug)]
 #[command(name = "guardia-viewer")]
@@ -68,10 +68,10 @@ async fn main() -> Result<()> {
         let args = Args::parse();
 
         // Load configuration
-        let config = server_monitoring::viewer::Config::load(args.config.as_deref())?;
+        let config = guardia::viewer::Config::load(args.config.as_deref())?;
 
         // Override with CLI args if provided
-        let config = server_monitoring::viewer::Config {
+        let config = guardia::viewer::Config {
             api_url: args.url.unwrap_or(config.api_url),
             api_token: args.token.or(config.api_token),
             ..config

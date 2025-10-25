@@ -6,8 +6,8 @@
 //! - Alert triggering conditions
 //! - Resource evaluation logic
 
+use guardia::monitors::resources::ResourceEvaluation;
 use proptest::prelude::*;
-use server_monitoring::monitors::resources::ResourceEvaluation;
 
 // Property: Grace counter never goes negative
 proptest! {

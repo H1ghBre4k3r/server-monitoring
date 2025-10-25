@@ -1,3 +1,8 @@
+use guardia::{
+    ComponentInformation, ComponentOverview, CpuInformation, CpuOverview, MemoryInformation,
+    ServerMetrics, SystemInformation,
+    util::{get_addr, get_port, get_secret},
+};
 use rocket::{
     figment::Figment,
     get,
@@ -6,11 +11,6 @@ use rocket::{
     request::{FromRequest, Outcome},
     routes,
     serde::json::Json,
-};
-use server_monitoring::{
-    ComponentInformation, ComponentOverview, CpuInformation, CpuOverview, MemoryInformation,
-    ServerMetrics, SystemInformation,
-    util::{get_addr, get_port, get_secret},
 };
 use sysinfo::{Components, System};
 use tracing::{error, instrument};

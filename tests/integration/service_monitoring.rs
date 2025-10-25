@@ -7,9 +7,9 @@
 //! - Status code validation works
 //! - Body pattern matching works
 
-use server_monitoring::actors::messages::ServiceStatus;
-use server_monitoring::actors::service_monitor::ServiceHandle;
-use server_monitoring::config::{HttpMethod, ResolvedServiceConfig};
+use guardia::actors::messages::ServiceStatus;
+use guardia::actors::service_monitor::ServiceHandle;
+use guardia::config::{HttpMethod, ResolvedServiceConfig};
 use tokio::sync::broadcast;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};

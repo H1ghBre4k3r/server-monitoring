@@ -75,7 +75,7 @@ pub trait StorageBackend: Send + Sync {
     /// ## Example
     ///
     /// ```no_run
-    /// # use server_monitoring::storage::{StorageBackend, schema::MetricRow};
+    /// # use guardia::storage::{StorageBackend, schema::MetricRow};
     /// # async fn example(backend: &dyn StorageBackend, metrics: Vec<MetricRow>) {
     /// backend.insert_batch(metrics).await.expect("insert failed");
     /// # }

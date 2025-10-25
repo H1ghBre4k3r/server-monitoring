@@ -1131,6 +1131,45 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8d1add55171497b4705a648c6b583acafb01d58050a51727785f0b2c8e0a2b2"
 
 [[package]]
+name = "guardia"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "assert_matches",
+ "async-trait",
+ "axum 0.7.9",
+ "chrono",
+ "clap",
+ "crossterm 0.29.0",
+ "dirs",
+ "dotenv",
+ "futures",
+ "pretty_assertions",
+ "proptest",
+ "ratatui",
+ "regex",
+ "reqwest",
+ "rocket",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "sysinfo",
+ "tempfile",
+ "tokio",
+ "tokio-test",
+ "tokio-tungstenite",
+ "toml 0.9.8",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "wiremock",
+]
+
+[[package]]
 name = "h2"
 version = "0.3.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2838,45 +2877,6 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
-]
-
-[[package]]
-name = "server-monitoring"
-version = "0.5.0"
-dependencies = [
- "anyhow",
- "assert_matches",
- "async-trait",
- "axum 0.7.9",
- "chrono",
- "clap",
- "crossterm 0.29.0",
- "dirs",
- "dotenv",
- "futures",
- "pretty_assertions",
- "proptest",
- "ratatui",
- "regex",
- "reqwest",
- "rocket",
- "serde",
- "serde_json",
- "sqlx",
- "sysinfo",
- "tempfile",
- "tokio",
- "tokio-test",
- "tokio-tungstenite",
- "toml 0.9.8",
- "tower",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "url",
- "utoipa",
- "utoipa-swagger-ui",
- "wiremock",
 ]
 
 [[package]]

@@ -2,7 +2,7 @@
   "name": "guardia-web-dashboard",
   "version": "0.1.0",
   "type": "module",
-  "description": "Web dashboard for Server Monitoring Hub",
+  "description": "Web dashboard for Guardia Hub",
   "main": "dist/index.js",
   "scripts": {
     "dev": "vite",

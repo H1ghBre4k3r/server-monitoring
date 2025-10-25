@@ -1,7 +1,7 @@
 //! Test helpers and utilities for integration and end-to-end tests
 
 use chrono::Utc;
-use server_monitoring::{
+use guardia::{
     config::{Alert, Discord, Limit, Limits, ResolvedLimit, ResolvedLimits, ResolvedServerConfig, ResolvedServiceConfig, ServerConfig, Webhook},
     ServerMetrics, ComponentOverview, CpuOverview, MemoryInformation, SystemInformation,
     actors::messages::MetricEvent,

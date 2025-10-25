@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document specifies the REST and WebSocket APIs for the server monitoring system. These APIs enable:
+This document specifies the REST and WebSocket APIs for the guardia system. These APIs enable:
 - **Remote dashboard access** (TUI viewer connecting to hub)
 - **Third-party integrations** (custom tools, scripts, automation)
 - **Real-time metric streaming** (WebSocket for live updates)
